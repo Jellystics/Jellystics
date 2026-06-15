@@ -66,8 +66,8 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box component="img" src="/logo.svg" alt="Jellyfin" sx={{ width: 28, height: 28 }} />
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+          <Box component="img" src="/logo.svg" alt="Jellyfin" sx={{ width: 40, height: 40 }} />
+          <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
             Jellystics
           </Typography>
         </Box>
