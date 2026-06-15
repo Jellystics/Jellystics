@@ -41,8 +41,6 @@ export default function AppShell() {
         sx={(t) => ({
           bgcolor: appBarBg,
           color: 'text.primary',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
           transition: t.transitions.create(['margin', 'width'], {
             easing: t.transitions.easing.sharp,
             duration: t.transitions.duration.leavingScreen,
