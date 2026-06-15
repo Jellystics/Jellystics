@@ -14,6 +14,7 @@ import StatCard from '@/shared/components/StatCard/StatCard'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import ActivityHeatmap from './components/ActivityHeatmap'
+import GenreRadarChart from './components/GenreRadarChart'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
@@ -131,6 +132,7 @@ export default function UserDetailPage() {
       <ChartCard
         title={t('users.watchOverTime')}
         loading={loading}
+        empty={watchOverTime.length === 0}
         height={200}
         action={<MetricToggle value={watchMetric} onChange={setWatchMetric} />}
       >
@@ -174,19 +176,13 @@ export default function UserDetailPage() {
         <Card>
           <CardContent>
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+              <Skeleton variant="rectangular" width="100%" height={320} sx={{ borderRadius: 2 }} />
             ) : genres.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">{t('common.noData')}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                {t('common.noData')}
+              </Typography>
             ) : (
-              genres.map((g) => (
-                <Box key={g.Genre} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-                  <Typography variant="body2">{g.Genre}</Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Chip label={`${g.Count} ${t('common.items')}`} size="small" sx={{ fontSize: 11, height: 20 }} />
-                    <Chip label={`${g.PlayCount} ${t('common.plays')}`} size="small" color="primary" sx={{ fontSize: 11, height: 20 }} />
-                  </Box>
-                </Box>
-              ))
+              <GenreRadarChart genres={genres} />
             )}
           </CardContent>
         </Card>

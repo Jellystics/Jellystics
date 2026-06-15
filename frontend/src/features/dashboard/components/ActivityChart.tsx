@@ -32,10 +32,13 @@ export default function ActivityChart({ data, loading, metric, onMetricChange }:
   const dataKey = metric === 'duration' ? 'duration' : 'count'
   const label = metric === 'duration' ? t('stats.watchTime') : t('common.plays')
 
+  const isEmpty = data.length === 0
+
   return (
     <ChartCard
       title={t('dashboard.activityLast7Days')}
       loading={loading}
+      empty={isEmpty}
       height={220}
       action={<MetricToggle value={metric} onChange={onMetricChange} />}
     >

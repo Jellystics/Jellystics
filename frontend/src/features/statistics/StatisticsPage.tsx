@@ -115,6 +115,7 @@ export default function StatisticsPage() {
           <ChartCard
             title={t('stats.playsOverTime30d')}
             loading={loading}
+            empty={overTime.length === 0}
             height={240}
             action={<MetricToggle value={overTimeMetric} onChange={setOverTimeMetric} />}
           >
@@ -136,6 +137,7 @@ export default function StatisticsPage() {
           <ChartCard
             title={t('stats.playsByHour')}
             loading={loading}
+            empty={byHour.length === 0}
             height={220}
             action={<MetricToggle value={hourMetric} onChange={setHourMetric} />}
           >
@@ -154,6 +156,7 @@ export default function StatisticsPage() {
           <ChartCard
             title={t('stats.playsByDayOfWeek')}
             loading={loading}
+            empty={byDay.length === 0}
             height={220}
             action={<MetricToggle value={dayMetric} onChange={setDayMetric} />}
           >
@@ -175,6 +178,7 @@ export default function StatisticsPage() {
           <ChartCard
             title={t('stats.playbackMethod')}
             loading={loading}
+            empty={byMethod.length === 0}
             height={280}
             action={<MetricToggle value={methodMetric} onChange={setMethodMetric} />}
           >
@@ -193,6 +197,7 @@ export default function StatisticsPage() {
           <ChartCard
             title={t('stats.topClients')}
             loading={loading}
+            empty={byClient.length === 0}
             height={280}
             action={<MetricToggle value={clientMetric} onChange={setClientMetric} />}
           >

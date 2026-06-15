@@ -236,7 +236,7 @@ export default function LibraryDetailPage() {
       {tab === 1 && (
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <ChartCard title={t('library.genreDistribution')} loading={loading} height={320}>
+            <ChartCard title={t('library.genreDistribution')} loading={loading} empty={genres.length === 0} height={320}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={genres} dataKey="Count" nameKey="Genre" cx="50%" cy="50%" outerRadius={120} label={true}>
