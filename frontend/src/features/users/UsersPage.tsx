@@ -35,7 +35,10 @@ export default function UsersPage() {
       header: t('users.user'),
       cell: (i) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={() => navigate(`/users/${i.row.original.UserId}`)}>
-          <Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12, fontWeight: 700 }}>
+          <Avatar
+            src={`/proxy/Users/Images/Primary/?id=${i.row.original.UserId}&fillWidth=56&quality=90`}
+            sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12, fontWeight: 700 }}
+          >
             {(i.getValue() as string).charAt(0).toUpperCase()}
           </Avatar>
           <Typography variant="body2" sx={{ fontWeight: 500 }} color="primary.main">{i.getValue() as string}</Typography>

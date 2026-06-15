@@ -30,7 +30,7 @@ export function buildTheme(accent: string = getAccentColor(), mode: ThemeMode = 
       background: isDark
         ? { default: '#111114', paper: '#18181f' }
         : { default: '#f0f2f5', paper: '#ffffff' },
-      primary: { main: accent },
+      primary: { main: accent, contrastText: '#ffffff' },
       secondary: { main: '#7c3aed' },
       divider: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
       text: isDark

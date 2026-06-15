@@ -33,7 +33,10 @@ export default function TopUsers({ users, loading }: TopUsersProps) {
               <ListItem key={user.UserId} disablePadding sx={{ py: 0.5 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, mr: 1 }}>{i + 1}</Typography>
                 <ListItemAvatar sx={{ minWidth: 44 }}>
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+                  <Avatar
+                    src={`/proxy/Users/Images/Primary/?id=${user.UserId}&fillWidth=64&quality=90`}
+                    sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}
+                  >
                     {user.UserName.charAt(0).toUpperCase()}
                   </Avatar>
                 </ListItemAvatar>

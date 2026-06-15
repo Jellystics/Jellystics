@@ -58,7 +58,10 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
         ) : (
           activeSessions.map((session) => (
             <Box key={session.Id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-              <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14 }}>
+              <Avatar
+                src={`/proxy/Users/Images/Primary/?id=${session.UserId}&fillWidth=72&quality=90`}
+                sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 14 }}
+              >
                 <PersonCircle24Regular />
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>

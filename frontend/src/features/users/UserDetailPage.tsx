@@ -91,7 +91,10 @@ export default function UserDetailPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {loading ? <Skeleton variant="circular" width={56} height={56} /> : (
-            <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}>
+            <Avatar
+              src={`/proxy/Users/Images/Primary/?id=${id}&fillWidth=112&quality=90`}
+              sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}
+            >
               {username.charAt(0).toUpperCase()}
             </Avatar>
           )}

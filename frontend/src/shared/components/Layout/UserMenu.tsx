@@ -14,7 +14,7 @@ export default function UserMenu() {
   const navigate = useNavigate()
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const { username } = useCurrentUser()
+  const { username, avatarUrl } = useCurrentUser()
 
   const handleLogout = () => {
     setAnchorEl(null)
@@ -29,6 +29,7 @@ export default function UserMenu() {
     <>
       <IconButton size="large" onClick={(e) => setAnchorEl(e.currentTarget)}>
         <Avatar
+          src={avatarUrl}
           sx={{
             width: 30,
             height: 30,
