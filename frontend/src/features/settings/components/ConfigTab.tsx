@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { useSnackbar } from 'notistack'
 import api from '@/lib/axios'
-import { getAccentColor, setAccentColor } from '@/lib/theme'
 
 const schema = z.object({
   JellyfinUrl: z.string().url(),
@@ -21,14 +20,6 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-const ACCENT_COLORS = [
-  { labelKey: 'colors.violet', value: '#a78bfa' },
-  { labelKey: 'colors.blue', value: '#60a5fa' },
-  { labelKey: 'colors.cyan', value: '#22d3ee' },
-  { labelKey: 'colors.green', value: '#4ade80' },
-  { labelKey: 'colors.orange', value: '#fb923c' },
-  { labelKey: 'colors.pink', value: '#f472b6' },
-]
 
 const languages = [
   { code: 'en', displayName: 'English' },
@@ -39,7 +30,6 @@ const languages = [
 export default function ConfigTab() {
   const { t } = useTranslation()
   const { enqueueSnackbar } = useSnackbar()
-  const [accent, setAccent] = useState(getAccentColor())
   const [lang, setLang] = useState(i18next.language)
 
   const {
@@ -68,12 +58,6 @@ export default function ConfigTab() {
     } catch {
       enqueueSnackbar(t('common.saveError'), { variant: 'error' })
     }
-  }
-
-  const handleAccentChange = (color: string) => {
-    setAccent(color)
-    setAccentColor(color)
-    window.location.reload()
   }
 
   const handleLanguageChange = (code: string) => {
@@ -186,30 +170,6 @@ export default function ConfigTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.accentColor')}</Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 1 }}>
-            {ACCENT_COLORS.map((c) => (
-              <Box
-                key={c.value}
-                onClick={() => handleAccentChange(c.value)}
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  bgcolor: c.value,
-                  cursor: 'pointer',
-                  border: accent === c.value ? '3px solid white' : '3px solid transparent',
-                  transition: 'transform 0.1s',
-                  '&:hover': { transform: 'scale(1.15)' },
-                }}
-                title={t(c.labelKey)}
-              />
-            ))}
-          </Box>
-        </CardContent>
-      </Card>
     </Box>
   )
 }

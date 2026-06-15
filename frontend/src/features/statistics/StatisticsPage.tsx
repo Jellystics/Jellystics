@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Grid, Alert } from '@mui/material'
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts'
-import { useTheme } from '@mui/material/styles'
+
+import { BarChart } from '@mui/x-charts/BarChart'
+import { PieChart } from '@mui/x-charts/PieChart'
 import { useTranslation } from 'react-i18next'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
@@ -15,11 +13,14 @@ import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 
-const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe']
+type ActiveUser = { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
+type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
+
+// Chart colors — independent of the UI primary color
+const CHART_COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
 
 export default function StatisticsPage() {
   const { t } = useTranslation()
-  const theme = useTheme()
   const [overTime, setOverTime] = useState<WatchStatOverTime[]>([])
   const [byHour, setByHour] = useState<HourStat[]>([])
   const [byDay, setByDay] = useState<DayStat[]>([])
@@ -30,6 +31,8 @@ export default function StatisticsPage() {
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
   const [methodMetric, setMethodMetric] = useState<ActivityMetric>('count')
   const [clientMetric, setClientMetric] = useState<ActivityMetric>('count')
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
+  const [topItems, setTopItems] = useState<PlayedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,13 +45,17 @@ export default function StatisticsPage() {
         api.get('/stats/getPopularDayOfWeek'),
         api.get('/stats/getMostUsedPlaybackMethod'),
         api.get('/stats/getMostUsedClients'),
+        api.get('/stats/getMostActiveUsers?limit=8'),
+        api.get('/stats/getMostPlayedItems?limit=10'),
       ])
-        .then(([otRes, hourRes, dayRes, methodRes, clientRes]) => {
+        .then(([otRes, hourRes, dayRes, methodRes, clientRes, usersRes, itemsRes]) => {
           setOverTime(otRes.data ?? [])
           setByHour(hourRes.data ?? [])
           setByDay(dayRes.data ?? [])
           setByMethod(methodRes.data ?? [])
           setByClient(clientRes.data ?? [])
+          setActiveUsers((usersRes.data ?? []).slice(0, 8))
+          setTopItems((itemsRes.data ?? []).slice(0, 10))
         })
         .catch(() => setError(t('common.loadError')))
         .finally(() => setLoading(false))
@@ -76,25 +83,19 @@ export default function StatisticsPage() {
     plays: byDay.find((d) => d.day === String(i))?.plays ?? 0,
     duration: byDay.find((d) => d.day === String(i))?.duration ?? 0,
   }))
+
   const chartMetric = (metric: ActivityMetric) => ({
-    barKey: metric === 'duration' ? 'duration' : 'plays',
-    pieKey: metric === 'duration' ? 'duration' : 'count',
     label: metric === 'duration' ? t('stats.watchTime') : t('common.plays'),
-    formatter: (value: unknown) => metric === 'duration' ? formatWatchTime(Number(value ?? 0)) : String(value ?? 0),
+    formatter: (value: number | null) => metric === 'duration' ? formatWatchTime(value ?? 0) : String(value ?? 0),
+    getValue: (d: { plays: number; duration: number }) => metric === 'duration' ? d.duration : d.plays,
+    getPieValue: (d: { count: number; duration: number }) => metric === 'duration' ? d.duration : d.count,
   })
 
-  const overTimeChart = chartMetric(overTimeMetric)
+  const otChart = chartMetric(overTimeMetric)
   const hourChart = chartMetric(hourMetric)
   const dayChart = chartMetric(dayMetric)
   const methodChart = chartMetric(methodMetric)
   const clientChart = chartMetric(clientMetric)
-
-  const tooltipStyle = {
-    backgroundColor: theme.palette.background.paper,
-    border: `1px solid ${theme.palette.divider}`,
-    borderRadius: 8,
-    fontSize: 12,
-  }
 
   return (
     <>
@@ -119,15 +120,14 @@ export default function StatisticsPage() {
             height={240}
             action={<MetricToggle value={overTimeMetric} onChange={setOverTimeMetric} />}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={overTime} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={overTimeChart.formatter} />
-                <Bar dataKey={overTimeChart.barKey} fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} name={overTimeChart.label} />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart
+              xAxis={[{ data: overTime.map((d) => d.date), scaleType: 'band' }]}
+              series={[{ data: overTime.map((d) => otChart.getValue(d)), label: otChart.label, valueFormatter: otChart.formatter, color: CHART_COLORS[0] }]}
+              height={240}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
           </ChartCard>
         </Grid>
       </Grid>
@@ -141,15 +141,14 @@ export default function StatisticsPage() {
             height={220}
             action={<MetricToggle value={hourMetric} onChange={setHourMetric} />}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis dataKey="hour" tick={{ fontSize: 9, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={hourChart.formatter} />
-                <Bar dataKey={hourChart.barKey} fill={theme.palette.primary.main} radius={[3, 3, 0, 0]} name={hourChart.label} />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart
+              xAxis={[{ data: hourData.map((d) => d.hour), scaleType: 'band' }]}
+              series={[{ data: hourData.map((d) => hourChart.getValue(d)), label: hourChart.label, valueFormatter: hourChart.formatter, color: CHART_COLORS[0] }]}
+              height={220}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
           </ChartCard>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -160,15 +159,14 @@ export default function StatisticsPage() {
             height={220}
             action={<MetricToggle value={dayMetric} onChange={setDayMetric} />}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={dayChart.formatter} />
-                <Bar dataKey={dayChart.barKey} fill={theme.palette.secondary.main} radius={[3, 3, 0, 0]} name={dayChart.label} />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart
+              xAxis={[{ data: dayData.map((d) => d.day), scaleType: 'band' }]}
+              series={[{ data: dayData.map((d) => dayChart.getValue(d)), label: dayChart.label, valueFormatter: dayChart.formatter, color: CHART_COLORS[1] }]}
+              height={220}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
           </ChartCard>
         </Grid>
       </Grid>
@@ -182,15 +180,17 @@ export default function StatisticsPage() {
             height={280}
             action={<MetricToggle value={methodMetric} onChange={setMethodMetric} />}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={byMethod} dataKey={methodChart.pieKey} nameKey="method" cx="50%" cy="50%" outerRadius={100} label={true}>
-                  {byMethod.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={methodChart.formatter} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChart
+              series={[{
+                data: byMethod.map((item, i) => ({ id: i, value: methodChart.getPieValue(item), label: item.method, color: CHART_COLORS[i % CHART_COLORS.length] })),
+                outerRadius: 100,
+                paddingAngle: 2,
+                cornerRadius: 3,
+                valueFormatter: (item) => methodChart.formatter(item.value),
+              }]}
+              height={280}
+              sx={{ width: '100%' }}
+            />
           </ChartCard>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -201,15 +201,69 @@ export default function StatisticsPage() {
             height={280}
             action={<MetricToggle value={clientMetric} onChange={setClientMetric} />}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={byClient} dataKey={clientChart.pieKey} nameKey="client" cx="50%" cy="50%" outerRadius={100} label={true}>
-                  {byClient.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} formatter={clientChart.formatter} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChart
+              series={[{
+                data: byClient.map((item, i) => ({ id: i, value: clientChart.getPieValue(item), label: item.client, color: CHART_COLORS[i % CHART_COLORS.length] })),
+                outerRadius: 100,
+                paddingAngle: 2,
+                cornerRadius: 3,
+                valueFormatter: (item) => clientChart.formatter(item.value),
+              }]}
+              height={280}
+              sx={{ width: '100%' }}
+            />
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mt: 2 }}>
+        <Grid size={{ xs: 12 }}>
+          <ChartCard
+            title={t('stats.mostActiveUsers', 'Utilisateurs les plus actifs')}
+            loading={loading}
+            empty={activeUsers.length === 0}
+            height={220}
+          >
+            <BarChart
+              xAxis={[{ data: activeUsers.map((d) => d.UserName), scaleType: 'band' }]}
+              series={[{
+                data: activeUsers.map((d) => d.TotalPlays),
+                label: t('common.plays'),
+                valueFormatter: (v) => String(v ?? 0),
+                color: CHART_COLORS[0],
+              }]}
+              height={220}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mt: 2, mb: 2 }}>
+        <Grid size={{ xs: 12 }}>
+          <ChartCard
+            title={t('stats.topItems', 'Contenus les plus vus')}
+            loading={loading}
+            empty={topItems.length === 0}
+            height={280}
+          >
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: topItems.map((d) => d.Name), scaleType: 'band' }]}
+              xAxis={[{ label: t('common.plays') }]}
+              series={[{
+                data: topItems.map((d) => d.PlayCount),
+                label: t('common.plays'),
+                valueFormatter: (v) => String(v ?? 0),
+                color: CHART_COLORS[2],
+              }]}
+              height={280}
+              sx={{ width: '100%' }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
           </ChartCard>
         </Grid>
       </Grid>

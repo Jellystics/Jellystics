@@ -43,6 +43,11 @@
     "liveSessions": "Sesiones activas",
     "noActiveSessions": "Sin sesiones activas",
     "activityLast7Days": "Actividad (últimos 7 días)",
+    "activityLast30Days": "Actividad (últimos 30 días)",
+    "activityLastNDays": "Actividad (últimos {{days}} días)",
+    "activity": "Actividad",
+    "combinedView": "Vista combinada",
+    "singleView": "Vista simple",
     "topContent": "Contenido popular",
     "topUsers": "Usuarios activos"
   },
@@ -59,7 +64,19 @@
     "playsByHour": "Reproducciones por hora",
     "playsByDayOfWeek": "Reproducciones por día",
     "playbackMethod": "Métodos de reproducción",
-    "topClients": "Clientes populares"
+    "topClients": "Clientes populares",
+    "viewsByMediaType": "Reproducciones por tipo de media",
+    "mostViewedLibraries": "Bibliotecas más vistas",
+    "mediaType": {
+      "movie": "Películas",
+      "series": "Series",
+      "audio": "Música",
+      "other": "Otro"
+    },
+    "mostActiveUsers": "Usuarios más activos",
+    "topItems": "Contenidos más vistos",
+    "recentPlays": "Reproducciones (24h)",
+    "genreDetail": "Detalle por género"
   },
   "activity": {
     "user": "Usuario",
@@ -70,7 +87,9 @@
     "date": "Fecha",
     "duration": "Duración",
     "ip": "Dirección IP",
-    "search": "Buscar actividad..."
+    "search": "Buscar actividad...",
+    "transcodes": "Transcodificaciones",
+    "directPlays": "Reproducciones directas"
   },
   "library": {
     "itemName": "Nombre",
@@ -82,7 +101,11 @@
     "items": "Elementos",
     "genres": "Géneros",
     "genreDistribution": "Distribución por género",
-    "genreList": "Lista de géneros"
+    "genreList": "Lista de géneros",
+    "stats": "Estadísticas",
+    "activityOverTime": "Actividad en el tiempo",
+    "topItems": "Elementos más vistos",
+    "playMethod": "Método de reproducción"
   },
   "users": {
     "user": "Usuario",
@@ -91,7 +114,9 @@
     "search": "Buscar usuario...",
     "activityHeatmap": "Mapa de actividad",
     "watchHistory": "Historial",
-    "watchOverTime": "Visionado en 30 días"
+    "watchOverTime": "Visionado en 30 días",
+    "leaderboard": "Top usuarios",
+    "lastPlayed": "Visto recientemente"
   },
   "settings": {
     "config": "Configuración",
@@ -145,7 +170,14 @@
     "deleteApiKey": "Eliminar clave API",
     "deleteApiKeyConfirm": "¿Eliminar esta clave API? Dejará de funcionar inmediatamente.",
     "keyName": "Nombre de la clave",
-    "noApiKeys": "Sin claves API"
+    "noApiKeys": "Sin claves API",
+    "importBackup": "Importar copia de seguridad",
+    "importBackupDesc": "Importa un archivo TSV exportado desde el plugin Jellyfin Playback Reporting",
+    "importBackupSelect": "Seleccionar archivo",
+    "importBackupRun": "Importar",
+    "importBackupSuccess": "{{count}} registros importados correctamente",
+    "importBackupError": "Error al importar",
+    "importBackupNoFile": "Ningún archivo seleccionado"
   },
   "frame": {
     "language": "Idioma",
@@ -195,11 +227,19 @@
   },
   "colors": {
     "violet": "Violeta (predeterminado)",
+    "jellyfin": "Jellyfin",
     "blue": "Azul",
+    "indigo": "Índigo",
     "cyan": "Cian",
+    "teal": "Verde azulado",
     "green": "Verde",
+    "emerald": "Esmeralda",
+    "amber": "Ámbar",
     "orange": "Naranja",
-    "pink": "Rosa"
+    "red": "Rojo",
+    "pink": "Rosa",
+    "rose": "Rosa vivo",
+    "slate": "Gris pizarra"
   },
   "error": {
     "loadDashboard": "Error al cargar los datos del panel"
@@ -240,5 +280,12 @@
   },
   "placeholder": {
     "jellyfinUrl": "http://192.168.1.x:8096"
+  },
+  "timeRange": {
+    "custom": "Personalizado",
+    "customRange": "Rango personalizado",
+    "from": "Desde",
+    "to": "Hasta",
+    "apply": "Aplicar"
   }
 }

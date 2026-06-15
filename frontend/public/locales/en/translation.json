@@ -43,6 +43,11 @@
     "liveSessions": "Live Sessions",
     "noActiveSessions": "No active sessions",
     "activityLast7Days": "Activity (last 7 days)",
+    "activityLast30Days": "Activity (last 30 days)",
+    "activityLastNDays": "Activity (last {{days}} days)",
+    "activity": "Activity",
+    "combinedView": "Combined view",
+    "singleView": "Single view",
     "topContent": "Top Content",
     "topUsers": "Top Users"
   },
@@ -59,7 +64,19 @@
     "playsByHour": "Plays by hour of day",
     "playsByDayOfWeek": "Plays by day of week",
     "playbackMethod": "Playback Methods",
-    "topClients": "Top Clients"
+    "topClients": "Top Clients",
+    "viewsByMediaType": "Views by media type",
+    "mostViewedLibraries": "Most viewed libraries",
+    "mediaType": {
+      "movie": "Movies",
+      "series": "TV Shows",
+      "audio": "Music",
+      "other": "Other"
+    },
+    "mostActiveUsers": "Most active users",
+    "topItems": "Top viewed items",
+    "recentPlays": "Plays (24h)",
+    "genreDetail": "Genre breakdown"
   },
   "activity": {
     "user": "User",
@@ -70,7 +87,9 @@
     "date": "Date",
     "duration": "Duration",
     "ip": "IP Address",
-    "search": "Search activity..."
+    "search": "Search activity...",
+    "transcodes": "Transcodes",
+    "directPlays": "Direct Plays"
   },
   "library": {
     "itemName": "Name",
@@ -82,7 +101,11 @@
     "items": "Items",
     "genres": "Genres",
     "genreDistribution": "Genre Distribution",
-    "genreList": "Genre List"
+    "genreList": "Genre List",
+    "stats": "Stats",
+    "activityOverTime": "Activity over time",
+    "topItems": "Most watched items",
+    "playMethod": "Playback method"
   },
   "users": {
     "user": "User",
@@ -91,7 +114,9 @@
     "search": "Search users...",
     "activityHeatmap": "Activity Heatmap",
     "watchHistory": "Watch History",
-    "watchOverTime": "Watch over time (30d)"
+    "watchOverTime": "Watch over time (30d)",
+    "leaderboard": "Top users",
+    "lastPlayed": "Recently watched"
   },
   "settings": {
     "config": "Configuration",
@@ -145,7 +170,14 @@
     "deleteApiKey": "Delete API Key",
     "deleteApiKeyConfirm": "Delete this API key? It will stop working immediately.",
     "keyName": "Key Name",
-    "noApiKeys": "No API keys"
+    "noApiKeys": "No API keys",
+    "importBackup": "Import Playback Backup",
+    "importBackupDesc": "Import a TSV backup file exported from the Jellyfin Playback Reporting Plugin",
+    "importBackupSelect": "Choose file",
+    "importBackupRun": "Import",
+    "importBackupSuccess": "Successfully imported {{count}} records",
+    "importBackupError": "Import failed",
+    "importBackupNoFile": "No file selected"
   },
   "frame": {
     "language": "Language",
@@ -195,11 +227,19 @@
   },
   "colors": {
     "violet": "Violet (default)",
+    "jellyfin": "Jellyfin",
     "blue": "Blue",
+    "indigo": "Indigo",
     "cyan": "Cyan",
+    "teal": "Teal",
     "green": "Green",
+    "emerald": "Emerald",
+    "amber": "Amber",
     "orange": "Orange",
-    "pink": "Pink"
+    "red": "Red",
+    "pink": "Pink",
+    "rose": "Rose",
+    "slate": "Slate Gray"
   },
   "error": {
     "loadDashboard": "Failed to load dashboard data"
@@ -240,5 +280,12 @@
   },
   "placeholder": {
     "jellyfinUrl": "http://192.168.1.x:8096"
+  },
+  "timeRange": {
+    "custom": "Custom",
+    "customRange": "Custom range",
+    "from": "From",
+    "to": "To",
+    "apply": "Apply"
   }
 }

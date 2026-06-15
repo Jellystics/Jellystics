@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Button, Typography, Chip,
   List, ListItem, ListItemText, ListItemSecondaryAction, Skeleton,
+  Alert, LinearProgress,
 } from '@mui/material'
+import { ArrowUpload24Regular, Document24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
 import { useSocket } from '@/shared/hooks/useSocket'
@@ -22,6 +24,10 @@ export default function TasksTab() {
   const [logs, setLogs] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const logsRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ count?: number; error?: string } | null>(null)
 
   useEffect(() => {
     api
@@ -37,6 +43,28 @@ export default function TasksTab() {
       if (logsRef.current) logsRef.current.scrollTop = logsRef.current.scrollHeight
     }, 50)
   })
+
+  const handleImport = async () => {
+    if (!importFile) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const form = new FormData()
+      form.append('file', importFile)
+      const res = await api.post('/sync/importPlaybackBackup', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setImportResult({ count: res.data.imported })
+      enqueueSnackbar(t('settings.importBackupSuccess', { count: res.data.imported }), { variant: 'success' })
+      setImportFile(null)
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('settings.importBackupError')
+      setImportResult({ error: msg })
+      enqueueSnackbar(t('settings.importBackupError'), { variant: 'error' })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const runTask = async (name: string) => {
     try {
@@ -75,6 +103,68 @@ export default function TasksTab() {
                 </ListItem>
               ))}
             </List>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Import Playback Backup */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.importBackup')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.importBackupDesc')}</Typography>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".tsv,.txt"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              setImportFile(e.target.files?.[0] ?? null)
+              setImportResult(null)
+              e.target.value = ''
+            }}
+          />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Document24Regular style={{ fontSize: 16 }} />}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+            >
+              {t('settings.importBackupSelect')}
+            </Button>
+
+            {importFile && (
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }} noWrap>
+                {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+              </Typography>
+            )}
+
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<ArrowUpload24Regular style={{ fontSize: 16 }} />}
+              onClick={handleImport}
+              disabled={!importFile || importing}
+              sx={{ ml: 'auto' }}
+            >
+              {t('settings.importBackupRun')}
+            </Button>
+          </Box>
+
+          {importing && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+
+          {importResult && !importing && (
+            <Alert
+              severity={importResult.error ? 'error' : 'success'}
+              sx={{ mt: 2, borderRadius: 2 }}
+            >
+              {importResult.error
+                ? importResult.error
+                : t('settings.importBackupSuccess', { count: importResult.count })}
+            </Alert>
           )}
         </CardContent>
       </Card>

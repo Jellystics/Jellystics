@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
-  Card, CardContent, Skeleton,
+  Card, CardContent, Skeleton, CardMedia,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { LineChart } from '@mui/x-charts/LineChart'
+import { BarChart } from '@mui/x-charts/BarChart'
 import { useTheme } from '@mui/material/styles'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
@@ -24,6 +25,8 @@ import { Play24Regular, Clock24Regular, Star24Regular } from '@fluentui/react-ic
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 
+const CHART_COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe', '#a78bfa', '#7c3aed']
+
 const col = createColumnHelper<Activity>()
 
 export default function UserDetailPage() {
@@ -36,31 +39,45 @@ export default function UserDetailPage() {
   const [heatmapData, setHeatmapData] = useState<UserActivity[]>([])
   const [genres, setGenres] = useState<GenreStat[]>([])
   const [watchOverTime, setWatchOverTime] = useState<{ date: string; plays: number; duration: number }[]>([])
+  const [genreBarData, setGenreBarData] = useState<{ genre: string; plays: number }[]>([])
+  const [lastPlayed, setLastPlayed] = useState<Activity[]>([])
+  const [globalStats, setGlobalStats] = useState<{ Plays?: number; total_playback_duration?: number } | null>(null)
   const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
   const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return
     setLoading(true)
+    setError(null)
     Promise.all([
       api.get(`/stats/getUserStats?userId=${id}`),
       api.get(`/stats/getUserActivity?userId=${id}`),
       api.get(`/stats/getUserActivityByDate?userId=${id}`),
       api.get(`/stats/getUserGenreStats?userId=${id}`),
       api.get(`/stats/getWatchStatisticsOverTime?userId=${id}&days=30`),
+      api.get(`/stats/getGenreUserStats?userid=${id}&size=10&page=1`),
+      api.post(`/stats/getUserLastPlayed`, { userid: id }),
+      api.post(`/stats/getGlobalUserStats`, { userid: id }),
     ])
-      .then(([statsRes, activityRes, heatmapRes, genreRes, overTimeRes]) => {
+      .then(([statsRes, activityRes, heatmapRes, genreRes, overTimeRes, genreBarRes, lastPlayedRes, globalStatsRes]) => {
         setUserStats(statsRes.data)
         setActivity(activityRes.data ?? [])
         setHeatmapData(heatmapRes.data ?? [])
         setGenres(genreRes.data ?? [])
         setWatchOverTime(overTimeRes.data ?? [])
+        const barResults: { genre: string; plays: number }[] = (genreBarRes.data?.results ?? [])
+          .map((r: { genre: string; plays: string | number }) => ({ genre: r.genre, plays: Number(r.plays) }))
+        setGenreBarData(barResults)
+        setLastPlayed((lastPlayedRes.data ?? []).slice(0, 12))
+        setGlobalStats(globalStatsRes.data ?? null)
       })
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
   }, [id, t])
+
+  useEffect(() => { load() }, [load])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns: ColumnDef<Activity, any>[] = [
@@ -84,7 +101,7 @@ export default function UserDetailPage() {
 
   return (
     <>
-      <PageHeader title={username} />
+      <PageHeader title={username} onRefresh={load} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card sx={{ mb: 3 }}>
@@ -119,6 +136,14 @@ export default function UserDetailPage() {
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard label={t('users.favoriteGenre')} value={userStats?.FavoriteGenre ?? '—'} icon={<Star24Regular />} loading={loading} />
         </Grid>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <StatCard
+            label={t('stats.recentPlays', 'Plays (24h)')}
+            value={globalStats?.Plays ?? '—'}
+            icon={<Star24Regular />}
+            loading={loading}
+          />
+        </Grid>
       </Grid>
 
       <Card sx={{ mb: 3, p: 2 }}>
@@ -136,56 +161,128 @@ export default function UserDetailPage() {
         height={200}
         action={<MetricToggle value={watchMetric} onChange={setWatchMetric} />}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={watchOverTime} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-            <defs>
-              <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-            <Tooltip
-              contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, fontSize: 12 }}
-              formatter={(value) => watchMetric === 'duration' ? formatWatchTime(Number(value)) : value}
-            />
-            <Area
-              type="monotone"
-              dataKey={watchMetric === 'duration' ? 'duration' : 'plays'}
-              stroke={theme.palette.primary.main}
-              strokeWidth={2}
-              fill="url(#userGrad)"
-              name={watchMetric === 'duration' ? 'Durée' : t('common.plays')}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <LineChart
+          xAxis={[{ data: watchOverTime.map((d) => d.date), scaleType: 'point' }]}
+          series={[{
+            data: watchOverTime.map((d) => (watchMetric === 'duration' ? d.duration : d.plays)),
+            area: true,
+            label: watchMetric === 'duration' ? t('stats.watchTime') : t('common.plays'),
+            valueFormatter: (v) => watchMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0),
+            color: theme.palette.primary.main,
+            showMark: false,
+          }]}
+          height={200}
+          sx={{ width: '100%' }}
+          grid={{ horizontal: true }}
+          slotProps={{ legend: { hidden: true } }}
+        />
       </ChartCard>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mt: 3 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>
           <Tab label={t('users.watchHistory')} />
           <Tab label={t('library.genres')} />
+          <Tab label={t('users.lastPlayed', 'Derniers regardés')} />
         </Tabs>
       </Box>
 
       {tab === 0 && <DataTable data={activity} columns={columns} loading={loading} />}
 
       {tab === 1 && (
-        <Card>
-          <CardContent>
-            {loading ? (
-              <Skeleton variant="rectangular" width="100%" height={320} sx={{ borderRadius: 2 }} />
-            ) : genres.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                {t('common.noData')}
-              </Typography>
-            ) : (
-              <GenreRadarChart genres={genres} />
-            )}
-          </CardContent>
-        </Card>
+        <>
+          <Card sx={{ mb: 2 }}>
+            <CardContent>
+              {loading ? (
+                <Skeleton variant="rectangular" width="100%" height={320} sx={{ borderRadius: 2 }} />
+              ) : genres.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  {t('common.noData')}
+                </Typography>
+              ) : (
+                <GenreRadarChart genres={genres} />
+              )}
+            </CardContent>
+          </Card>
+
+          <ChartCard
+            title={t('stats.genreDetail', 'Détail par genre')}
+            loading={loading}
+            empty={genreBarData.length === 0}
+            height={240}
+          >
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: genreBarData.map((d) => d.genre), scaleType: 'band' }]}
+              xAxis={[{ label: t('common.plays') }]}
+              series={[{
+                data: genreBarData.map((d) => d.plays),
+                label: t('common.plays'),
+                valueFormatter: (v) => String(v ?? 0),
+                color: CHART_COLORS[0],
+              }]}
+              height={240}
+              margin={{ left: 120 }}
+              sx={{ width: '100%' }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } }}
+            />
+          </ChartCard>
+        </>
+      )}
+
+      {tab === 2 && (
+        loading ? (
+          <Grid container spacing={2}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Grid key={i} size={{ xs: 6, sm: 4, md: 3 }}>
+                <Skeleton variant="rectangular" sx={{ borderRadius: 2, aspectRatio: '2/3' }} />
+              </Grid>
+            ))}
+          </Grid>
+        ) : lastPlayed.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+            {t('common.noData')}
+          </Typography>
+        ) : (
+          <Grid container spacing={2}>
+            {lastPlayed.map((item) => {
+              const secs = Math.floor(((item.PlayDuration ?? 0)) / 10_000_000)
+              const h = Math.floor(secs / 3600)
+              const m = Math.floor((secs % 3600) / 60)
+              const durationLabel = h > 0
+                ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}`
+                : `${m}${t('time.minuteShort')}`
+              const itemId = item.NowPlayingItemType === 'Episode' ? item.EpisodeId ?? item.Id : item.Id
+              return (
+                <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3 }}>
+                  <Card sx={{ height: '100%' }}>
+                    <CardMedia
+                      component="img"
+                      src={`/proxy/Items/Images/Primary/?id=${itemId}&fillWidth=300&quality=80`}
+                      alt={item.NowPlayingItemName}
+                      sx={{ aspectRatio: '2/3', objectFit: 'cover' }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                    <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                      <Typography variant="caption" fontWeight={700} noWrap display="block" title={item.NowPlayingItemName}>
+                        {item.SeriesName ? `${item.SeriesName}` : item.NowPlayingItemName}
+                      </Typography>
+                      {item.SeriesName && (
+                        <Typography variant="caption" color="text.secondary" noWrap display="block">
+                          {item.NowPlayingItemName}
+                        </Typography>
+                      )}
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {(() => { try { return format(parseISO(item.ActivityDateInserted), 'dd/MM/yy', { locale: getDateLocale() }) } catch { return '—' } })()}
+                        {' · '}{durationLabel}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            })}
+          </Grid>
+        )
       )}
     </>
   )

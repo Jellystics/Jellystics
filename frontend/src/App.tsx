@@ -6,7 +6,9 @@ import GlobalStyles from '@mui/material/GlobalStyles'
 import { SnackbarProvider } from 'notistack'
 import { useTheme, useMediaQuery } from '@mui/material'
 import { grey } from '@mui/material/colors'
-import { buildTheme, getAccentColor, getThemeMode, setThemeMode } from '@/lib/theme'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { buildTheme, getThemeMode, setThemeMode } from '@/lib/theme'
 import { ThemeModeContext, type ThemeMode } from '@/lib/ThemeModeContext'
 import { router } from '@/lib/router'
 import '@/lib/i18n'
@@ -99,11 +101,12 @@ export default function App() {
     })
   }
 
-  const theme = buildTheme(getAccentColor(), mode)
+  const theme = buildTheme(mode)
 
   return (
     <ThemeModeContext.Provider value={{ mode, toggleMode }}>
       <ThemeProvider theme={theme}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
         <CssBaseline />
         <ScrollbarStyles />
         <SnackbarProvider
@@ -114,6 +117,7 @@ export default function App() {
           <SocketNotifier />
           <RouterProvider router={router} />
         </SnackbarProvider>
+        </LocalizationProvider>
       </ThemeProvider>
     </ThemeModeContext.Provider>
   )

@@ -1,17 +1,8 @@
 import { createTheme } from '@mui/material/styles'
 import type { ThemeMode } from './ThemeModeContext'
 
-const ACCENT_KEY = 'jellystics-accent-color'
 const MODE_KEY = 'jellystics-theme-mode'
-const DEFAULT_ACCENT = '#a78bfa'
-
-export function getAccentColor(): string {
-  return localStorage.getItem(ACCENT_KEY) ?? DEFAULT_ACCENT
-}
-
-export function setAccentColor(color: string): void {
-  localStorage.setItem(ACCENT_KEY, color)
-}
+const PRIMARY_COLOR = '#64748b'
 
 export function getThemeMode(): ThemeMode {
   return (localStorage.getItem(MODE_KEY) as ThemeMode) ?? 'dark'
@@ -21,7 +12,7 @@ export function setThemeMode(mode: ThemeMode): void {
   localStorage.setItem(MODE_KEY, mode)
 }
 
-export function buildTheme(accent: string = getAccentColor(), mode: ThemeMode = getThemeMode()) {
+export function buildTheme(mode: ThemeMode = getThemeMode()) {
   const isDark = mode === 'dark'
 
   return createTheme({
@@ -30,8 +21,8 @@ export function buildTheme(accent: string = getAccentColor(), mode: ThemeMode = 
       background: isDark
         ? { default: '#111114', paper: '#18181f' }
         : { default: '#f0f2f5', paper: '#ffffff' },
-      primary: { main: accent, contrastText: '#ffffff' },
-      secondary: { main: '#7c3aed' },
+      primary: { main: PRIMARY_COLOR, contrastText: '#ffffff' },
+      secondary: { main: '#475569' },
       divider: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
       text: isDark
         ? { primary: '#e8e8f0', secondary: '#8b8b9e' }

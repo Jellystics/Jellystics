@@ -1,48 +1,113 @@
 import {
-  Card, CardContent, CardHeader, List, ListItem, ListItemText,
-  ListItemAvatar, Avatar, Typography, Chip, Skeleton, Box,
+  Card, CardContent, CardHeader, Typography, Chip, Skeleton, Box,
 } from '@mui/material'
 import { VideoClip24Regular, MusicNote224Regular, Library24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 
 interface TopItem { Id: string; Name: string; PlayCount: number; Type: string }
 interface TopContentProps { items: TopItem[]; loading: boolean }
 
-function typeIcon(type: string) {
-  if (type === 'Audio') return <MusicNote224Regular />
-  if (type === 'Episode' || type === 'Series') return <VideoClip24Regular />
-  return <Library24Regular />
+function TypeFallback({ type }: { type: string }) {
+  if (type === 'Audio') return <MusicNote224Regular style={{ fontSize: 18, opacity: 0.5 }} />
+  if (type === 'Episode' || type === 'Series') return <VideoClip24Regular style={{ fontSize: 18, opacity: 0.5 }} />
+  return <Library24Regular style={{ fontSize: 18, opacity: 0.5 }} />
 }
 
 export default function TopContent({ items, loading }: TopContentProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+
   return (
     <Card>
-      <CardHeader title={t('dashboard.topContent')} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
+      <CardHeader
+        title={t('dashboard.topContent')}
+        slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }}
+      />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-              <Skeleton variant="circular" width={36} height={36} />
-              <Box sx={{ flex: 1 }}><Skeleton variant="text" width="70%" /><Skeleton variant="text" width="40%" /></Box>
+            <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: 1.5, alignItems: 'center' }}>
+              <Skeleton variant="rectangular" width={36} height={52} sx={{ borderRadius: 1, flexShrink: 0 }} />
+              <Box sx={{ flex: 1 }}>
+                <Skeleton variant="text" width="70%" />
+                <Skeleton variant="text" width="35%" />
+              </Box>
             </Box>
           ))
         ) : (
-          <List dense disablePadding>
-            {items.map((item, i) => (
-              <ListItem key={item.Id} disablePadding sx={{ py: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, mr: 1 }}>{i + 1}</Typography>
-                <ListItemAvatar sx={{ minWidth: 44 }}>
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,255,255,0.05)', fontSize: 16 }}>{typeIcon(item.Type)}</Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={<Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }} noWrap>{item.Name}</Typography>}
-                  secondary={<Typography variant="caption" sx={{ fontSize: 11 }}>{item.Type}</Typography>}
+          items.map((item, i) => (
+            <Box
+              key={item.Id}
+              onClick={() => navigate(`/items/${item.Id}`)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                py: 0.75,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                '&:last-child': { borderBottom: 0 },
+                cursor: 'pointer',
+                borderRadius: 1,
+                mx: -0.5,
+                px: 0.5,
+                transition: 'background 150ms',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {/* Rank */}
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ minWidth: 16, textAlign: 'right', flexShrink: 0, fontWeight: 600, fontSize: 11 }}
+              >
+                {i + 1}
+              </Typography>
+
+              {/* Poster */}
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: 36,
+                  height: 52,
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  bgcolor: 'rgba(255,255,255,0.05)',
+                }}
+              >
+                {/* Fallback icon underneath */}
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TypeFallback type={item.Type} />
+                </Box>
+                {/* Poster image on top — hides itself on error, revealing fallback */}
+                <img
+                  src={`/proxy/Items/Images/Primary/?id=${item.Id}&fillWidth=72&quality=85`}
+                  alt={item.Name}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
-                <Chip label={`${item.PlayCount} ${t('common.plays')}`} size="small" sx={{ fontSize: 11, height: 20 }} />
-              </ListItem>
-            ))}
-          </List>
+              </Box>
+
+              {/* Title + type */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }} noWrap>
+                  {item.Name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
+                  {item.Type}
+                </Typography>
+              </Box>
+
+              {/* Play count */}
+              <Chip
+                label={`${item.PlayCount} ${t('common.plays')}`}
+                size="small"
+                sx={{ fontSize: 11, height: 20, flexShrink: 0 }}
+              />
+            </Box>
+          ))
         )}
       </CardContent>
     </Card>

@@ -43,6 +43,11 @@
     "liveSessions": "Sessions actives",
     "noActiveSessions": "Aucune session active",
     "activityLast7Days": "Activité (7 derniers jours)",
+    "activityLast30Days": "Activité (30 derniers jours)",
+    "activityLastNDays": "Activité ({{days}} derniers jours)",
+    "activity": "Activité",
+    "combinedView": "Vue combinée",
+    "singleView": "Vue simple",
     "topContent": "Contenus populaires",
     "topUsers": "Utilisateurs actifs"
   },
@@ -59,7 +64,19 @@
     "playsByHour": "Lectures par heure",
     "playsByDayOfWeek": "Lectures par jour",
     "playbackMethod": "Méthodes de lecture",
-    "topClients": "Clients populaires"
+    "topClients": "Clients populaires",
+    "viewsByMediaType": "Répartition par type de média",
+    "mostViewedLibraries": "Bibliothèques les plus vues",
+    "mediaType": {
+      "movie": "Films",
+      "series": "Séries",
+      "audio": "Musique",
+      "other": "Autre"
+    },
+    "mostActiveUsers": "Utilisateurs les plus actifs",
+    "topItems": "Contenus les plus vus",
+    "recentPlays": "Lectures (24h)",
+    "genreDetail": "Détail par genre"
   },
   "activity": {
     "user": "Utilisateur",
@@ -70,7 +87,9 @@
     "date": "Date",
     "duration": "Durée",
     "ip": "Adresse IP",
-    "search": "Rechercher une activité..."
+    "search": "Rechercher une activité...",
+    "transcodes": "Transcodages",
+    "directPlays": "Lectures directes"
   },
   "library": {
     "itemName": "Nom",
@@ -82,7 +101,11 @@
     "items": "Éléments",
     "genres": "Genres",
     "genreDistribution": "Répartition par genre",
-    "genreList": "Liste des genres"
+    "genreList": "Liste des genres",
+    "stats": "Stats",
+    "activityOverTime": "Activité dans le temps",
+    "topItems": "Éléments les plus regardés",
+    "playMethod": "Méthode de lecture"
   },
   "users": {
     "user": "Utilisateur",
@@ -91,7 +114,9 @@
     "search": "Rechercher un utilisateur...",
     "activityHeatmap": "Carte d'activité",
     "watchHistory": "Historique",
-    "watchOverTime": "Visionnage sur 30 jours"
+    "watchOverTime": "Visionnage sur 30 jours",
+    "leaderboard": "Top utilisateurs",
+    "lastPlayed": "Derniers regardés"
   },
   "settings": {
     "config": "Configuration",
@@ -145,7 +170,14 @@
     "deleteApiKey": "Supprimer la clé API",
     "deleteApiKeyConfirm": "Supprimer cette clé API ? Elle cessera de fonctionner immédiatement.",
     "keyName": "Nom de la clé",
-    "noApiKeys": "Aucune clé API"
+    "noApiKeys": "Aucune clé API",
+    "importBackup": "Importer une sauvegarde",
+    "importBackupDesc": "Importez un fichier TSV exporté depuis le plugin Jellyfin Playback Reporting",
+    "importBackupSelect": "Choisir un fichier",
+    "importBackupRun": "Importer",
+    "importBackupSuccess": "{{count}} entrées importées avec succès",
+    "importBackupError": "Échec de l'importation",
+    "importBackupNoFile": "Aucun fichier sélectionné"
   },
   "frame": {
     "language": "Langue",
@@ -195,11 +227,19 @@
   },
   "colors": {
     "violet": "Violet (défaut)",
+    "jellyfin": "Jellyfin",
     "blue": "Bleu",
+    "indigo": "Indigo",
     "cyan": "Cyan",
+    "teal": "Sarcelle",
     "green": "Vert",
+    "emerald": "Émeraude",
+    "amber": "Ambre",
     "orange": "Orange",
-    "pink": "Rose"
+    "red": "Rouge",
+    "pink": "Rose",
+    "rose": "Rose vif",
+    "slate": "Gris ardoise"
   },
   "error": {
     "loadDashboard": "Impossible de charger les données du tableau de bord"
@@ -240,5 +280,12 @@
   },
   "placeholder": {
     "jellyfinUrl": "http://192.168.1.x:8096"
+  },
+  "timeRange": {
+    "custom": "Personnalisé",
+    "customRange": "Plage personnalisée",
+    "from": "Du",
+    "to": "Au",
+    "apply": "Appliquer"
   }
 }
