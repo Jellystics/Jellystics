@@ -1,5 +1,5 @@
 {
-  description = "Jellystat";
+  description = "Jellystics nix direnv";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -20,7 +20,7 @@
             buildInputs = with pkgs; [
               nodejs_24
               pnpm
-	      go-task
+	            go-task
             ];
           };
         }
