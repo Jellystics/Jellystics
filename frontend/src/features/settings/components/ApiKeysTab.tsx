@@ -21,6 +21,27 @@ interface ApiKey {
 const schema = z.object({ name: z.string().min(1) })
 type FormData = z.infer<typeof schema>
 
+function normalizeApiKeys(value: unknown): ApiKey[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is ApiKey =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as ApiKey).name === 'string' &&
+      typeof (item as ApiKey).key === 'string'
+    )
+  }
+
+  if (typeof value === 'object' && value !== null && Array.isArray((value as { keys?: unknown }).keys)) {
+    return normalizeApiKeys((value as { keys: unknown }).keys)
+  }
+
+  if (typeof value === 'object' && value !== null && Array.isArray((value as { api_keys?: unknown }).api_keys)) {
+    return normalizeApiKeys((value as { api_keys: unknown }).api_keys)
+  }
+
+  return []
+}
+
 export default function ApiKeysTab() {
   const { t } = useTranslation()
   const { enqueueSnackbar } = useSnackbar()
@@ -32,7 +53,7 @@ export default function ApiKeysTab() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const load = () => {
-    api.get('/api/keys').then((r) => setKeys(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/api/keys').then((r) => setKeys(normalizeApiKeys(r.data))).catch(() => setKeys([])).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 

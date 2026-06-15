@@ -65,6 +65,30 @@ if (JWT_SECRET === undefined) {
   process.exit(1); // end the program with error status code
 }
 
+function normalizeApiKeys(value) {
+  let keys = value;
+
+  if (typeof keys === "string") {
+    try {
+      keys = JSON.parse(keys);
+    } catch {
+      return [];
+    }
+  }
+
+  if (keys && !Array.isArray(keys) && Array.isArray(keys.keys)) {
+    keys = keys.keys;
+  }
+
+  if (keys && !Array.isArray(keys) && Array.isArray(keys.api_keys)) {
+    keys = keys.api_keys;
+  }
+
+  if (!Array.isArray(keys)) return [];
+
+  return keys.filter((item) => item && typeof item.name === "string" && typeof item.key === "string");
+}
+
 // middlewares
 app.use(express.json()); // middleware to parse JSON request bodies
 app.use(cors());
@@ -217,11 +241,11 @@ async function authenticate(req, res, next) {
   } else {
     if (apiKey) {
       const keysjson = await dbInstance.query('SELECT api_keys FROM app_config where "ID"=1').then((res) => res.rows[0].api_keys);
+      const keys = normalizeApiKeys(keysjson);
 
-      if (!keysjson || Object.keys(keysjson).length === 0) {
+      if (keys.length === 0) {
         return res.status(404).json({ message: "No API keys configured" });
       }
-      const keys = keysjson || [];
 
       const keyExists = keys.some((obj) => obj.key === apiKey);
 

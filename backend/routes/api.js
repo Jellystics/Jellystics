@@ -19,6 +19,30 @@ const dayjs = require("dayjs");
 
 const router = express.Router();
 
+function normalizeApiKeys(value) {
+  let keys = value;
+
+  if (typeof keys === "string") {
+    try {
+      keys = JSON.parse(keys);
+    } catch {
+      return [];
+    }
+  }
+
+  if (keys && !Array.isArray(keys) && Array.isArray(keys.keys)) {
+    keys = keys.keys;
+  }
+
+  if (keys && !Array.isArray(keys) && Array.isArray(keys.api_keys)) {
+    keys = keys.api_keys;
+  }
+
+  if (!Array.isArray(keys)) return [];
+
+  return keys.filter((item) => item && typeof item.name === "string" && typeof item.key === "string");
+}
+
 //consts
 const groupedSortMap = [
   { field: "UserName", column: "a.UserName" },
@@ -702,7 +726,7 @@ router.post("/setUntrackedUsers", async (req, res) => {
 router.get("/keys", async (req, res) => {
   const config = await new configClass().getConfig();
 
-  res.send(config.api_keys || []);
+  res.send(normalizeApiKeys(config.api_keys));
 });
 
 router.delete("/keys", async (req, res) => {
@@ -715,7 +739,7 @@ router.delete("/keys", async (req, res) => {
     return;
   }
 
-  const keys = config.api_keys || [];
+  const keys = normalizeApiKeys(config.api_keys);
   const keyExists = keys.some((obj) => obj.key === key);
   if (keyExists) {
     const new_keys_array = keys.filter((obj) => obj.key !== key);
@@ -746,7 +770,7 @@ router.post("/keys", async (req, res) => {
     return;
   }
 
-  let keys = config.api_keys || [];
+  let keys = normalizeApiKeys(config.api_keys);
 
   const uuid = randomUUID();
   const new_key = { name: name, key: uuid };
