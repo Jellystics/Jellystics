@@ -1,5 +1,4 @@
 const db = require("../db");
-const dbHelper = require("../classes/db-helper");
 const API = require("../classes/api-loader");
 
 /** ActivityDateInserted is stored as text — always cast before date math. */
@@ -43,7 +42,7 @@ async function getLiveActivity() {
   const libraryRows =
     itemIds.length > 0
       ? await rows(
-          `SELECT "Id", "ParentId", "Type", "Name" FROM jf_library_items WHERE "Id" = ANY($1)`,
+          `SELECT "Id", "ParentId", "Type", "Name", "Genres" FROM jf_library_items WHERE "Id" = ANY($1)`,
           [itemIds]
         )
       : [];
@@ -62,6 +61,7 @@ async function getLiveActivity() {
       EpisodeId: nowPlaying.SeriesId ? nowPlaying.Id : null,
       NowPlayingItemName: nowPlaying.SeriesName || nowPlaying.Name,
       Type: nowPlaying.SeriesId ? "Series" : libraryItem?.Type || nowPlaying.Type || "Unknown",
+      Genres: libraryItem?.Genres ?? [],
       LibraryId: libraryItem?.ParentId,
       PlaybackDuration: ticksToMinutes(session.PlayState?.PositionTicks),
       date: new Date().toISOString().slice(0, 10),
@@ -248,7 +248,8 @@ async function getPopularHourOfDay({ days = 30 } = {}) {
     `
     SELECT
       EXTRACT(HOUR FROM ${ACTIVITY_TS})::int AS hour,
-      COUNT(*)::int AS plays
+      COUNT(*)::int AS plays,
+      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY hour
@@ -260,8 +261,12 @@ async function getPopularHourOfDay({ days = 30 } = {}) {
 
   live.forEach((session) => {
     const existing = dbHours.find((row) => row.hour === session.hour);
-    if (existing) existing.plays += 1;
-    else dbHours.push({ hour: session.hour, plays: 1 });
+    if (existing) {
+      existing.plays += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      dbHours.push({ hour: session.hour, plays: 1, duration: session.PlaybackDuration });
+    }
   });
 
   return dbHours.sort((a, b) => a.hour - b.hour);
@@ -274,7 +279,8 @@ async function getPopularDayOfWeek({ days = 30 } = {}) {
     `
     SELECT
       EXTRACT(DOW FROM ${ACTIVITY_TS})::int AS day,
-      COUNT(*)::int AS plays
+      COUNT(*)::int AS plays,
+      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY day
@@ -286,8 +292,12 @@ async function getPopularDayOfWeek({ days = 30 } = {}) {
 
   live.forEach((session) => {
     const existing = dbDays.find((row) => row.day === session.day);
-    if (existing) existing.plays += 1;
-    else dbDays.push({ day: session.day, plays: 1 });
+    if (existing) {
+      existing.plays += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      dbDays.push({ day: session.day, plays: 1, duration: session.PlaybackDuration });
+    }
   });
 
   return dbDays.sort((a, b) => a.day - b.day);
@@ -300,7 +310,8 @@ async function getMostUsedPlaybackMethod({ days = 30 } = {}) {
     `
     SELECT
       COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
-      COUNT(*)::int AS count
+      COUNT(*)::int AS count,
+      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY method
@@ -312,8 +323,12 @@ async function getMostUsedPlaybackMethod({ days = 30 } = {}) {
 
   live.forEach((session) => {
     const existing = dbMethods.find((row) => row.method === session.PlayMethod);
-    if (existing) existing.count += 1;
-    else dbMethods.push({ method: session.PlayMethod, count: 1 });
+    if (existing) {
+      existing.count += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      dbMethods.push({ method: session.PlayMethod, count: 1, duration: session.PlaybackDuration });
+    }
   });
 
   return dbMethods.sort((a, b) => b.count - a.count);
@@ -326,7 +341,8 @@ async function getMostUsedClients({ days = 30 } = {}) {
     `
     SELECT
       "Client" AS client,
-      COUNT(*)::int AS count
+      COUNT(*)::int AS count,
+      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
       AND "Client" IS NOT NULL AND "Client" <> ''
@@ -340,8 +356,12 @@ async function getMostUsedClients({ days = 30 } = {}) {
 
   live.forEach((session) => {
     const existing = dbClients.find((row) => row.client === session.Client);
-    if (existing) existing.count += 1;
-    else dbClients.push({ client: session.Client, count: 1 });
+    if (existing) {
+      existing.count += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      dbClients.push({ client: session.Client, count: 1, duration: session.PlaybackDuration });
+    }
   });
 
   return dbClients.sort((a, b) => b.count - a.count);
@@ -412,7 +432,7 @@ async function getUserStats(userId) {
 }
 
 async function getUserActivity(userId) {
-  return rows(
+  const activity = await rows(
     `
     SELECT
       "Id", "UserId", "UserName",
@@ -433,6 +453,29 @@ async function getUserActivity(userId) {
     `,
     [userId]
   );
+  const live = (await getLiveActivity()).filter((session) => session.UserId === userId);
+  const liveActivity = live.map((session) => ({
+    Id: `live-${session.UserId}-${session.NowPlayingItemId}`,
+    UserId: session.UserId,
+    UserName: session.UserName,
+    ItemId: session.NowPlayingItemId,
+    NowPlayingItemName: session.NowPlayingItemName,
+    SeriesName: null,
+    SeasonId: null,
+    EpisodeId: session.EpisodeId,
+    Client: session.Client,
+    DeviceName: null,
+    DeviceId: null,
+    ApplicationVersion: null,
+    PlayMethod: session.PlayMethod,
+    IsPaused: false,
+    IsActive: true,
+    PlayDuration: session.PlaybackDuration * 600000000,
+    ActivityDateInserted: new Date().toISOString(),
+    RemoteEndPoint: null,
+  }));
+
+  return [...liveActivity, ...activity];
 }
 
 async function getAllUserActivity() {
@@ -482,11 +525,12 @@ async function getAllUserActivity() {
 }
 
 async function getUserActivityByDate(userId) {
-  return rows(
+  const activity = await rows(
     `
     SELECT
       TO_CHAR((${ACTIVITY_TS})::date, 'YYYY-MM-DD') AS date,
-      COUNT(*)::int AS count
+      COUNT(*)::int AS count,
+      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
     FROM jf_playback_activity
     WHERE "UserId" = $1
     GROUP BY (${ACTIVITY_TS})::date
@@ -494,6 +538,19 @@ async function getUserActivityByDate(userId) {
     `,
     [userId]
   );
+  const live = (await getLiveActivity()).filter((session) => session.UserId === userId);
+
+  live.forEach((session) => {
+    const existing = activity.find((point) => point.date === session.date);
+    if (existing) {
+      existing.count += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      activity.push({ date: session.date, count: 1, duration: session.PlaybackDuration });
+    }
+  });
+
+  return activity.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 async function getGenreStats({ userId, libraryId }) {
@@ -526,55 +583,56 @@ async function getGenreStats({ userId, libraryId }) {
 
   if (userId) {
     values.push(userId);
-    where.push([{ column: "a.UserId", operator: "=", value: `$${values.length}` }]);
+    where.push(`a."UserId" = $${values.length}`);
   }
   if (libraryId) {
     values.push(libraryId);
-    where.push([{ column: "i.ParentId", operator: "=", value: `$${values.length}` }]);
+    where.push(`i."ParentId" = $${values.length}`);
   }
 
-  const query = {
-    select: ["COALESCE(g.genre, 'No Genre') AS genre", "COUNT(*) AS plays"],
-    table: "jf_playback_activity",
-    alias: "a",
-    joins: [
-      {
-        type: "inner",
-        table: "jf_library_items",
-        alias: "i",
-        conditions: [{ first: "a.NowPlayingItemId", operator: "=", second: "i.Id" }],
-      },
-      {
-        type: "left",
-        table: `
-          LATERAL (
-            SELECT jsonb_array_elements_text(
-              CASE
-                WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["No Genre"]'::jsonb
-                ELSE i."Genres"
-              END
-            ) AS genre
-          )
-        `,
-        alias: "g",
-        conditions: [{ first: 1, operator: "=", value: 1, wrap: false }],
-      },
-    ],
-    where,
-    group_by: [`COALESCE(g.genre, 'No Genre')`],
-    order_by: "plays",
-    sort_order: "desc",
-    pageNumber: 1,
-    pageSize: 100,
-    values,
-  };
+  const dbGenres = await rows(
+    `
+    SELECT
+      genre AS "Genre",
+      COUNT(DISTINCT COALESCE(a."EpisodeId", a."NowPlayingItemId"))::int AS "Count",
+      COUNT(*)::int AS "PlayCount"
+    FROM jf_playback_activity a
+    LEFT JOIN jf_library_items i
+      ON a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id"
+    CROSS JOIN LATERAL jsonb_array_elements_text(
+      CASE
+        WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["No Genre"]'::jsonb
+        ELSE i."Genres"
+      END
+    ) AS genre
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    GROUP BY genre
+    ORDER BY "PlayCount" DESC, genre ASC
+    LIMIT 100
+    `,
+    values
+  );
 
-  const result = await dbHelper.query(query);
-  return (result?.results ?? []).map((row) => ({
-    Genre: row.genre,
-    Count: parseInt(row.plays, 10) || 0,
-    PlayCount: parseInt(row.plays, 10) || 0,
-  }));
+  const live = (await getLiveActivity()).filter((session) => {
+    if (userId && session.UserId !== userId) return false;
+    if (libraryId && session.LibraryId !== libraryId) return false;
+    return true;
+  });
+
+  live.forEach((session) => {
+    const genres = Array.isArray(session.Genres) && session.Genres.length > 0 ? session.Genres : ["No Genre"];
+    genres.forEach((genre) => {
+      const existing = dbGenres.find((row) => row.Genre === genre);
+      if (existing) {
+        existing.Count += 1;
+        existing.PlayCount += 1;
+      } else {
+        dbGenres.push({ Genre: genre, Count: 1, PlayCount: 1 });
+      }
+    });
+  });
+
+  return dbGenres.sort((a, b) => b.PlayCount - a.PlayCount || a.Genre.localeCompare(b.Genre));
 }
 
 async function getLibraries() {

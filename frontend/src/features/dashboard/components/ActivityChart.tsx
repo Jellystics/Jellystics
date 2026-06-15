@@ -3,6 +3,8 @@ import { useTheme } from '@mui/material'
 import { format, parseISO } from 'date-fns'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import { useTranslation } from 'react-i18next'
+import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 interface ActivityPoint {
   date: string
@@ -13,19 +15,29 @@ interface ActivityPoint {
 interface ActivityChartProps {
   data: ActivityPoint[]
   loading: boolean
+  metric: ActivityMetric
+  onMetricChange: (metric: ActivityMetric) => void
 }
 
-export default function ActivityChart({ data, loading }: ActivityChartProps) {
+export default function ActivityChart({ data, loading, metric, onMetricChange }: ActivityChartProps) {
   const theme = useTheme()
   const { t } = useTranslation()
 
   const formatted = data.map((d) => ({
     ...d,
     label: format(parseISO(d.date), 'MMM d'),
+    count: d.plays,
   }))
+  const dataKey = metric === 'duration' ? 'duration' : 'count'
+  const label = metric === 'duration' ? 'Durée' : t('common.plays')
 
   return (
-    <ChartCard title={t('dashboard.activityLast7Days')} loading={loading} height={220}>
+    <ChartCard
+      title={t('dashboard.activityLast7Days')}
+      loading={loading}
+      height={220}
+      action={<MetricToggle value={metric} onChange={onMetricChange} />}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={formatted} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
           <defs>
@@ -38,6 +50,7 @@ export default function ActivityChart({ data, loading }: ActivityChartProps) {
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
           <Tooltip
+            formatter={(value) => metric === 'duration' ? formatWatchTime(Number(value)) : value}
             contentStyle={{
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
@@ -49,11 +62,11 @@ export default function ActivityChart({ data, loading }: ActivityChartProps) {
           />
           <Area
             type="monotone"
-            dataKey="plays"
+            dataKey={dataKey}
             stroke={theme.palette.primary.main}
             strokeWidth={2}
             fill="url(#playGrad)"
-            name={t('common.plays')}
+            name={label}
           />
         </AreaChart>
       </ResponsiveContainer>

@@ -13,6 +13,7 @@ import api from '@/lib/axios'
 import type { WatchStatOverTime, HourStat, DayStat, PlayMethodStat, ClientStat } from '@/shared/types/stats'
 import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 
 const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe']
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -25,6 +26,7 @@ export default function StatisticsPage() {
   const [byDay, setByDay] = useState<DayStat[]>([])
   const [byMethod, setByMethod] = useState<PlayMethodStat[]>([])
   const [byClient, setByClient] = useState<ClientStat[]>([])
+  const [activityMetric, setActivityMetric] = useState<ActivityMetric>('count')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,12 +62,18 @@ export default function StatisticsPage() {
   const hourData = Array.from({ length: 24 }, (_, h) => ({
     hour: `${String(h).padStart(2, '0')}h`,
     plays: byHour.find((d) => d.hour === h)?.plays ?? 0,
+    duration: byHour.find((d) => d.hour === h)?.duration ?? 0,
   }))
 
   const dayData = DAYS_OF_WEEK.map((day, i) => ({
     day,
     plays: byDay.find((d) => d.day === String(i))?.plays ?? 0,
+    duration: byDay.find((d) => d.day === String(i))?.duration ?? 0,
   }))
+  const barDataKey = activityMetric === 'duration' ? 'duration' : 'plays'
+  const pieDataKey = activityMetric === 'duration' ? 'duration' : 'count'
+  const metricLabel = activityMetric === 'duration' ? 'Durée' : t('common.plays')
+  const tooltipFormatter = (value: unknown) => activityMetric === 'duration' ? formatWatchTime(Number(value ?? 0)) : String(value ?? 0)
 
   const tooltipStyle = {
     backgroundColor: theme.palette.background.paper,
@@ -90,14 +98,19 @@ export default function StatisticsPage() {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12 }}>
-          <ChartCard title={t('stats.playsOverTime30d')} loading={loading} height={240}>
+          <ChartCard
+            title={t('stats.playsOverTime30d')}
+            loading={loading}
+            height={240}
+            action={<MetricToggle value={activityMetric} onChange={setActivityMetric} />}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={overTime} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="plays" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} name={t('common.plays')} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
+                <Bar dataKey={barDataKey} fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} name={metricLabel} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -106,27 +119,37 @@ export default function StatisticsPage() {
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <ChartCard title={t('stats.playsByHour')} loading={loading} height={220}>
+          <ChartCard
+            title={t('stats.playsByHour')}
+            loading={loading}
+            height={220}
+            action={<MetricToggle value={activityMetric} onChange={setActivityMetric} />}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="hour" tick={{ fontSize: 9, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="plays" fill={theme.palette.primary.main} radius={[3, 3, 0, 0]} name={t('common.plays')} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
+                <Bar dataKey={barDataKey} fill={theme.palette.primary.main} radius={[3, 3, 0, 0]} name={metricLabel} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <ChartCard title={t('stats.playsByDayOfWeek')} loading={loading} height={220}>
+          <ChartCard
+            title={t('stats.playsByDayOfWeek')}
+            loading={loading}
+            height={220}
+            action={<MetricToggle value={activityMetric} onChange={setActivityMetric} />}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="plays" fill={theme.palette.secondary.main} radius={[3, 3, 0, 0]} name={t('common.plays')} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
+                <Bar dataKey={barDataKey} fill={theme.palette.secondary.main} radius={[3, 3, 0, 0]} name={metricLabel} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -135,26 +158,36 @@ export default function StatisticsPage() {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <ChartCard title={t('stats.playbackMethod')} loading={loading} height={280}>
+          <ChartCard
+            title={t('stats.playbackMethod')}
+            loading={loading}
+            height={280}
+            action={<MetricToggle value={activityMetric} onChange={setActivityMetric} />}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={byMethod} dataKey="count" nameKey="method" cx="50%" cy="50%" outerRadius={100} label={true}>
+                <Pie data={byMethod} dataKey={pieDataKey} nameKey="method" cx="50%" cy="50%" outerRadius={100} label={true}>
                   {byMethod.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <ChartCard title={t('stats.topClients')} loading={loading} height={280}>
+          <ChartCard
+            title={t('stats.topClients')}
+            loading={loading}
+            height={280}
+            action={<MetricToggle value={activityMetric} onChange={setActivityMetric} />}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={byClient} dataKey="count" nameKey="client" cx="50%" cy="50%" outerRadius={100} label={true}>
+                <Pie data={byClient} dataKey={pieDataKey} nameKey="client" cx="50%" cy="50%" outerRadius={100} label={true}>
                   {byClient.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

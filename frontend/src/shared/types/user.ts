@@ -19,4 +19,5 @@ export interface UserStats {
 export interface UserActivity {
   date: string
   count: number
+  duration: number
 }

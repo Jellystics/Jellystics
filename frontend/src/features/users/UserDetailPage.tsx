@@ -14,6 +14,7 @@ import StatCard from '@/shared/components/StatCard/StatCard'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import ActivityHeatmap from './components/ActivityHeatmap'
+import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
 import type { UserStats, UserActivity } from '@/shared/types/user'
@@ -32,7 +33,9 @@ export default function UserDetailPage() {
   const [activity, setActivity] = useState<Activity[]>([])
   const [heatmapData, setHeatmapData] = useState<UserActivity[]>([])
   const [genres, setGenres] = useState<GenreStat[]>([])
-  const [watchOverTime, setWatchOverTime] = useState<{ date: string; plays: number }[]>([])
+  const [watchOverTime, setWatchOverTime] = useState<{ date: string; plays: number; duration: number }[]>([])
+  const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
+  const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,10 +120,19 @@ export default function UserDetailPage() {
       </Grid>
 
       <Card sx={{ mb: 3, p: 2 }}>
-        {loading ? <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 1 }} /> : <ActivityHeatmap data={heatmapData} />}
+        {loading ? (
+          <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 1 }} />
+        ) : (
+          <ActivityHeatmap data={heatmapData} metric={heatmapMetric} onMetricChange={setHeatmapMetric} />
+        )}
       </Card>
 
-      <ChartCard title={t('users.watchOverTime')} loading={loading} height={200}>
+      <ChartCard
+        title={t('users.watchOverTime')}
+        loading={loading}
+        height={200}
+        action={<MetricToggle value={watchMetric} onChange={setWatchMetric} />}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={watchOverTime} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <defs>
@@ -132,8 +144,18 @@ export default function UserDetailPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, fontSize: 12 }} />
-            <Area type="monotone" dataKey="plays" stroke={theme.palette.primary.main} strokeWidth={2} fill="url(#userGrad)" name={t('common.plays')} />
+            <Tooltip
+              contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, fontSize: 12 }}
+              formatter={(value) => watchMetric === 'duration' ? formatWatchTime(Number(value)) : value}
+            />
+            <Area
+              type="monotone"
+              dataKey={watchMetric === 'duration' ? 'duration' : 'plays'}
+              stroke={theme.palette.primary.main}
+              strokeWidth={2}
+              fill="url(#userGrad)"
+              name={watchMetric === 'duration' ? 'Durée' : t('common.plays')}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
