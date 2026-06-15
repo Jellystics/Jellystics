@@ -98,6 +98,7 @@ export default function ConfigTab() {
                   error={!!errors.JellyfinUrl}
                   helperText={errors.JellyfinUrl?.message}
                   sx={{ mb: 2 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                 />
               )}
             />
@@ -112,6 +113,7 @@ export default function ConfigTab() {
                   error={!!errors.ApiKey}
                   helperText={errors.ApiKey?.message}
                   sx={{ mb: 2 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                 />
               )}
             />
@@ -127,6 +129,7 @@ export default function ConfigTab() {
                   error={!!errors.SyncIntervalMinutes}
                   helperText={errors.SyncIntervalMinutes?.message}
                   sx={{ mb: 2 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               )}
@@ -143,6 +146,7 @@ export default function ConfigTab() {
                   error={!!errors.KeepLogsForDays}
                   helperText={errors.KeepLogsForDays?.message}
                   sx={{ mb: 3 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               )}
