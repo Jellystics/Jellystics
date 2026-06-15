@@ -348,13 +348,17 @@ async function getLibraryStats(libraryId) {
   const stats = await one(
     `
     SELECT
+      l."Name",
       COUNT(DISTINCT i."Id") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder'))::int AS "TotalItems",
       COUNT(a."Id")::int AS "TotalPlayCount",
       COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime"
-    FROM jf_library_items i
+    FROM jf_libraries l
+    LEFT JOIN jf_library_items i
+      ON i."ParentId" = l."Id" AND i.archived = false
     LEFT JOIN jf_playback_activity a
       ON a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id"
-    WHERE i."ParentId" = $1 AND i.archived = false
+    WHERE l."Id" = $1
+    GROUP BY l."Id", l."Name"
     `,
     [libraryId]
   );
@@ -380,6 +384,7 @@ async function getLibraryStats(libraryId) {
   );
 
   return {
+    Name: stats.Name,
     TotalItems: stats.TotalItems ?? 0,
     TotalPlayCount: stats.TotalPlayCount ?? 0,
     TotalWatchTime: stats.TotalWatchTime ?? 0,
@@ -398,11 +403,12 @@ async function getLibraryItems(libraryId) {
       i."Type",
       i."ProductionYear",
       i."CommunityRating",
+      info."Size",
       COALESCE(pc.play_count, 0)::int AS "PlayCount",
       pc.last_played AS "LastPlayed",
-      i."SeriesName",
-      i."IndexNumber",
-      i."ParentIndexNumber"
+      NULL::text AS "SeriesName",
+      NULL::int AS "IndexNumber",
+      NULL::int AS "ParentIndexNumber"
     FROM jf_library_items i
     LEFT JOIN (
       SELECT
@@ -412,6 +418,7 @@ async function getLibraryItems(libraryId) {
       FROM jf_playback_activity
       GROUP BY item_id
     ) pc ON pc.item_id = i."Id"
+    LEFT JOIN jf_item_info info ON info."Id" = i."Id"
     WHERE i."ParentId" = $1
       AND i.archived = false
       AND i."Type" NOT IN ('Season', 'Folder')

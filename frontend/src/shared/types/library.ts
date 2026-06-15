@@ -13,6 +13,7 @@ export interface LibraryItem {
   Type: string
   ProductionYear?: number
   CommunityRating?: number
+  Size?: number
   PlayCount: number
   LastPlayed?: string
   SeriesName?: string
@@ -21,6 +22,7 @@ export interface LibraryItem {
 }
 
 export interface LibraryStats {
+  Name?: string
   TotalItems: number
   TotalPlayCount: number
   TotalWatchTime: number

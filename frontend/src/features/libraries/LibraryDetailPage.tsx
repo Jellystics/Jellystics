@@ -1,23 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Grid, Alert, Card, CardContent, Typography, Tabs, Tab, Box,
-  Chip, List, ListItem, ListItemText, Skeleton,
+  Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
-import DataTable from '@/shared/components/DataTable/DataTable'
-import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import api from '@/lib/axios'
 import type { LibraryItem, LibraryStats, GenreStat } from '@/shared/types/library'
-import { Play24Regular, Clock24Regular, Star24Regular } from '@fluentui/react-icons'
+import {
+  Play24Regular, Clock24Regular, Star24Regular,
+  Search20Regular, VideoClip24Regular,
+} from '@fluentui/react-icons'
 
 const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd']
-const col = createColumnHelper<LibraryItem>()
+
+function formatSize(bytes?: number): string | null {
+  if (!bytes) return null
+  const gb = bytes / 1024 / 1024 / 1024
+  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} GB`
+  const mb = bytes / 1024 / 1024
+  return `${Math.round(mb)} MB`
+}
+
+function posterUrl(item: LibraryItem): string {
+  return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`
+}
 
 export default function LibraryDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +39,7 @@ export default function LibraryDetailPage() {
   const [genres, setGenres] = useState<GenreStat[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -46,28 +58,19 @@ export default function LibraryDetailPage() {
       .finally(() => setLoading(false))
   }, [id, t])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const columns: ColumnDef<LibraryItem, any>[] = [
-    col.accessor('Name', { header: t('library.itemName') }),
-    col.accessor('ProductionYear', { header: t('library.year'), cell: (i) => (i.getValue() as number | undefined) ?? '—' }),
-    col.accessor('PlayCount', { header: t('library.plays') }),
-    col.accessor('CommunityRating', {
-      header: t('library.rating'),
-      cell: (i) => { const v = i.getValue() as number | undefined; return v ? `★ ${v.toFixed(1)}` : '—' },
-    }),
-    col.accessor('LastPlayed', {
-      header: t('library.lastPlayed'),
-      cell: (i) => {
-        const v = i.getValue() as string | undefined
-        if (!v) return '—'
-        try { return format(parseISO(v), 'dd/MM/yyyy') } catch { return v }
-      },
-    }),
-  ]
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return items
+    return items.filter((item) =>
+      item.Name.toLowerCase().includes(term) ||
+      item.Type.toLowerCase().includes(term) ||
+      String(item.ProductionYear ?? '').includes(term)
+    )
+  }, [items, search])
 
   return (
     <>
-      <PageHeader title={stats?.MostPlayedItem?.Name ?? (id ?? '')} />
+      <PageHeader title={stats?.Name ?? (id ?? '')} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -92,7 +95,132 @@ export default function LibraryDetailPage() {
         </Tabs>
       </Box>
 
-      {tab === 0 && <DataTable data={items} columns={columns} loading={loading} />}
+      {tab === 0 && (
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <TextField
+              size="small"
+              placeholder={t('common.search')}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search20Regular style={{ fontSize: 16 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ width: { xs: '100%', sm: 260 } }}
+            />
+          </Box>
+
+          <Grid container spacing={2}>
+            {loading ? (
+              Array.from({ length: 12 }).map((_, index) => (
+                <Grid key={index} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+                  <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 2 }} />
+                </Grid>
+              ))
+            ) : filteredItems.length === 0 ? (
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  {t('common.noData')}
+                </Typography>
+              </Grid>
+            ) : (
+              filteredItems.map((item) => {
+                const size = formatSize(item.Size)
+                return (
+                  <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+                    <Card
+                      sx={{
+                        height: '100%',
+                        overflow: 'hidden',
+                        borderRadius: 2,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        transition: 'transform 160ms ease, border-color 160ms ease',
+                        '&:hover': {
+                          transform: 'translateY(-3px)',
+                          borderColor: 'primary.main',
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          aspectRatio: '2 / 3',
+                          bgcolor: 'rgba(255,255,255,0.04)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
+                        <Box
+                          component="img"
+                          src={posterUrl(item)}
+                          alt={item.Name}
+                          loading="lazy"
+                          onError={(event) => { event.currentTarget.style.display = 'none' }}
+                          sx={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                        {size && (
+                          <Chip
+                            label={size}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              right: 6,
+                              bottom: 6,
+                              height: 20,
+                              fontSize: 10,
+                              bgcolor: 'primary.main',
+                              color: 'primary.contrastText',
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
+                          {item.Name}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                          {item.ProductionYear && (
+                            <Typography variant="caption" color="text.secondary">
+                              {item.ProductionYear}
+                            </Typography>
+                          )}
+                          {item.CommunityRating && (
+                            <Typography variant="caption" color="warning.main">
+                              ★ {item.CommunityRating.toFixed(1)}
+                            </Typography>
+                          )}
+                          {item.PlayCount > 0 && (
+                            <Typography variant="caption" color="text.secondary">
+                              {item.PlayCount} {t('common.plays')}
+                            </Typography>
+                          )}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                )
+              })
+            )}
+          </Grid>
+        </Box>
+      )}
 
       {tab === 1 && (
         <Grid container spacing={2}>
