@@ -197,15 +197,16 @@ async function getUserStats(userId) {
     return one(
       `
       SELECT
-        a."UserId",
-        MAX(a."UserName") AS "UserName",
-        COUNT(*)::int AS "TotalPlays",
+        u."Id" AS "UserId",
+        u."Name" AS "UserName",
+        COUNT(a."Id")::int AS "TotalPlays",
         COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime",
-        MAX(a."ActivityDateInserted") AS "LastSeen",
+        COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
         NULL::text AS "FavoriteGenre"
-      FROM jf_playback_activity a
-      WHERE a."UserId" = $1
-      GROUP BY a."UserId"
+      FROM jf_users u
+      LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+      WHERE u."Id" = $1
+      GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate"
       `,
       [userId]
     );
@@ -214,14 +215,15 @@ async function getUserStats(userId) {
   return rows(
     `
     SELECT
-      a."UserId",
-      MAX(a."UserName") AS "UserName",
-      COUNT(*)::int AS "TotalPlays",
+      u."Id" AS "UserId",
+      u."Name" AS "UserName",
+      COUNT(a."Id")::int AS "TotalPlays",
       COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime",
-      MAX(a."ActivityDateInserted") AS "LastSeen",
+      COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
       NULL::text AS "FavoriteGenre"
-    FROM jf_playback_activity a
-    GROUP BY a."UserId"
+    FROM jf_users u
+    LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+    GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate"
     ORDER BY "TotalPlays" DESC
     `
   );

@@ -646,7 +646,7 @@ async function fullSync(triggertype) {
     if (config.error) {
       syncTask.loggedData.push({ Message: config.error });
       await logging.updateLog(syncTask.uuid, syncTask.loggedData, taskstate.FAILED);
-      return;
+      throw new Error(config.error);
     }
 
     //syncUserData
@@ -654,10 +654,9 @@ async function fullSync(triggertype) {
 
     let libraries = await API.getLibraries();
     if (libraries.length === 0) {
-      syncTask.loggedData.push({ Message: "Error: No Libararies found to sync." });
+      syncTask.loggedData.push({ Message: "Error: No Libraries found to sync." });
       await logging.updateLog(syncTask.uuid, syncTask.loggedData, taskstate.FAILED);
-      sendUpdate(syncTask.wsKey, { type: "Success", message: triggertype + " " + taskName.fullsync + " Completed" });
-      return;
+      throw new Error("No libraries found to sync");
     }
 
     const excluded_libraries = config.settings.ExcludedLibraries || [];
@@ -869,10 +868,9 @@ async function partialSync(triggertype) {
     const libraries = await API.getLibraries();
 
     if (libraries.length === 0) {
-      syncTask.loggedData.push({ Message: "Error: No Libararies found to sync." });
+      syncTask.loggedData.push({ Message: "Error: No Libraries found to sync." });
       await logging.updateLog(syncTask.uuid, syncTask.loggedData, taskstate.FAILED);
-      sendUpdate(syncTask.wsKey, { type: "Success", message: triggertype + " " + taskName.fullsync + " Completed" });
-      return { success: false, error: "No libraries found" };
+      throw new Error("No libraries found to sync");
     }
 
     const excluded_libraries = config.settings.ExcludedLibraries || [];

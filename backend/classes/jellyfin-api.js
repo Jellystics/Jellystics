@@ -26,7 +26,7 @@ class JellyfinAPI {
   async #fetchConfig() {
     const _config = await new configClass().getConfig();
 
-    if (!_config.error && _config.state === 2) {
+    if (!_config.error && _config.state >= 1) {
       this.config = _config;
       this.configReady = true;
       const _latest_version = await this.systemInfo();
