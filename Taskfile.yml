@@ -70,6 +70,23 @@ tasks:
           "cd backend && npx nodemon --inspect server.js"
           "cd frontend && pnpm dev"
 
+  clean:
+    desc: Stop and remove DB container and volumes
+    cmds:
+      - docker compose down -v --remove-orphans
+      - echo "DB cleaned"
+
+  clean:all:
+    desc: Remove DB container + node_modules + build artifacts
+    cmds:
+      - task: clean
+      - rm -rf node_modules
+      - rm -rf frontend/node_modules
+      - rm -rf backend/node_modules
+      - rm -rf frontend/dist
+      - rm -rf frontend/*.tsbuildinfo
+      - echo "Full clean done"
+
   build:
     desc: Build the frontend (outputs to dist/ for the backend to serve)
     dir: frontend
