@@ -91,7 +91,7 @@ export default function WebhooksTab() {
               {webhooks.map((w) => (
                 <ListItem key={w.id} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
                   <ListItemText
-                    primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{w.name}<Chip label={w.enabled ? 'active' : 'disabled'} size="small" color={w.enabled ? 'success' : 'default'} sx={{ height: 18, fontSize: 10 }} /></Box>}
+                    primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{w.name}<Chip label={w.enabled ? t('common.active') : t('common.disabled')} size="small" color={w.enabled ? 'success' : 'default'} sx={{ height: 18, fontSize: 10 }} /></Box>}
                     secondary={w.url}
                     slotProps={{ primary: { style: { fontSize: 13, fontWeight: 500 } }, secondary: { style: { fontSize: 11 } } }}
                   />
@@ -112,7 +112,7 @@ export default function WebhooksTab() {
         <DialogContent>
           <Box component="form" id="webhook-form" onSubmit={handleSubmit(onAdd)} noValidate sx={{ pt: 1 }}>
             <TextField {...register('name')} label={t('settings.webhookName')} fullWidth size="small" error={!!errors.name} helperText={errors.name?.message} sx={{ mb: 2 }} autoFocus />
-            <TextField {...register('url')} label="URL" fullWidth size="small" error={!!errors.url} helperText={errors.url?.message} placeholder="https://..." />
+            <TextField {...register('url')} label={t('common.url')} fullWidth size="small" error={!!errors.url} helperText={errors.url?.message} placeholder="https://..." />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

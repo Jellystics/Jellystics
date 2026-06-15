@@ -9,6 +9,7 @@ import { useSnackbar } from 'notistack'
 import { format, parseISO } from 'date-fns'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
 import api from '@/lib/axios'
+import { getDateLocale } from '@/lib/dateLocale'
 
 interface BackupFile {
   name: string
@@ -82,7 +83,7 @@ export default function BackupTab() {
                 <ListItem key={b.name} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
                   <ListItemText
                     primary={b.name}
-                    secondary={`${format(parseISO(b.createdAt), 'dd/MM/yyyy HH:mm')} · ${(b.size / 1024).toFixed(1)} KB`}
+                    secondary={`${format(parseISO(b.createdAt), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() })} · ${(b.size / 1024).toFixed(1)} ${t('units.kilobytes')}`}
                     slotProps={{ primary: { style: { fontSize: 13 } }, secondary: { style: { fontSize: 11 } } }}
                   />
                   <ListItemSecondaryAction>

@@ -137,7 +137,7 @@ export default function LoginPage() {
                   label={t('setup.jellyfinUrl')}
                   value={jellyfinUrl}
                   onChange={(e) => setJellyfinUrl(e.target.value)}
-                  placeholder="http://192.168.1.x:8096"
+                  placeholder={t('placeholder.jellyfinUrl')}
                   fullWidth
                   autoFocus
                   disabled={loading}

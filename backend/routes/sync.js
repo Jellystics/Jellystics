@@ -525,70 +525,41 @@ async function syncPlaybackPluginData() {
     //Playback Reporting Plugin Check
     const installed_plugins = await API.getInstalledPlugins();
 
+    PlaybacksyncTask.loggedData.push({
+      color: "dodgerblue",
+      Message: `Installed plugins (${installed_plugins.length}): ${installed_plugins.map((p) => p?.ConfigurationFileName ?? p?.Name ?? "?").join(", ")}`,
+    });
+
     const hasPlaybackReportingPlugin = installed_plugins.filter(
-      (plugins) => ["playback_reporting.xml", "Jellyfin.Plugin.PlaybackReporting.xml"].includes(plugins?.ConfigurationFileName) //TO-DO Change this to the correct plugin name
+      (plugins) => ["playback_reporting.xml", "Jellyfin.Plugin.PlaybackReporting.xml"].includes(plugins?.ConfigurationFileName)
     );
 
     if (!hasPlaybackReportingPlugin || hasPlaybackReportingPlugin.length === 0) {
-      if (!hasPlaybackReportingPlugin || hasPlaybackReportingPlugin.length === 0) {
-        PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: `No new data to insert.` });
-      } else {
-        PlaybacksyncTask.loggedData.push({
-          color: "lawngreen",
-          Message: "Playback Reporting Plugin not detected. Skipping step.",
-        });
-      }
+      PlaybacksyncTask.loggedData.push({
+        color: "yellow",
+        Message: "Playback Reporting Plugin not detected. Skipping data fetch.",
+      });
     } else {
       //
 
       PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Determining query constraints." });
-      const OldestPlaybackActivity = await db
-        .query('SELECT  MIN("ActivityDateInserted") "OldestPlaybackActivity" FROM public.jf_playback_activity')
-        .then((res) => res.rows[0]?.OldestPlaybackActivity);
-
-      const NewestPlaybackActivity = await db
-        .query('SELECT  MAX("ActivityDateInserted") "OldestPlaybackActivity" FROM public.jf_playback_activity')
-        .then((res) => res.rows[0]?.OldestPlaybackActivity);
 
       const MaxPlaybackReportingPluginID = await db
         .query('SELECT MAX(rowid) "MaxRowId" FROM jf_playback_reporting_plugin_data')
         .then((res) => res.rows[0]?.MaxRowId);
 
-      //Query Builder
+      // Import all plugin rows not yet staged: track progress via the highest rowid already imported
       let query = `SELECT rowid, * FROM PlaybackActivity`;
-
-      if (OldestPlaybackActivity && NewestPlaybackActivity) {
-        const formattedDateTimeOld = dayjs(OldestPlaybackActivity).format("YYYY-MM-DD HH:mm:ss");
-        const formattedDateTimeNew = dayjs(NewestPlaybackActivity).format("YYYY-MM-DD HH:mm:ss");
-        query = query + ` WHERE (DateCreated < '${formattedDateTimeOld}' or DateCreated > '${formattedDateTimeNew}')`;
+      if (MaxPlaybackReportingPluginID) {
+        query += ` WHERE rowid > ${MaxPlaybackReportingPluginID}`;
       }
+      query += " ORDER BY rowid";
 
-      if (OldestPlaybackActivity && !NewestPlaybackActivity) {
-        const formattedDateTimeOld = dayjs(OldestPlaybackActivity).format("YYYY-MM-DD HH:mm:ss");
-        query = query + ` WHERE DateCreated < '${formattedDateTimeOld}'`;
-        if (MaxPlaybackReportingPluginID) {
-          query = query + ` AND rowid > ${MaxPlaybackReportingPluginID}`;
-        }
-      }
-
-      if (!OldestPlaybackActivity && NewestPlaybackActivity) {
-        const formattedDateTimeNew = dayjs(NewestPlaybackActivity).format("YYYY-MM-DD HH:mm:ss");
-        query = query + ` WHERE DateCreated > '${formattedDateTimeNew}'`;
-        if (MaxPlaybackReportingPluginID) {
-          query = query + ` AND rowid > ${MaxPlaybackReportingPluginID}`;
-        }
-      }
-
-      if (!OldestPlaybackActivity && !NewestPlaybackActivity && MaxPlaybackReportingPluginID) {
-        query = query + ` WHERE rowid > ${MaxPlaybackReportingPluginID}`;
-      }
-
-      query += " order by rowid";
-
-      PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Query built. Executing." });
-      //
+      PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: `Query: ${query}` });
 
       const PlaybackData = await API.StatsSubmitCustomQuery(query);
+
+      PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: `Plugin returned ${PlaybackData?.length ?? 0} rows.` });
 
       let DataToInsert = await PlaybackData.map(mappingPlaybackReporting);
 
@@ -610,7 +581,36 @@ async function syncPlaybackPluginData() {
 
       PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Process complete. Data has been imported." });
     }
-    await db.query("CALL ji_insert_playback_plugin_data_to_activity_table()");
+    // Merge jf_playback_reporting_plugin_data → jf_playback_activity (inline, no stored procedure)
+    await db.query(`
+      INSERT INTO jf_playback_activity (
+        "Id", "IsPaused", "UserId", "UserName", "Client", "DeviceName", "DeviceId",
+        "ApplicationVersion", "NowPlayingItemId", "NowPlayingItemName", "EpisodeId",
+        "SeasonId", "SeriesName", "PlaybackDuration", "PlayMethod", "ActivityDateInserted",
+        "MediaStreams", "TranscodingInfo", "PlayState", "OriginalContainer", "RemoteEndPoint", "ServerId"
+      )
+      SELECT
+        'plugin-' || p.rowid,
+        false,
+        p."UserId",
+        COALESCE(u."Name", p."UserId"),
+        p."ClientName",
+        p."DeviceName",
+        NULL, NULL,
+        p."ItemId",
+        p."ItemName",
+        NULL, NULL,
+        CASE WHEN p."ItemType" = 'Episode' THEN p."ItemName" ELSE NULL END,
+        p."PlayDuration",
+        p."PlaybackMethod",
+        p."DateCreated",
+        NULL, NULL, NULL, NULL, NULL, NULL
+      FROM jf_playback_reporting_plugin_data p
+      LEFT JOIN jf_users u ON u."Id" = p."UserId"
+      WHERE NOT EXISTS (
+        SELECT 1 FROM jf_playback_activity a WHERE a."Id" = 'plugin-' || p.rowid
+      )
+    `);
     PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Any imported data has been processed." });
 
     PlaybacksyncTask.loggedData.push({ color: "lawngreen", Message: `Playback Reporting Plugin Sync Complete` });
@@ -629,7 +629,9 @@ async function syncPlaybackPluginData() {
 async function updateLibraryStatsData() {
   syncTask.loggedData.push({ color: "yellow", Message: "Updating Library Stats" });
 
-  await db.query("CALL ju_update_library_stats_data()");
+  for (const view of db.materializedViews) {
+    await db.refreshMaterializedView(view);
+  }
 
   syncTask.loggedData.push({ color: "dodgerblue", Message: "Library Stats Updated." });
 }

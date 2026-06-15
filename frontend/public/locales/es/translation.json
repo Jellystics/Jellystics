@@ -120,7 +120,7 @@
     "backupCreated": "Copia de seguridad creada",
     "backupDeleted": "Copia de seguridad eliminada",
     "deleteBackup": "Eliminar copia de seguridad",
-    "deleteBackupConfirm": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
+    "deleteBackupConfirm": "¿Eliminar « {{name}} »? Esta acción no se puede deshacer.",
     "noBackups": "Sin copias de seguridad",
     "addWebhook": "Añadir webhook",
     "webhookAdded": "Webhook añadido",
@@ -171,6 +171,74 @@
     "all": "Todos",
     "less": "Menos",
     "more": "Más",
-    "columns": "Columnas"
+    "columns": "Columnas",
+    "user": "Usuario",
+    "administrator": "Administrador",
+    "refresh": "Actualizar",
+    "active": "activo",
+    "disabled": "desactivado",
+    "url": "URL"
+  },
+  "theme": {
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro"
+  },
+  "logLevel": {
+    "info": "Info",
+    "warn": "Advertencia",
+    "error": "Error"
+  },
+  "validation": {
+    "required": "Requerido",
+    "min8Chars": "Mín 8 caracteres",
+    "passwordsMismatch": "Las contraseñas no coinciden"
+  },
+  "colors": {
+    "violet": "Violeta (predeterminado)",
+    "blue": "Azul",
+    "cyan": "Cian",
+    "green": "Verde",
+    "orange": "Naranja",
+    "pink": "Rosa"
+  },
+  "error": {
+    "loadDashboard": "Error al cargar los datos del panel"
+  },
+  "units": {
+    "kilobytes": "KB",
+    "megabytes": "MB",
+    "gigabytes": "GB"
+  },
+  "time": {
+    "hourShort": "h",
+    "minuteShort": "min"
+  },
+  "item": {
+    "backToLibrary": "Volver a la biblioteca",
+    "mediaFallback": "Medio",
+    "lastWatched": "Última reproducción",
+    "notFound": "Medio no encontrado.",
+    "whoWatched": "¿Quién lo vio?",
+    "watchHistory": "Historial de reproducciones",
+    "searchHistory": "Buscar en el historial..."
+  },
+  "status": {
+    "playing": "Reproduciendo",
+    "finished": "Terminado",
+    "nowPlaying": "Reproduciendo ahora"
+  },
+  "days": {
+    "short": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
+  },
+  "placeholder": {
+    "jellyfinUrl": "http://192.168.1.x:8096"
   }
 }

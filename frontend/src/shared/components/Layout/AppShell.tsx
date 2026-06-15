@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import { Navigation24Regular, WeatherMoon24Regular, WeatherSunny24Regular } from '@fluentui/react-icons'
 import { Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import SidebarContent from './Sidebar'
 import UserMenu from './UserMenu'
 import { useThemeMode } from '@/lib/ThemeModeContext'
@@ -13,6 +14,7 @@ import { useThemeMode } from '@/lib/ThemeModeContext'
 const DRAWER_WIDTH = 240
 
 export default function AppShell() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [open, setOpen] = useState(true)
@@ -68,7 +70,7 @@ export default function AppShell() {
             </IconButton>
           </Collapse>
           <Box sx={{ flexGrow: 1 }} />
-          <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'} enterDelay={500}>
+          <Tooltip title={mode === 'dark' ? t('theme.lightMode') : t('theme.darkMode')} enterDelay={500}>
             <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
               {mode === 'dark'
                 ? <WeatherSunny24Regular style={{ fontSize: 20 }} />

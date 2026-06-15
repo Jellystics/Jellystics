@@ -8,6 +8,7 @@ import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
+import { getDateLocale } from '@/lib/dateLocale'
 
 interface LogEntry {
   id: number
@@ -67,7 +68,7 @@ export default function LogsTab() {
     col.accessor('timestamp', {
       header: t('activity.date'),
       cell: (i) => {
-        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm:ss') } catch { return i.getValue() }
+        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm:ss', { locale: getDateLocale() }) } catch { return i.getValue() }
       },
     }),
     col.accessor('task', {
@@ -92,9 +93,9 @@ export default function LogsTab() {
         <InputLabel>{t('settings.logLevel')}</InputLabel>
         <Select value={level} label={t('settings.logLevel')} onChange={(e) => setLevel(e.target.value)}>
           <MenuItem value="all">{t('common.all')}</MenuItem>
-          <MenuItem value="info">Info</MenuItem>
-          <MenuItem value="warn">Warn</MenuItem>
-          <MenuItem value="error">Error</MenuItem>
+          <MenuItem value="info">{t('logLevel.info')}</MenuItem>
+          <MenuItem value="warn">{t('logLevel.warn')}</MenuItem>
+          <MenuItem value="error">{t('logLevel.error')}</MenuItem>
         </Select>
       </FormControl>
 

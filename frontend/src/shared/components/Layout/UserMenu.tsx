@@ -53,10 +53,10 @@ export default function UserMenu() {
         {/* User info header */}
         <Box sx={{ px: 1.5, py: 1.25, minWidth: 220 }}>
           <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1 }}>
-            {username || 'User'}
+            {username || t('common.user')}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            Administrator
+            {t('common.administrator')}
           </Typography>
         </Box>
 

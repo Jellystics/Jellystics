@@ -568,6 +568,9 @@ class JellyfinAPI {
       );
       return response.data.results;
     } catch (error) {
+      if (error.response?.status === 500) {
+        console.log("[JELLYFIN-API]: StatsSubmitCustomQuery 500 body:", JSON.stringify(error.response?.data));
+      }
       this.#errorHandler(error);
       return [];
     }

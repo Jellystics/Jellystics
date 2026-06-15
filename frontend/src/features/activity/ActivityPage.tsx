@@ -8,6 +8,7 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
+import { getDateLocale } from '@/lib/dateLocale'
 
 const col = createColumnHelper<Activity>()
 
@@ -51,7 +52,7 @@ export default function ActivityPage() {
     col.accessor('ActivityDateInserted', {
       header: t('activity.date'),
       cell: (i) => {
-        try { return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm') }
+        try { return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) }
         catch { return i.getValue() as string }
       },
     }),

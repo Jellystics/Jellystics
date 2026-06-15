@@ -1,4 +1,5 @@
 import { ToggleButton, ToggleButtonGroup } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 export type ActivityMetric = 'count' | 'duration'
 
@@ -8,6 +9,7 @@ interface MetricToggleProps {
 }
 
 export default function MetricToggle({ value, onChange }: MetricToggleProps) {
+  const { t } = useTranslation()
   return (
     <ToggleButtonGroup
       exclusive
@@ -25,8 +27,8 @@ export default function MetricToggle({ value, onChange }: MetricToggleProps) {
         },
       }}
     >
-      <ToggleButton value="count">Lectures</ToggleButton>
-      <ToggleButton value="duration">Durée</ToggleButton>
+      <ToggleButton value="count">{t('common.plays')}</ToggleButton>
+      <ToggleButton value="duration">{t('stats.watchTime')}</ToggleButton>
     </ToggleButtonGroup>
   )
 }

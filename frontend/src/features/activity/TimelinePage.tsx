@@ -10,12 +10,13 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { TimelineEntry } from '@/shared/types/activity'
 import { useDebounce } from '@/shared/hooks/useDebounce'
+import { getDateLocale } from '@/lib/dateLocale'
 
-function formatDuration(seconds: number): string {
+function formatDuration(seconds: number, t: (k: string) => string): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
+  if (h > 0) return `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}`
+  return `${m}${t('time.minuteShort')}`
 }
 
 export default function TimelinePage() {
@@ -86,7 +87,7 @@ export default function TimelinePage() {
           .map(([date, dayEntries]) => (
             <Box key={date} sx={{ mb: 3 }}>
               <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                {format(parseISO(date), 'EEEE dd MMMM yyyy')}
+                {format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: getDateLocale() })}
               </Typography>
               <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'primary.main' }}>
                 {dayEntries.map((entry) => (
@@ -99,7 +100,7 @@ export default function TimelinePage() {
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{entry.ItemName}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {entry.UserName} · {format(parseISO(entry.StartTime), 'HH:mm')} · {formatDuration(entry.Duration)}
+                            {entry.UserName} · {format(parseISO(entry.StartTime), 'HH:mm')} · {formatDuration(entry.Duration, t)}
                           </Typography>
                         </Box>
                         <Chip label={entry.PlayMethod} size="small" sx={{ fontSize: 11, height: 20 }} />

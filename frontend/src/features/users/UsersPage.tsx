@@ -9,6 +9,7 @@ import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { getDateLocale } from '@/lib/dateLocale'
 
 const col = createColumnHelper<UserStats>()
 
@@ -53,7 +54,7 @@ export default function UsersPage() {
       cell: (i) => {
         const v = i.getValue() as string | undefined
         if (!v) return '—'
-        try { return format(parseISO(v), 'dd/MM/yyyy HH:mm') } catch { return v }
+        try { return format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return v }
       },
     }),
     col.accessor('FavoriteGenre', { header: t('users.favoriteGenre'), cell: (i) => (i.getValue() as string | undefined) ?? '—' }),

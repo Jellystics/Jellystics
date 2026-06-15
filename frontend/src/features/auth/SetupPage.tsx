@@ -11,8 +11,8 @@ import { useTranslation } from 'react-i18next'
 import publicApi from '@/lib/publicApi'
 
 const schema = z.object({
-  jellyfinUrl: z.string().min(1, 'URL is required'),
-  jellyfinApiKey: z.string().min(1, 'API key is required'),
+  jellyfinUrl: z.string().min(1),
+  jellyfinApiKey: z.string().min(1),
 })
 type FormData = z.infer<typeof schema>
 
@@ -88,9 +88,9 @@ export default function SetupPage() {
               {...register('jellyfinUrl')}
               label={t('setup.jellyfinUrl')}
               fullWidth
-              placeholder="http://192.168.1.x:8096"
+              placeholder={t('placeholder.jellyfinUrl')}
               error={!!errors.jellyfinUrl}
-              helperText={errors.jellyfinUrl?.message ?? t('setup.jellyfinUrlHint')}
+              helperText={errors.jellyfinUrl?.type === 'too_small' ? t('validation.required') : errors.jellyfinUrl?.message ?? t('setup.jellyfinUrlHint')}
               autoFocus
               disabled={isSubmitting}
             />
@@ -99,7 +99,7 @@ export default function SetupPage() {
               label={t('setup.apiKey')}
               fullWidth
               error={!!errors.jellyfinApiKey}
-              helperText={errors.jellyfinApiKey?.message ?? t('setup.apiKeyHint')}
+              helperText={errors.jellyfinApiKey?.type === 'too_small' ? t('validation.required') : errors.jellyfinApiKey?.message ?? t('setup.apiKeyHint')}
               disabled={isSubmitting}
             />
             <Button

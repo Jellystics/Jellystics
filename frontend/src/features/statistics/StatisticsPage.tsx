@@ -16,7 +16,6 @@ import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 
 const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe']
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function StatisticsPage() {
   const { t } = useTranslation()
@@ -60,12 +59,15 @@ export default function StatisticsPage() {
   const totalDuration = overTime.reduce((s, d) => s + d.duration, 0)
 
   const hourData = Array.from({ length: 24 }, (_, h) => ({
-    hour: `${String(h).padStart(2, '0')}h`,
+    hour: `${String(h).padStart(2, '0')}${t('time.hourShort')}`,
     plays: byHour.find((d) => d.hour === h)?.plays ?? 0,
     duration: byHour.find((d) => d.hour === h)?.duration ?? 0,
   }))
 
-  const dayData = DAYS_OF_WEEK.map((day, i) => ({
+  const dayData = [
+    t('days.short.sun'), t('days.short.mon'), t('days.short.tue'), t('days.short.wed'),
+    t('days.short.thu'), t('days.short.fri'), t('days.short.sat'),
+  ].map((day, i) => ({
     day,
     plays: byDay.find((d) => d.day === String(i))?.plays ?? 0,
     duration: byDay.find((d) => d.day === String(i))?.duration ?? 0,

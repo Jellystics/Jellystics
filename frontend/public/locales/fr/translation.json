@@ -171,6 +171,74 @@
     "all": "Tous",
     "less": "Moins",
     "more": "Plus",
-    "columns": "Colonnes"
+    "columns": "Colonnes",
+    "user": "Utilisateur",
+    "administrator": "Administrateur",
+    "refresh": "Actualiser",
+    "active": "actif",
+    "disabled": "désactivé",
+    "url": "URL"
+  },
+  "theme": {
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre"
+  },
+  "logLevel": {
+    "info": "Info",
+    "warn": "Avertissement",
+    "error": "Erreur"
+  },
+  "validation": {
+    "required": "Requis",
+    "min8Chars": "Min 8 caractères",
+    "passwordsMismatch": "Les mots de passe ne correspondent pas"
+  },
+  "colors": {
+    "violet": "Violet (défaut)",
+    "blue": "Bleu",
+    "cyan": "Cyan",
+    "green": "Vert",
+    "orange": "Orange",
+    "pink": "Rose"
+  },
+  "error": {
+    "loadDashboard": "Impossible de charger les données du tableau de bord"
+  },
+  "units": {
+    "kilobytes": "Ko",
+    "megabytes": "Mo",
+    "gigabytes": "Go"
+  },
+  "time": {
+    "hourShort": "h",
+    "minuteShort": "min"
+  },
+  "item": {
+    "backToLibrary": "Retour à la bibliothèque",
+    "mediaFallback": "Média",
+    "lastWatched": "Dernière lecture",
+    "notFound": "Média introuvable.",
+    "whoWatched": "Qui a regardé ?",
+    "watchHistory": "Historique des lectures",
+    "searchHistory": "Rechercher dans l'historique..."
+  },
+  "status": {
+    "playing": "En cours",
+    "finished": "Terminé",
+    "nowPlaying": "Lecture en cours"
+  },
+  "days": {
+    "short": {
+      "sun": "Dim",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam"
+    }
+  },
+  "placeholder": {
+    "jellyfinUrl": "http://192.168.1.x:8096"
   }
 }

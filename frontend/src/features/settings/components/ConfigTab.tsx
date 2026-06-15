@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
   Box, Button, TextField, Typography, Card, CardContent,
-  CircularProgress,
+  CircularProgress, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import { useSnackbar } from 'notistack'
 import api from '@/lib/axios'
 import { getAccentColor, setAccentColor } from '@/lib/theme'
@@ -21,21 +22,28 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const ACCENT_COLORS = [
-  { label: 'Violet (default)', value: '#a78bfa' },
-  { label: 'Blue', value: '#60a5fa' },
-  { label: 'Cyan', value: '#22d3ee' },
-  { label: 'Green', value: '#4ade80' },
-  { label: 'Orange', value: '#fb923c' },
-  { label: 'Pink', value: '#f472b6' },
+  { labelKey: 'colors.violet', value: '#a78bfa' },
+  { labelKey: 'colors.blue', value: '#60a5fa' },
+  { labelKey: 'colors.cyan', value: '#22d3ee' },
+  { labelKey: 'colors.green', value: '#4ade80' },
+  { labelKey: 'colors.orange', value: '#fb923c' },
+  { labelKey: 'colors.pink', value: '#f472b6' },
+]
+
+const languages = [
+  { code: 'en', displayName: 'English' },
+  { code: 'fr', displayName: 'Français' },
+  { code: 'es', displayName: 'Español' },
 ]
 
 export default function ConfigTab() {
   const { t } = useTranslation()
   const { enqueueSnackbar } = useSnackbar()
   const [accent, setAccent] = useState(getAccentColor())
+  const [lang, setLang] = useState(i18next.language)
 
   const {
-    register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -68,50 +76,95 @@ export default function ConfigTab() {
     window.location.reload()
   }
 
+  const handleLanguageChange = (code: string) => {
+    setLang(code)
+    i18next.changeLanguage(code)
+  }
+
   return (
     <Box sx={{ maxWidth: 640 }}>
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.jellyfinConfig')}</Typography>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-            <TextField
-              {...register('JellyfinUrl')}
-              label={t('setup.jellyfinUrl')}
-              fullWidth size="small"
-              error={!!errors.JellyfinUrl}
-              helperText={errors.JellyfinUrl?.message}
-              sx={{ mb: 2 }}
+            <Controller
+              name="JellyfinUrl"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label={t('setup.jellyfinUrl')}
+                  fullWidth size="small"
+                  error={!!errors.JellyfinUrl}
+                  helperText={errors.JellyfinUrl?.message}
+                  sx={{ mb: 2 }}
+                />
+              )}
             />
-            <TextField
-              {...register('ApiKey')}
-              label={t('setup.apiKey')}
-              fullWidth size="small"
-              error={!!errors.ApiKey}
-              helperText={errors.ApiKey?.message}
-              sx={{ mb: 2 }}
+            <Controller
+              name="ApiKey"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label={t('setup.apiKey')}
+                  fullWidth size="small"
+                  error={!!errors.ApiKey}
+                  helperText={errors.ApiKey?.message}
+                  sx={{ mb: 2 }}
+                />
+              )}
             />
-            <TextField
-              {...register('SyncIntervalMinutes', { valueAsNumber: true })}
-              label={t('settings.syncInterval')}
-              type="number"
-              fullWidth size="small"
-              error={!!errors.SyncIntervalMinutes}
-              helperText={errors.SyncIntervalMinutes?.message}
-              sx={{ mb: 2 }}
+            <Controller
+              name="SyncIntervalMinutes"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label={t('settings.syncInterval')}
+                  type="number"
+                  fullWidth size="small"
+                  error={!!errors.SyncIntervalMinutes}
+                  helperText={errors.SyncIntervalMinutes?.message}
+                  sx={{ mb: 2 }}
+                  onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                />
+              )}
             />
-            <TextField
-              {...register('KeepLogsForDays', { valueAsNumber: true })}
-              label={t('settings.keepLogsForDays')}
-              type="number"
-              fullWidth size="small"
-              error={!!errors.KeepLogsForDays}
-              helperText={errors.KeepLogsForDays?.message}
-              sx={{ mb: 3 }}
+            <Controller
+              name="KeepLogsForDays"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label={t('settings.keepLogsForDays')}
+                  type="number"
+                  fullWidth size="small"
+                  error={!!errors.KeepLogsForDays}
+                  helperText={errors.KeepLogsForDays?.message}
+                  sx={{ mb: 3 }}
+                  onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                />
+              )}
             />
             <Button type="submit" variant="contained" disabled={isSubmitting}>
               {isSubmitting ? <CircularProgress size={18} /> : t('common.save')}
             </Button>
           </Box>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('frame.language')}</Typography>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>{t('frame.language')}</InputLabel>
+            <Select value={lang} label={t('frame.language')} onChange={(e) => handleLanguageChange(e.target.value)}>
+              {languages.map((l) => (
+                <MenuItem key={l.code} value={l.code}>{l.displayName}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </CardContent>
       </Card>
 
@@ -133,7 +186,7 @@ export default function ConfigTab() {
                   transition: 'transform 0.1s',
                   '&:hover': { transform: 'scale(1.15)' },
                 }}
-                title={c.label}
+                title={t(c.labelKey)}
               />
             ))}
           </Box>

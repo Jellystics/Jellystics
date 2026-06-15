@@ -21,6 +21,7 @@ import type { UserStats, UserActivity } from '@/shared/types/user'
 import type { GenreStat } from '@/shared/types/library'
 import { Play24Regular, Clock24Regular, Star24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { getDateLocale } from '@/lib/dateLocale'
 
 const col = createColumnHelper<Activity>()
 
@@ -70,11 +71,11 @@ export default function UserDetailPage() {
     col.accessor('PlayMethod', { header: t('activity.method'), cell: (i) => (i.getValue() as string | undefined) ?? '—' }),
     col.accessor('ActivityDateInserted', {
       header: t('activity.date'),
-      cell: (i) => { try { return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm') } catch { return i.getValue() as string } },
+      cell: (i) => { try { return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return i.getValue() as string } },
     }),
     col.accessor('PlayDuration', {
       header: t('activity.duration'),
-      cell: (i) => { const s = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m` },
+      cell: (i) => { const s = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}` : `${m}${t('time.minuteShort')}` },
     }),
   ]
 
@@ -99,7 +100,7 @@ export default function UserDetailPage() {
             {loading ? <Skeleton width={120} height={28} /> : <Typography variant="h6" sx={{ fontWeight: 700 }}>{username}</Typography>}
             {loading ? <Skeleton width={180} height={20} /> : (
               <Typography variant="body2" color="text.secondary">
-                {t('users.lastSeen')}: {userStats?.LastSeen ? format(parseISO(userStats.LastSeen), 'dd/MM/yyyy HH:mm') : '—'}
+                {t('users.lastSeen')}: {userStats?.LastSeen ? format(parseISO(userStats.LastSeen), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) : '—'}
               </Typography>
             )}
           </Box>

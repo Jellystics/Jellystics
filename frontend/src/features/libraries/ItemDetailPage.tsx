@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { format, parseISO } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft24Regular, Clock24Regular, People24Regular,
   Play24Regular, Star24Regular,
@@ -15,6 +16,7 @@ import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import type { ItemDetails, ItemWatchHistory, ItemWatchUser } from '@/shared/types/library'
+import { getDateLocale } from '@/lib/dateLocale'
 
 const userCol = createColumnHelper<ItemWatchUser>()
 const historyCol = createColumnHelper<ItemWatchHistory>()
@@ -25,10 +27,11 @@ function posterUrl(itemId: string): string {
 
 function formatDate(value?: string | null): string {
   if (!value) return '—'
-  try { return format(parseISO(value), 'dd/MM/yyyy HH:mm') } catch { return value }
+  try { return format(parseISO(value), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return value }
 }
 
 export default function ItemDetailPage() {
+  const { t } = useTranslation()
   const { itemId, libraryId } = useParams<{ itemId: string; libraryId: string }>()
   const navigate = useNavigate()
   const [details, setDetails] = useState<ItemDetails | null>(null)
@@ -41,47 +44,47 @@ export default function ItemDetailPage() {
       if (showLoading) setLoading(true)
       api.get(`/stats/getItemDetails?itemId=${itemId}`)
         .then((res) => setDetails(res.data))
-        .catch(() => setError('Impossible de charger le média'))
+        .catch(() => setError(t('common.loadError')))
         .finally(() => setLoading(false))
     }
 
     load()
     const interval = window.setInterval(() => load(false), 15000)
     return () => window.clearInterval(interval)
-  }, [itemId])
+  }, [itemId, t])
 
   const item = details?.item
 
   const userColumns: ColumnDef<ItemWatchUser, any>[] = [
     userCol.accessor('UserName', {
-      header: 'Utilisateur',
+      header: t('activity.user'),
       cell: (info) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12 }}>
             {(info.getValue() || '?').charAt(0).toUpperCase()}
           </Avatar>
           <Typography variant="body2" sx={{ fontWeight: 500 }}>{info.getValue()}</Typography>
-          {info.row.original.IsActive && <Chip label="En cours" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />}
+          {info.row.original.IsActive && <Chip label={t('status.playing')} size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />}
         </Box>
       ),
     }),
-    userCol.accessor('PlayCount', { header: 'Lectures' }),
-    userCol.accessor('TotalWatchTime', { header: 'Temps total', cell: (info) => formatWatchTime(info.getValue()) }),
-    userCol.accessor('LastWatched', { header: 'Dernière lecture', cell: (info) => formatDate(info.getValue()) }),
+    userCol.accessor('PlayCount', { header: t('common.plays') }),
+    userCol.accessor('TotalWatchTime', { header: t('stats.watchTime'), cell: (info) => formatWatchTime(info.getValue()) }),
+    userCol.accessor('LastWatched', { header: t('users.lastSeen'), cell: (info) => formatDate(info.getValue()) }),
   ]
 
   const historyColumns: ColumnDef<ItemWatchHistory, any>[] = [
-    historyCol.accessor('UserName', { header: 'Utilisateur' }),
-    historyCol.accessor('ActivityDateInserted', { header: 'Quand', cell: (info) => formatDate(info.getValue()) }),
-    historyCol.accessor('PlaybackDuration', { header: 'Durée', cell: (info) => formatWatchTime(info.getValue()) }),
-    historyCol.accessor('Client', { header: 'Client', cell: (info) => info.getValue() ?? '—' }),
-    historyCol.accessor('DeviceName', { header: 'Appareil', cell: (info) => info.getValue() ?? '—' }),
-    historyCol.accessor('PlayMethod', { header: 'Méthode', cell: (info) => info.getValue() ?? '—' }),
+    historyCol.accessor('UserName', { header: t('activity.user') }),
+    historyCol.accessor('ActivityDateInserted', { header: t('activity.date'), cell: (info) => formatDate(info.getValue()) }),
+    historyCol.accessor('PlaybackDuration', { header: t('activity.duration'), cell: (info) => formatWatchTime(info.getValue()) }),
+    historyCol.accessor('Client', { header: t('activity.client'), cell: (info) => info.getValue() ?? '—' }),
+    historyCol.accessor('DeviceName', { header: t('activity.device'), cell: (info) => info.getValue() ?? '—' }),
+    historyCol.accessor('PlayMethod', { header: t('activity.method'), cell: (info) => info.getValue() ?? '—' }),
     historyCol.accessor('IsActive', {
-      header: 'Statut',
+      header: t('activity.method'),
       cell: (info) => info.getValue()
-        ? <Chip label="En cours" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
-        : <Chip label="Terminé" size="small" sx={{ height: 20, fontSize: 11 }} />,
+        ? <Chip label={t('status.playing')} size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
+        : <Chip label={t('status.finished')} size="small" sx={{ height: 20, fontSize: 11 }} />,
     }),
   ]
 
@@ -94,11 +97,11 @@ export default function ItemDetailPage() {
       >
         <Typography variant="body2" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
           <ArrowLeft24Regular style={{ fontSize: 18 }} />
-          Retour à la bibliothèque
+          {t('item.backToLibrary')}
         </Typography>
       </Box>
 
-      <PageHeader title={item?.Name ?? 'Média'} />
+      <PageHeader title={item?.Name ?? t('item.mediaFallback')} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -120,16 +123,16 @@ export default function ItemDetailPage() {
         <Grid size={{ xs: 12, md: 9 }}>
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard label="Lectures" value={details?.stats.TotalPlays ?? '—'} icon={<Play24Regular />} loading={loading} />
+              <StatCard label={t('common.plays')} value={details?.stats.TotalPlays ?? '—'} icon={<Play24Regular />} loading={loading} />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard label="Temps total" value={details ? formatWatchTime(details.stats.TotalWatchTime) : '—'} icon={<Clock24Regular />} loading={loading} />
+              <StatCard label={t('stats.watchTime')} value={details ? formatWatchTime(details.stats.TotalWatchTime) : '—'} icon={<Clock24Regular />} loading={loading} />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard label="Utilisateurs" value={details?.stats.UniqueUsers ?? '—'} icon={<People24Regular />} loading={loading} />
+              <StatCard label={t('stats.totalUsers')} value={details?.stats.UniqueUsers ?? '—'} icon={<People24Regular />} loading={loading} />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard label="Note" value={item?.CommunityRating ? `★ ${item.CommunityRating.toFixed(1)}` : '—'} icon={<Star24Regular />} loading={loading} />
+              <StatCard label={t('library.rating')} value={item?.CommunityRating ? `★ ${item.CommunityRating.toFixed(1)}` : '—'} icon={<Star24Regular />} loading={loading} />
             </Grid>
           </Grid>
 
@@ -147,11 +150,11 @@ export default function ItemDetailPage() {
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                     {item.Type && <Chip label={item.Type} size="small" />}
                     {item.ProductionYear && <Chip label={item.ProductionYear} size="small" />}
-                    {details?.stats.IsActive && <Chip label="Lecture en cours" color="primary" size="small" />}
+                    {details?.stats.IsActive && <Chip label={t('status.nowPlaying')} color="primary" size="small" />}
                     {item.Genres?.map((genre) => <Chip key={genre} label={genre} size="small" variant="outlined" />)}
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    Dernière lecture : {formatDate(details?.stats.LastWatched)}
+                    {t('item.lastWatched')}: {formatDate(details?.stats.LastWatched)}
                   </Typography>
                   {item.Path && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, wordBreak: 'break-all' }}>
@@ -160,7 +163,7 @@ export default function ItemDetailPage() {
                   )}
                 </Box>
               ) : (
-                <Typography variant="body2" color="text.secondary">Média introuvable.</Typography>
+                <Typography variant="body2" color="text.secondary">{t('item.notFound')}</Typography>
               )}
             </CardContent>
           </Card>
@@ -169,15 +172,15 @@ export default function ItemDetailPage() {
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Qui a regardé ?</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t('item.whoWatched')}</Typography>
           <DataTable data={details?.users ?? []} columns={userColumns} loading={loading} searchable={false} />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Historique des lectures</Typography>
-          <DataTable data={details?.history ?? []} columns={historyColumns} loading={loading} searchPlaceholder="Rechercher dans l'historique..." />
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t('item.watchHistory')}</Typography>
+          <DataTable data={details?.history ?? []} columns={historyColumns} loading={loading} searchPlaceholder={t('item.searchHistory')} />
         </CardContent>
       </Card>
     </>

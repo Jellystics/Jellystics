@@ -5,6 +5,7 @@ import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import { useTranslation } from 'react-i18next'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { getDateLocale } from '@/lib/dateLocale'
 
 interface ActivityPoint {
   date: string
@@ -25,11 +26,11 @@ export default function ActivityChart({ data, loading, metric, onMetricChange }:
 
   const formatted = data.map((d) => ({
     ...d,
-    label: format(parseISO(d.date), 'MMM d'),
+    label: format(parseISO(d.date), 'MMM d', { locale: getDateLocale() }),
     count: d.plays,
   }))
   const dataKey = metric === 'duration' ? 'duration' : 'count'
-  const label = metric === 'duration' ? 'Durée' : t('common.plays')
+  const label = metric === 'duration' ? t('stats.watchTime') : t('common.plays')
 
   return (
     <ChartCard

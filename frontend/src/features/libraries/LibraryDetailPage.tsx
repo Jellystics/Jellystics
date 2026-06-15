@@ -5,6 +5,7 @@ import {
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
@@ -22,9 +23,9 @@ const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6'
 function formatSize(bytes?: number): string | null {
   if (!bytes) return null
   const gb = bytes / 1024 / 1024 / 1024
-  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} GB`
+  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} ${i18next.t('units.gigabytes')}`
   const mb = bytes / 1024 / 1024
-  return `${Math.round(mb)} MB`
+  return `${Math.round(mb)} ${i18next.t('units.megabytes')}`
 }
 
 function posterUrl(item: LibraryItem): string {

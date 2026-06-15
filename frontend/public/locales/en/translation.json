@@ -171,6 +171,74 @@
     "all": "All",
     "less": "Less",
     "more": "More",
-    "columns": "Columns"
+    "columns": "Columns",
+    "user": "User",
+    "administrator": "Administrator",
+    "refresh": "Refresh",
+    "active": "active",
+    "disabled": "disabled",
+    "url": "URL"
+  },
+  "theme": {
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode"
+  },
+  "logLevel": {
+    "info": "Info",
+    "warn": "Warn",
+    "error": "Error"
+  },
+  "validation": {
+    "required": "Required",
+    "min8Chars": "Min 8 characters",
+    "passwordsMismatch": "Passwords do not match"
+  },
+  "colors": {
+    "violet": "Violet (default)",
+    "blue": "Blue",
+    "cyan": "Cyan",
+    "green": "Green",
+    "orange": "Orange",
+    "pink": "Pink"
+  },
+  "error": {
+    "loadDashboard": "Failed to load dashboard data"
+  },
+  "units": {
+    "kilobytes": "KB",
+    "megabytes": "MB",
+    "gigabytes": "GB"
+  },
+  "time": {
+    "hourShort": "h",
+    "minuteShort": "m"
+  },
+  "item": {
+    "backToLibrary": "Back to library",
+    "mediaFallback": "Media",
+    "lastWatched": "Last watched",
+    "notFound": "Media not found.",
+    "whoWatched": "Who watched?",
+    "watchHistory": "Watch history",
+    "searchHistory": "Search history..."
+  },
+  "status": {
+    "playing": "Playing",
+    "finished": "Finished",
+    "nowPlaying": "Now playing"
+  },
+  "days": {
+    "short": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
+  },
+  "placeholder": {
+    "jellyfinUrl": "http://192.168.1.x:8096"
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '@/lib/axios'
 import type { GlobalStats } from '@/shared/types/stats'
 import type { Session } from '@/shared/types/activity'
@@ -35,6 +36,7 @@ interface DashboardData {
 }
 
 export function useDashboard(): DashboardData {
+  const { t } = useTranslation()
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [topItems, setTopItems] = useState<TopItem[]>([])
@@ -60,11 +62,11 @@ export function useDashboard(): DashboardData {
       setTopUsers(topUsersRes.data ?? [])
       setActivityOverTime(activityRes.data ?? [])
     } catch {
-      setError('Failed to load dashboard data')
+      setError(t('error.loadDashboard'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetch()
