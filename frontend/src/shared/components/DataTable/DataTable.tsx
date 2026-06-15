@@ -27,12 +27,14 @@ import {
   Skeleton,
   Typography,
   Stack,
+  Tooltip,
 } from '@mui/material'
 import {
   Search20Regular,
   ColumnTriple24Regular,
   ArrowUp20Regular,
   ArrowDown20Regular,
+  ArrowSync24Regular,
 } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useDebounce } from '@/shared/hooks/useDebounce'
@@ -44,6 +46,7 @@ interface DataTableProps<T> {
   loading?: boolean
   searchable?: boolean
   searchPlaceholder?: string
+  onRefresh?: () => void
 }
 
 export default function DataTable<T>({
@@ -52,6 +55,7 @@ export default function DataTable<T>({
   loading,
   searchable = true,
   searchPlaceholder,
+  onRefresh,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -100,13 +104,24 @@ export default function DataTable<T>({
           />
         )}
         <Box sx={{ flexGrow: 1 }} />
-        <IconButton
-          size="small"
-          onClick={(e) => setColAnchor(e.currentTarget)}
-          sx={{ color: 'text.secondary' }}
-        >
-          <ColumnTriple24Regular style={{ fontSize: 20 }} />
-        </IconButton>
+        {onRefresh && (
+          <Tooltip title={t('common.refresh')}>
+            <span>
+              <IconButton size="small" onClick={onRefresh} sx={{ color: 'text.secondary' }} disabled={loading}>
+                <ArrowSync24Regular style={{ fontSize: 20 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+        <Tooltip title={t('common.columns')}>
+          <IconButton
+            size="small"
+            onClick={(e) => setColAnchor(e.currentTarget)}
+            sx={{ color: 'text.secondary' }}
+          >
+            <ColumnTriple24Regular style={{ fontSize: 20 }} />
+          </IconButton>
+        </Tooltip>
         <Popover
           open={Boolean(colAnchor)}
           anchorEl={colAnchor}

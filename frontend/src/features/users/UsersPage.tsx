@@ -20,12 +20,12 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const load = (showLoading = true) => {
-      if (showLoading) setLoading(true)
-      api.get('/stats/getUserStats').then((r) => setUsers(r.data ?? [])).catch(() => setError(t('common.loadError'))).finally(() => setLoading(false))
-    }
+  const load = (showLoading = true) => {
+    if (showLoading) setLoading(true)
+    api.get('/stats/getUserStats').then((r) => setUsers(r.data ?? [])).catch(() => setError(t('common.loadError'))).finally(() => setLoading(false))
+  }
 
+  useEffect(() => {
     load()
     const interval = window.setInterval(() => load(false), 15000)
     return () => window.clearInterval(interval)
@@ -64,7 +64,7 @@ export default function UsersPage() {
     <>
       <PageHeader title={t('nav.users')} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <DataTable data={users} columns={columns} loading={loading} searchPlaceholder={t('users.search')} />
+      <DataTable data={users} columns={columns} loading={loading} searchPlaceholder={t('users.search')} onRefresh={load} />
     </>
   )
 }
