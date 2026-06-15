@@ -34,3 +34,46 @@ export interface GenreStat {
   Count: number
   PlayCount: number
 }
+
+export interface ItemWatchUser {
+  UserId: string
+  UserName: string
+  PlayCount: number
+  TotalWatchTime: number
+  LastWatched?: string | null
+  IsActive: boolean
+}
+
+export interface ItemWatchHistory {
+  Id: string
+  UserId: string
+  UserName: string
+  Client?: string | null
+  DeviceName?: string | null
+  PlayMethod?: string | null
+  PlaybackDuration: number
+  ActivityDateInserted: string
+  RemoteEndPoint?: string | null
+  IsActive: boolean
+}
+
+export interface ItemDetails {
+  item: LibraryItem & {
+    Genres?: string[]
+    PremiereDate?: string
+    DateCreated?: string
+    RunTimeTicks?: number
+    ParentId?: string
+    Path?: string
+    Bitrate?: number
+  }
+  stats: {
+    TotalPlays: number
+    TotalWatchTime: number
+    UniqueUsers: number
+    LastWatched?: string | null
+    IsActive: boolean
+  }
+  users: ItemWatchUser[]
+  history: ItemWatchHistory[]
+}

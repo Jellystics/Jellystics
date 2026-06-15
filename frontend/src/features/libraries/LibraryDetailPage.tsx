@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Grid, Alert, Card, CardContent, Typography, Tabs, Tab, Box,
+  Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
@@ -33,6 +33,7 @@ function posterUrl(item: LibraryItem): string {
 
 export default function LibraryDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const [tab, setTab] = useState(0)
   const [items, setItems] = useState<LibraryItem[]>([])
@@ -156,70 +157,72 @@ export default function LibraryDetailPage() {
                         },
                       }}
                     >
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          aspectRatio: '2 / 3',
-                          bgcolor: 'rgba(255,255,255,0.04)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'text.secondary',
-                        }}
-                      >
-                        <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
+                      <CardActionArea onClick={() => navigate(`/libraries/${id}/items/${item.Id}`)} sx={{ height: '100%' }}>
                         <Box
-                          component="img"
-                          src={posterUrl(item)}
-                          alt={item.Name}
-                          loading="lazy"
-                          onError={(event) => { event.currentTarget.style.display = 'none' }}
                           sx={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
+                            position: 'relative',
+                            aspectRatio: '2 / 3',
+                            bgcolor: 'rgba(255,255,255,0.04)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'text.secondary',
                           }}
-                        />
-                        {size && (
-                          <Chip
-                            label={size}
-                            size="small"
+                        >
+                          <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
+                          <Box
+                            component="img"
+                            src={posterUrl(item)}
+                            alt={item.Name}
+                            loading="lazy"
+                            onError={(event) => { event.currentTarget.style.display = 'none' }}
                             sx={{
                               position: 'absolute',
-                              right: 6,
-                              bottom: 6,
-                              height: 20,
-                              fontSize: 10,
-                              bgcolor: 'primary.main',
-                              color: 'primary.contrastText',
+                              inset: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
                             }}
                           />
-                        )}
-                      </Box>
-                      <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
-                          {item.Name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
-                          {item.ProductionYear && (
-                            <Typography variant="caption" color="text.secondary">
-                              {item.ProductionYear}
-                            </Typography>
-                          )}
-                          {item.CommunityRating && (
-                            <Typography variant="caption" color="warning.main">
-                              ★ {item.CommunityRating.toFixed(1)}
-                            </Typography>
-                          )}
-                          {item.PlayCount > 0 && (
-                            <Typography variant="caption" color="text.secondary">
-                              {item.PlayCount} {t('common.plays')}
-                            </Typography>
+                          {size && (
+                            <Chip
+                              label={size}
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                right: 6,
+                                bottom: 6,
+                                height: 20,
+                                fontSize: 10,
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                              }}
+                            />
                           )}
                         </Box>
-                      </CardContent>
+                        <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
+                            {item.Name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                            {item.ProductionYear && (
+                              <Typography variant="caption" color="text.secondary">
+                                {item.ProductionYear}
+                              </Typography>
+                            )}
+                            {item.CommunityRating && (
+                              <Typography variant="caption" color="warning.main">
+                                ★ {item.CommunityRating.toFixed(1)}
+                              </Typography>
+                            )}
+                            {item.PlayCount > 0 && (
+                              <Typography variant="caption" color="text.secondary">
+                                {item.PlayCount} {t('common.plays')}
+                              </Typography>
+                            )}
+                          </Box>
+                        </CardContent>
+                      </CardActionArea>
                     </Card>
                   </Grid>
                 )

@@ -707,6 +707,106 @@ async function getLibraryItems(libraryId) {
   return items;
 }
 
+async function getItemDetails(itemId) {
+  const item = await one(
+    `
+    SELECT
+      i."Id",
+      i."Name",
+      i."Type",
+      i."ProductionYear",
+      i."CommunityRating",
+      i."PremiereDate",
+      i."DateCreated",
+      i."RunTimeTicks",
+      i."Genres",
+      i."ParentId",
+      info."Size",
+      info."Path",
+      info."Bitrate"
+    FROM jf_library_items i
+    LEFT JOIN jf_item_info info ON info."Id" = i."Id"
+    WHERE i."Id" = $1
+    LIMIT 1
+    `,
+    [itemId]
+  );
+
+  if (!item) return null;
+
+  const history = await rows(
+    `
+    SELECT
+      "Id",
+      "UserId",
+      "UserName",
+      "Client",
+      "DeviceName",
+      "PlayMethod",
+      "PlaybackDuration"::int AS "PlaybackDuration",
+      "ActivityDateInserted",
+      "RemoteEndPoint",
+      false AS "IsActive"
+    FROM jf_playback_activity
+    WHERE "NowPlayingItemId" = $1 OR "EpisodeId" = $1
+    ORDER BY ${ACTIVITY_TS} DESC
+    LIMIT 200
+    `,
+    [itemId]
+  );
+
+  const live = (await getLiveActivity()).filter((session) => session.NowPlayingItemId === itemId || session.EpisodeId === itemId);
+  const liveHistory = live.map((session) => ({
+    Id: `live-${session.UserId}-${session.NowPlayingItemId}`,
+    UserId: session.UserId,
+    UserName: session.UserName,
+    Client: session.Client,
+    DeviceName: null,
+    PlayMethod: session.PlayMethod,
+    PlaybackDuration: session.PlaybackDuration,
+    ActivityDateInserted: new Date().toISOString(),
+    RemoteEndPoint: null,
+    IsActive: true,
+  }));
+
+  const allHistory = [...liveHistory, ...history];
+  const users = allHistory.reduce((acc, row) => {
+    let user = acc.find((entry) => entry.UserId === row.UserId);
+    if (!user) {
+      user = {
+        UserId: row.UserId,
+        UserName: row.UserName,
+        PlayCount: 0,
+        TotalWatchTime: 0,
+        LastWatched: null,
+        IsActive: false,
+      };
+      acc.push(user);
+    }
+
+    user.PlayCount += 1;
+    user.TotalWatchTime += row.PlaybackDuration || 0;
+    user.IsActive = user.IsActive || row.IsActive;
+    if (!user.LastWatched || new Date(row.ActivityDateInserted) > new Date(user.LastWatched)) {
+      user.LastWatched = row.ActivityDateInserted;
+    }
+    return acc;
+  }, []);
+
+  return {
+    item,
+    stats: {
+      TotalPlays: allHistory.length,
+      TotalWatchTime: allHistory.reduce((sum, row) => sum + (row.PlaybackDuration || 0), 0),
+      UniqueUsers: users.length,
+      LastWatched: allHistory[0]?.ActivityDateInserted ?? null,
+      IsActive: live.length > 0,
+    },
+    users: users.sort((a, b) => b.PlayCount - a.PlayCount),
+    history: allHistory,
+  };
+}
+
 async function getActivityTimeline() {
   const timeline = await rows(
     `
@@ -764,5 +864,6 @@ module.exports = {
   getLibraries,
   getLibraryStats,
   getLibraryItems,
+  getItemDetails,
   getActivityTimeline,
 };

@@ -942,6 +942,12 @@ router.get("/getLibraryItems", (req, res) => {
   sendRepoResult(res, statsRepo.getLibraryItems(libraryId), []);
 });
 
+router.get("/getItemDetails", (req, res) => {
+  const { itemId } = req.query;
+  if (!itemId) return res.status(400).send("itemId is required");
+  sendRepoResult(res, statsRepo.getItemDetails(itemId), null);
+});
+
 router.get("/getGenreStats", (req, res) => {
   const { libraryId } = req.query;
   if (!libraryId) return res.status(400).send("libraryId is required");
