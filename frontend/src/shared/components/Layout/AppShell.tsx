@@ -143,24 +143,16 @@ export default function AppShell() {
         {/* AppBar spacer */}
         <Box sx={{ ...theme.mixins.toolbar }} />
 
-        {/* Page container */}
-        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: { md: 1 } }}>
-          <Box
-            sx={{
-              flexGrow: 1,
-              overflow: 'auto',
-              bgcolor: 'background.paper',
-              borderRadius: { md: 3 },
-              border: { md: '1px solid' },
-              borderColor: { md: 'divider' },
-              py: 4,
-            }}
-          >
+      {/* Page container */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: { md: 1 } }}>
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', borderRadius: { md: 3 }, border: { md: '1px solid' }, borderColor: { md: 'divider' } }}>
+          <Box sx={{ flexGrow: 1, overflow: 'auto', height: '100%', bgcolor: 'background.paper', py: 4, scrollbarGutter: 'stable' }}>
             <Container maxWidth="xl">
               <Outlet />
             </Container>
           </Box>
         </Box>
+      </Box>
       </Box>
     </Box>
   )

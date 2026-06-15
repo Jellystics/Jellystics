@@ -83,21 +83,20 @@ export default function TasksTab() {
       <Card>
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.taskOutput')}</Typography>
-          <Box
-            ref={logsRef}
-            sx={{
-              bgcolor: '#0a0a0f',
-              borderRadius: 1,
-              p: 1.5,
-              height: 300,
-              overflowY: 'auto',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              color: '#d4d4d8',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
+          <Box sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+            <Box
+              ref={logsRef}
+              sx={{
+                bgcolor: '#0a0a0f',
+                p: 1.5,
+                height: 300,
+                overflowY: 'auto',
+                scrollbarGutter: 'stable',
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: '#d4d4d8',
+              }}
+            >
             {logs.length === 0 ? (
               <Typography variant="caption" color="text.secondary">{t('settings.noLogs')}</Typography>
             ) : (
@@ -105,6 +104,7 @@ export default function TasksTab() {
                 <Box key={i} sx={{ mb: 0.25 }}>{log}</Box>
               ))
             )}
+          </Box>
           </Box>
         </CardContent>
       </Card>

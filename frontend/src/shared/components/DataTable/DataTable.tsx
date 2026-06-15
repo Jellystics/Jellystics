@@ -26,7 +26,6 @@ import {
   FormControlLabel,
   Skeleton,
   Typography,
-  Paper,
   Stack,
 } from '@mui/material'
 import {
@@ -137,16 +136,15 @@ export default function DataTable<T>({
       </Stack>
 
       {/* Table */}
-      <TableContainer
-        component={Paper}
-        sx={{
-          boxShadow: 'none',
-          border: '1px solid',
-          borderColor: 'divider',
-          overflowX: 'auto',
-        }}
-      >
-        <Table size="small" stickyHeader sx={{ minWidth: 600 }}>
+      <Box sx={{ overflow: 'hidden', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+        <TableContainer
+          sx={{
+            boxShadow: 'none',
+            overflowX: 'auto',
+            scrollbarGutter: 'stable',
+          }}
+        >
+          <Table size="small" stickyHeader sx={{ minWidth: 600 }}>
           <TableHead>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
@@ -203,7 +201,8 @@ export default function DataTable<T>({
                 ))}
           </TableBody>
         </Table>
-      </TableContainer>
+        </TableContainer>
+      </Box>
 
       <Box sx={{ mt: 1 }}>
         <TablePagination

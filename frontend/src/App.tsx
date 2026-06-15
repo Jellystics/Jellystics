@@ -61,19 +61,25 @@ function ScrollbarStyles() {
         html: { scrollbarWidth: isMobile ? 'initial' : 'thin' },
         body: { overflowY: isMobile ? 'initial' : 'hidden' },
         ...(isMobile ? {} : {
-          '*::-webkit-scrollbar': { width: 8, height: 8 },
+          '*': { scrollbarColor: `${isDark ? grey[600] : grey[400]} transparent`, scrollbarWidth: 'thin' },
+          '*::-webkit-scrollbar': { width: 10, height: 10 },
           '*::-webkit-scrollbar-button': { width: 0, height: 0 },
-          '*::-webkit-scrollbar-corner': { background: '0 0' },
-          '*::-webkit-scrollbar-thumb': { borderRadius: 4, backgroundColor: 'transparent' },
-          '*::-webkit-scrollbar-track': { borderRadius: 4 },
+          '*::-webkit-scrollbar-corner': { background: 'transparent' },
+          '*::-webkit-scrollbar-track': { background: 'transparent', borderRadius: 5 },
           '*::-webkit-scrollbar-track:hover': {
-            backgroundColor: isDark ? grey[800] : grey[200],
+            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
           },
-          '*::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: `${theme.palette.primary.main}!important`,
+          '*::-webkit-scrollbar-thumb': {
+            borderRadius: 5,
+            backgroundColor: 'transparent',
+            border: '3px solid transparent',
+            backgroundClip: 'padding-box',
           },
           '*:hover::-webkit-scrollbar-thumb': {
             backgroundColor: isDark ? grey[600] : grey[400],
+          },
+          '*::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: `${theme.palette.primary.main}!important`,
           },
           '.notistack-MuiContent': { borderRadius: '12px' },
         }),
