@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import socket from '@/lib/socket'
 import {
   Box, AppBar, Toolbar, IconButton, Drawer, Container,
   useTheme, useMediaQuery, Collapse,
@@ -15,6 +16,11 @@ export default function AppShell() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [open, setOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    socket.connect()
+    return () => { socket.disconnect() }
+  }, [])
 
   const appBarBg = theme.palette.background.default
 
