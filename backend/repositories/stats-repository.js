@@ -8,7 +8,6 @@ const PLAYBACK_MINUTES_SUM = `FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)
 
 async function rows(sql, params = []) {
   const result = await db.query(sql, params);
-  if (Array.isArray(result)) return [];
   return result?.rows ?? [];
 }
 
@@ -908,6 +907,58 @@ async function getActivityTimeline() {
   return [...liveTimeline, ...timeline];
 }
 
+async function getMostViewedLibraries({ days = 30 } = {}) {
+  return rows(
+    `
+    SELECT l."Name", COUNT(a."Id")::int AS "Count"
+    FROM jf_libraries l
+    LEFT JOIN jf_library_items i ON i."ParentId" = l."Id" AND i.archived = false
+    LEFT JOIN jf_playback_activity a
+      ON (a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id")
+      AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
+    WHERE l.archived = false
+    GROUP BY l."Id", l."Name"
+    ORDER BY "Count" DESC
+    `,
+    [parseDays(days) - 1]
+  );
+}
+
+async function getLibraryLastPlayed({ libraryId } = {}) {
+  if (!libraryId) return [];
+  return rows(
+    `
+    SELECT
+      a."Id", a."UserId", a."UserName", a."NowPlayingItemName", a."SeriesName",
+      a."Client", a."PlayMethod", a."ActivityDateInserted",
+      FLOOR(COALESCE(a."PlaybackDuration", 0) / 60.0)::int AS "PlaybackDuration",
+      i."Type" AS "ItemType"
+    FROM jf_playback_activity a
+    JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+    WHERE i."ParentId" = $1
+    ORDER BY a."ActivityDateInserted"::timestamptz DESC
+    LIMIT 15
+    `,
+    [libraryId]
+  );
+}
+
+async function getGlobalUserStats({ userId, hours = 24 } = {}) {
+  if (!userId) return null;
+  return one(
+    `
+    SELECT
+      COUNT(*)::int AS "TotalPlays",
+      FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
+      COUNT(DISTINCT "NowPlayingItemId")::int AS "UniqueItems"
+    FROM jf_playback_activity
+    WHERE "UserId" = $1
+      AND "ActivityDateInserted"::timestamptz >= NOW() - MAKE_INTERVAL(hours => $2)
+    `,
+    [userId, parseInt(hours, 10) || 24]
+  );
+}
+
 module.exports = {
   getGlobalStats,
   getMostPlayedItems,
@@ -927,4 +978,7 @@ module.exports = {
   getLibraryItems,
   getItemDetails,
   getActivityTimeline,
+  getMostViewedLibraries,
+  getLibraryLastPlayed,
+  getGlobalUserStats,
 };

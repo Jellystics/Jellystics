@@ -242,8 +242,7 @@ async function query(text, params, refreshViews = false) {
         console.error("[JELLYSTICS]: Error occurred while executing query:", error.message);
       }
     }
-    return [];
-    // throw error;
+    throw error;
   }
 }
 

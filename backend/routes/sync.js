@@ -544,16 +544,16 @@ async function syncPlaybackPluginData() {
 
       PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Determining query constraints." });
 
-      const MaxPlaybackReportingPluginID = await db
-        .query('SELECT MAX(rowid) "MaxRowId" FROM jf_playback_reporting_plugin_data')
-        .then((res) => res.rows[0]?.MaxRowId);
+      // Track progress via the highest SQLite rowid already staged
+      const MaxRowId = await db
+        .query(`SELECT COALESCE(MAX("rowid"::bigint), 0) AS "MaxRowId" FROM jf_playback_reporting_plugin_data`)
+        .then((res) => res.rows[0]?.MaxRowId ?? 0);
 
-      // Import all plugin rows not yet staged: track progress via the highest rowid already imported
       let query = `SELECT rowid, * FROM PlaybackActivity`;
-      if (MaxPlaybackReportingPluginID) {
-        query += ` WHERE rowid > ${MaxPlaybackReportingPluginID}`;
+      if (MaxRowId > 0) {
+        query += ` WHERE rowid > ${MaxRowId}`;
       }
-      query += " ORDER BY rowid";
+      query += ` ORDER BY rowid`;
 
       PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: `Query: ${query}` });
 
@@ -581,16 +581,18 @@ async function syncPlaybackPluginData() {
 
       PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Process complete. Data has been imported." });
     }
-    // Merge jf_playback_reporting_plugin_data → jf_playback_activity (inline, no stored procedure)
+    // Merge jf_playback_reporting_plugin_data → jf_playback_activity
     await db.query(`
       INSERT INTO jf_playback_activity (
         "Id", "IsPaused", "UserId", "UserName", "Client", "DeviceName", "DeviceId",
-        "ApplicationVersion", "NowPlayingItemId", "NowPlayingItemName", "EpisodeId",
-        "SeasonId", "SeriesName", "PlaybackDuration", "PlayMethod", "ActivityDateInserted",
-        "MediaStreams", "TranscodingInfo", "PlayState", "OriginalContainer", "RemoteEndPoint", "ServerId"
+        "ApplicationVersion", "NowPlayingItemId", "NowPlayingItemName",
+        "SeasonId", "SeriesName", "EpisodeId",
+        "PlaybackDuration", "ActivityDateInserted", "PlayMethod",
+        "MediaStreams", "TranscodingInfo", "PlayState", "OriginalContainer", "RemoteEndPoint", "ServerId",
+        "imported"
       )
       SELECT
-        'plugin-' || p.rowid,
+        p."rowid",
         false,
         p."UserId",
         COALESCE(u."Name", p."UserId"),
@@ -599,17 +601,19 @@ async function syncPlaybackPluginData() {
         NULL, NULL,
         p."ItemId",
         p."ItemName",
-        NULL, NULL,
-        CASE WHEN p."ItemType" = 'Episode' THEN p."ItemName" ELSE NULL END,
+        e."SeasonId",
+        s."Name",
+        e."EpisodeId",
         p."PlayDuration",
-        p."PlaybackMethod",
         p."DateCreated",
-        NULL, NULL, NULL, NULL, NULL, NULL
+        p."PlaybackMethod",
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        true
       FROM jf_playback_reporting_plugin_data p
       LEFT JOIN jf_users u ON u."Id" = p."UserId"
-      WHERE NOT EXISTS (
-        SELECT 1 FROM jf_playback_activity a WHERE a."Id" = 'plugin-' || p.rowid
-      )
+      LEFT JOIN jf_library_episodes e ON e."EpisodeId" = p."ItemId"
+      LEFT JOIN jf_library_items s ON s."Id" = e."SeriesId"
+      ON CONFLICT ("Id") DO NOTHING
     `);
     PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: "Any imported data has been processed." });
 
