@@ -3,6 +3,8 @@ const API = require("../classes/api-loader");
 
 /** ActivityDateInserted is stored as text — always cast before date math. */
 const ACTIVITY_TS = `"ActivityDateInserted"::timestamptz`;
+const PLAYBACK_MINUTES = `FLOOR(COALESCE("PlaybackDuration", 0) / 60.0)`;
+const PLAYBACK_MINUTES_SUM = `FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)`;
 
 async function rows(sql, params = []) {
   const result = await db.query(sql, params);
@@ -75,7 +77,7 @@ async function getGlobalStats() {
   const stats = await one(`
     SELECT
       (SELECT COUNT(*)::int FROM jf_playback_activity) AS "TotalPlays",
-      (SELECT COALESCE(SUM("PlaybackDuration"), 0)::int FROM jf_playback_activity) AS "TotalWatchTime",
+      (SELECT ${PLAYBACK_MINUTES_SUM}::int FROM jf_playback_activity) AS "TotalWatchTime",
       (SELECT COUNT(DISTINCT "UserId")::int FROM jf_playback_activity
         WHERE ${ACTIVITY_TS} >= CURRENT_DATE - INTERVAL '30 days') AS "ActiveUsers",
       (SELECT COUNT(*)::int FROM jf_users) AS "TotalUsers",
@@ -171,7 +173,7 @@ async function getMostActiveUsers({ limit = 5, days = 30 } = {}) {
       "UserId",
       MAX("UserName") AS "UserName",
       COUNT(*)::int AS "TotalPlays",
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS "TotalWatchTime"
+      ${PLAYBACK_MINUTES_SUM}::int AS "TotalWatchTime"
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY "UserId"
@@ -216,7 +218,7 @@ async function getWatchStatisticsOverTime({ days = 30, userId } = {}) {
     SELECT
       TO_CHAR((${ACTIVITY_TS})::date, 'YYYY-MM-DD') AS date,
       COUNT(*)::int AS plays,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
       ${userFilter}
@@ -249,7 +251,7 @@ async function getPopularHourOfDay({ days = 30 } = {}) {
     SELECT
       EXTRACT(HOUR FROM ${ACTIVITY_TS})::int AS hour,
       COUNT(*)::int AS plays,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY hour
@@ -257,6 +259,7 @@ async function getPopularHourOfDay({ days = 30 } = {}) {
     `,
     [daySpan]
   );
+
   const live = await getLiveActivity();
 
   live.forEach((session) => {
@@ -280,7 +283,7 @@ async function getPopularDayOfWeek({ days = 30 } = {}) {
     SELECT
       EXTRACT(DOW FROM ${ACTIVITY_TS})::int AS day,
       COUNT(*)::int AS plays,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY day
@@ -311,7 +314,7 @@ async function getMostUsedPlaybackMethod({ days = 30 } = {}) {
     SELECT
       COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
       COUNT(*)::int AS count,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
     GROUP BY method
@@ -342,7 +345,7 @@ async function getMostUsedClients({ days = 30 } = {}) {
     SELECT
       "Client" AS client,
       COUNT(*)::int AS count,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
       AND "Client" IS NOT NULL AND "Client" <> ''
@@ -375,7 +378,7 @@ async function getUserStats(userId) {
         u."Id" AS "UserId",
         u."Name" AS "UserName",
         COUNT(a."Id")::int AS "TotalPlays",
-        COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime",
+        FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
         COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
         NULL::text AS "FavoriteGenre"
       FROM jf_users u
@@ -400,7 +403,7 @@ async function getUserStats(userId) {
       u."Id" AS "UserId",
       u."Name" AS "UserName",
       COUNT(a."Id")::int AS "TotalPlays",
-      COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime",
+      FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
       COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
       NULL::text AS "FavoriteGenre"
     FROM jf_users u
@@ -443,7 +446,7 @@ async function getUserActivity(userId) {
       "PlayMethod",
       "IsPaused",
       false AS "IsActive",
-      ("PlaybackDuration" * 600000000)::bigint AS "PlayDuration",
+      ("PlaybackDuration" * 10000000)::bigint AS "PlayDuration",
       "ActivityDateInserted",
       "RemoteEndPoint"
     FROM jf_playback_activity
@@ -490,7 +493,7 @@ async function getAllUserActivity() {
       "PlayMethod",
       "IsPaused",
       false AS "IsActive",
-      ("PlaybackDuration" * 600000000)::bigint AS "PlayDuration",
+      ("PlaybackDuration" * 10000000)::bigint AS "PlayDuration",
       "ActivityDateInserted",
       "RemoteEndPoint"
     FROM jf_playback_activity
@@ -530,7 +533,7 @@ async function getUserActivityByDate(userId) {
     SELECT
       TO_CHAR((${ACTIVITY_TS})::date, 'YYYY-MM-DD') AS date,
       COUNT(*)::int AS count,
-      COALESCE(SUM("PlaybackDuration"), 0)::int AS duration
+      ${PLAYBACK_MINUTES_SUM}::int AS duration
     FROM jf_playback_activity
     WHERE "UserId" = $1
     GROUP BY (${ACTIVITY_TS})::date
@@ -661,7 +664,7 @@ async function getLibraryStats(libraryId) {
       l."Name",
       COUNT(DISTINCT i."Id") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder'))::int AS "TotalItems",
       COUNT(a."Id")::int AS "TotalPlayCount",
-      COALESCE(SUM(a."PlaybackDuration"), 0)::int AS "TotalWatchTime"
+      FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
     FROM jf_libraries l
     LEFT JOIN jf_library_items i
       ON i."ParentId" = l."Id" AND i.archived = false
@@ -801,7 +804,7 @@ async function getItemDetails(itemId) {
       "Client",
       "DeviceName",
       "PlayMethod",
-      "PlaybackDuration"::int AS "PlaybackDuration",
+      ${PLAYBACK_MINUTES}::int AS "PlaybackDuration",
       "ActivityDateInserted",
       "RemoteEndPoint",
       false AS "IsActive"
@@ -874,9 +877,9 @@ async function getActivityTimeline() {
       a."UserName",
       a."NowPlayingItemId" AS "ItemId",
       a."NowPlayingItemName" AS "ItemName",
-      a."ActivityDateInserted" AS "StartTime",
-      (a."ActivityDateInserted"::timestamptz + (a."PlaybackDuration" * INTERVAL '1 minute'))::text AS "EndTime",
-      (a."PlaybackDuration" * 60)::int AS "Duration",
+      (a."ActivityDateInserted"::timestamptz - (COALESCE(a."PlaybackDuration", 0) * INTERVAL '1 second'))::text AS "StartTime",
+      a."ActivityDateInserted" AS "EndTime",
+      COALESCE(a."PlaybackDuration", 0)::int AS "Duration",
       a."Client",
       a."PlayMethod"
     FROM jf_playback_activity a

@@ -10,6 +10,9 @@ interface MetricToggleProps {
 
 export default function MetricToggle({ value, onChange }: MetricToggleProps) {
   const { t } = useTranslation()
+  const playsLabel = t('common.plays')
+  const capitalizedPlays = playsLabel.charAt(0).toUpperCase() + playsLabel.slice(1)
+
   return (
     <ToggleButtonGroup
       exclusive
@@ -27,7 +30,7 @@ export default function MetricToggle({ value, onChange }: MetricToggleProps) {
         },
       }}
     >
-      <ToggleButton value="count">{t('common.plays')}</ToggleButton>
+      <ToggleButton value="count">{capitalizedPlays}</ToggleButton>
       <ToggleButton value="duration">{t('stats.watchTime')}</ToggleButton>
     </ToggleButtonGroup>
   )

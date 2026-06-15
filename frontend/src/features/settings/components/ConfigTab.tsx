@@ -83,75 +83,89 @@ export default function ConfigTab() {
 
   return (
     <Box sx={{ maxWidth: 640 }}>
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.jellyfinConfig')}</Typography>
+      <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>{t('settings.jellyfinConfig')}</Typography>
           <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <Controller
               name="JellyfinUrl"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label={t('setup.jellyfinUrl')}
-                  fullWidth size="small"
-                  error={!!errors.JellyfinUrl}
-                  helperText={errors.JellyfinUrl?.message}
-                  sx={{ mb: 2 }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                    {t('setup.jellyfinUrl')}
+                  </Typography>
+                  <TextField
+                    {...field}
+                    placeholder={t('placeholder.jellyfinUrl')}
+                    fullWidth
+                    size="small"
+                    error={!!errors.JellyfinUrl}
+                    helperText={errors.JellyfinUrl?.message}
+                  />
+                </Box>
               )}
             />
             <Controller
               name="ApiKey"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label={t('setup.apiKey')}
-                  fullWidth size="small"
-                  error={!!errors.ApiKey}
-                  helperText={errors.ApiKey?.message}
-                  sx={{ mb: 2 }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                    {t('setup.apiKey')}
+                  </Typography>
+                  <TextField
+                    {...field}
+                    placeholder={t('setup.apiKey')}
+                    fullWidth
+                    size="small"
+                    error={!!errors.ApiKey}
+                    helperText={errors.ApiKey?.message}
+                  />
+                </Box>
               )}
             />
             <Controller
               name="SyncIntervalMinutes"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label={t('settings.syncInterval')}
-                  type="number"
-                  fullWidth size="small"
-                  error={!!errors.SyncIntervalMinutes}
-                  helperText={errors.SyncIntervalMinutes?.message}
-                  sx={{ mb: 2 }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                    {t('settings.syncInterval')}
+                  </Typography>
+                  <TextField
+                    {...field}
+                    type="number"
+                    fullWidth
+                    size="small"
+                    error={!!errors.SyncIntervalMinutes}
+                    helperText={errors.SyncIntervalMinutes?.message}
+                    onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </Box>
               )}
             />
             <Controller
               name="KeepLogsForDays"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label={t('settings.keepLogsForDays')}
-                  type="number"
-                  fullWidth size="small"
-                  error={!!errors.KeepLogsForDays}
-                  helperText={errors.KeepLogsForDays?.message}
-                  sx={{ mb: 3 }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                />
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                    {t('settings.keepLogsForDays')}
+                  </Typography>
+                  <TextField
+                    {...field}
+                    type="number"
+                    fullWidth
+                    size="small"
+                    error={!!errors.KeepLogsForDays}
+                    helperText={errors.KeepLogsForDays?.message}
+                    onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </Box>
               )}
             />
-            <Button type="submit" variant="contained" disabled={isSubmitting}>
+            <Button type="submit" variant="contained" disabled={isSubmitting} sx={{ px: 3, borderRadius: 2 }}>
               {isSubmitting ? <CircularProgress size={18} /> : t('common.save')}
             </Button>
           </Box>
