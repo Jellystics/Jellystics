@@ -61,8 +61,7 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
           px: 2,
           justifyContent: 'space-between',
           flexShrink: 0,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
