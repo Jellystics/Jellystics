@@ -43,8 +43,8 @@ export function useDashboard(): DashboardData {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetch = useCallback(async () => {
-    setLoading(true)
+  const fetch = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     setError(null)
     try {
       const [statsRes, sessionsRes, topItemsRes, topUsersRes, activityRes] = await Promise.all([
@@ -66,7 +66,11 @@ export function useDashboard(): DashboardData {
     }
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    const interval = window.setInterval(() => fetch(false), 15000)
+    return () => window.clearInterval(interval)
+  }, [fetch])
 
   return { globalStats, sessions, topItems, topUsers, activityOverTime, loading, error, refetch: fetch }
 }

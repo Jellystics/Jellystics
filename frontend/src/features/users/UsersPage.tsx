@@ -20,7 +20,14 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get('/stats/getUserStats').then((r) => setUsers(r.data ?? [])).catch(() => setError(t('common.loadError'))).finally(() => setLoading(false))
+    const load = (showLoading = true) => {
+      if (showLoading) setLoading(true)
+      api.get('/stats/getUserStats').then((r) => setUsers(r.data ?? [])).catch(() => setError(t('common.loadError'))).finally(() => setLoading(false))
+    }
+
+    load()
+    const interval = window.setInterval(() => load(false), 15000)
+    return () => window.clearInterval(interval)
   }, [t])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

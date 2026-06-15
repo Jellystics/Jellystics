@@ -136,7 +136,7 @@ async function ActivityMonitor(defaultInterval) {
     try {
       const config = await new configClass().getConfig();
 
-      if (config.error || config.state !== 2) {
+      if (config.error || config.state < 1) {
         return;
       }
 

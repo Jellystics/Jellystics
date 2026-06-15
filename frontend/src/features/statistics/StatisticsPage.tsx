@@ -29,22 +29,29 @@ export default function StatisticsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      api.get('/stats/getWatchStatisticsOverTime?days=30'),
-      api.get('/stats/getPopularHourOfDay'),
-      api.get('/stats/getPopularDayOfWeek'),
-      api.get('/stats/getMostUsedPlaybackMethod'),
-      api.get('/stats/getMostUsedClients'),
-    ])
-      .then(([otRes, hourRes, dayRes, methodRes, clientRes]) => {
-        setOverTime(otRes.data ?? [])
-        setByHour(hourRes.data ?? [])
-        setByDay(dayRes.data ?? [])
-        setByMethod(methodRes.data ?? [])
-        setByClient(clientRes.data ?? [])
-      })
-      .catch(() => setError(t('common.loadError')))
-      .finally(() => setLoading(false))
+    const load = (showLoading = true) => {
+      if (showLoading) setLoading(true)
+      Promise.all([
+        api.get('/stats/getWatchStatisticsOverTime?days=30'),
+        api.get('/stats/getPopularHourOfDay'),
+        api.get('/stats/getPopularDayOfWeek'),
+        api.get('/stats/getMostUsedPlaybackMethod'),
+        api.get('/stats/getMostUsedClients'),
+      ])
+        .then(([otRes, hourRes, dayRes, methodRes, clientRes]) => {
+          setOverTime(otRes.data ?? [])
+          setByHour(hourRes.data ?? [])
+          setByDay(dayRes.data ?? [])
+          setByMethod(methodRes.data ?? [])
+          setByClient(clientRes.data ?? [])
+        })
+        .catch(() => setError(t('common.loadError')))
+        .finally(() => setLoading(false))
+    }
+
+    load()
+    const interval = window.setInterval(() => load(false), 15000)
+    return () => window.clearInterval(interval)
   }, [t])
 
   const totalPlays = overTime.reduce((s, d) => s + d.plays, 0)

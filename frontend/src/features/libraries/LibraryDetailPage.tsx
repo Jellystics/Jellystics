@@ -44,19 +44,25 @@ export default function LibraryDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
-    Promise.all([
-      api.get(`/stats/getLibraryStats?libraryId=${id}`),
-      api.get(`/stats/getLibraryItems?libraryId=${id}`),
-      api.get(`/stats/getGenreStats?libraryId=${id}`),
-    ])
-      .then(([statsRes, itemsRes, genresRes]) => {
-        setStats(statsRes.data)
-        setItems(itemsRes.data ?? [])
-        setGenres(genresRes.data ?? [])
-      })
-      .catch(() => setError(t('common.loadError')))
-      .finally(() => setLoading(false))
+    const load = (showLoading = true) => {
+      if (showLoading) setLoading(true)
+      Promise.all([
+        api.get(`/stats/getLibraryStats?libraryId=${id}`),
+        api.get(`/stats/getLibraryItems?libraryId=${id}`),
+        api.get(`/stats/getGenreStats?libraryId=${id}`),
+      ])
+        .then(([statsRes, itemsRes, genresRes]) => {
+          setStats(statsRes.data)
+          setItems(itemsRes.data ?? [])
+          setGenres(genresRes.data ?? [])
+        })
+        .catch(() => setError(t('common.loadError')))
+        .finally(() => setLoading(false))
+    }
+
+    load()
+    const interval = window.setInterval(() => load(false), 15000)
+    return () => window.clearInterval(interval)
   }, [id, t])
 
   const filteredItems = useMemo(() => {

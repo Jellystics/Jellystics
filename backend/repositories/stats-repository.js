@@ -1,5 +1,6 @@
 const db = require("../db");
 const dbHelper = require("../classes/db-helper");
+const API = require("../classes/api-loader");
 
 /** ActivityDateInserted is stored as text — always cast before date math. */
 const ACTIVITY_TS = `"ActivityDateInserted"::timestamptz`;
@@ -20,8 +21,58 @@ function parseDays(value, fallback = 30) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function ticksToMinutes(ticks) {
+  if (!ticks) return 0;
+  return Math.floor(Number(ticks) / 600000000);
+}
+
+async function getLiveActivity() {
+  const sessions = await API.getSessions();
+  const activeSessions = sessions.filter((session) => session.NowPlayingItem);
+
+  if (activeSessions.length === 0) return [];
+
+  const itemIds = [
+    ...new Set(
+      activeSessions
+        .flatMap((session) => [session.NowPlayingItem.Id, session.NowPlayingItem.SeriesId])
+        .filter(Boolean)
+    ),
+  ];
+
+  const libraryRows =
+    itemIds.length > 0
+      ? await rows(
+          `SELECT "Id", "ParentId", "Type", "Name" FROM jf_library_items WHERE "Id" = ANY($1)`,
+          [itemIds]
+        )
+      : [];
+
+  return activeSessions.map((session) => {
+    const nowPlaying = session.NowPlayingItem;
+    const lookupId = nowPlaying.SeriesId || nowPlaying.Id;
+    const libraryItem = libraryRows.find((item) => item.Id === lookupId || item.Id === nowPlaying.Id);
+
+    return {
+      UserId: session.UserId,
+      UserName: session.UserName,
+      Client: session.Client,
+      PlayMethod: session.PlayState?.PlayMethod || "Unknown",
+      NowPlayingItemId: lookupId,
+      EpisodeId: nowPlaying.SeriesId ? nowPlaying.Id : null,
+      NowPlayingItemName: nowPlaying.SeriesName || nowPlaying.Name,
+      Type: nowPlaying.SeriesId ? "Series" : libraryItem?.Type || nowPlaying.Type || "Unknown",
+      LibraryId: libraryItem?.ParentId,
+      PlaybackDuration: ticksToMinutes(session.PlayState?.PositionTicks),
+      date: new Date().toISOString().slice(0, 10),
+      hour: new Date().getHours(),
+      day: new Date().getDay(),
+    };
+  });
+}
+
 async function getGlobalStats() {
-  return one(`
+  const stats = await one(`
     SELECT
       (SELECT COUNT(*)::int FROM jf_playback_activity) AS "TotalPlays",
       (SELECT COALESCE(SUM("PlaybackDuration"), 0)::int FROM jf_playback_activity) AS "TotalWatchTime",
@@ -32,6 +83,14 @@ async function getGlobalStats() {
       (SELECT COUNT(*)::int FROM jf_library_items
         WHERE archived = false AND "Type" NOT IN ('Season', 'Folder')) AS "TotalItems"
   `);
+  const live = await getLiveActivity();
+
+  return {
+    ...stats,
+    TotalPlays: (stats?.TotalPlays ?? 0) + live.length,
+    TotalWatchTime: (stats?.TotalWatchTime ?? 0) + live.reduce((sum, item) => sum + item.PlaybackDuration, 0),
+    ActiveUsers: new Set([...(live.map((item) => item.UserId)), ...(stats?.ActiveUsers ? [] : [])]).size || stats?.ActiveUsers || 0,
+  };
 }
 
 async function getMostPlayedItems({ type = "all", limit = 5, days = 30 } = {}) {
@@ -53,7 +112,7 @@ async function getMostPlayedItems({ type = "all", limit = 5, days = 30 } = {}) {
 
   params.push(itemLimit);
 
-  return rows(
+  const dbItems = await rows(
     `
     SELECT
       COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemId") AS "Id",
@@ -73,13 +132,40 @@ async function getMostPlayedItems({ type = "all", limit = 5, days = 30 } = {}) {
     `,
     params
   );
+  const live = await getLiveActivity();
+  const liveItems = live.reduce((acc, session) => {
+    const key = session.NowPlayingItemId;
+    if (!acc[key]) {
+      acc[key] = {
+        Id: session.NowPlayingItemId,
+        Name: session.NowPlayingItemName,
+        PlayCount: 0,
+        Type: session.Type,
+      };
+    }
+    acc[key].PlayCount += 1;
+    return acc;
+  }, {});
+
+  return [...dbItems, ...Object.values(liveItems)]
+    .reduce((acc, item) => {
+      const existing = acc.find((row) => row.Id === item.Id);
+      if (existing) {
+        existing.PlayCount += item.PlayCount;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [])
+    .sort((a, b) => b.PlayCount - a.PlayCount)
+    .slice(0, itemLimit);
 }
 
 async function getMostActiveUsers({ limit = 5, days = 30 } = {}) {
   const daySpan = parseDays(days) - 1;
   const userLimit = parseInt(limit, 10) || 5;
 
-  return rows(
+  const dbUsers = await rows(
     `
     SELECT
       "UserId",
@@ -94,6 +180,25 @@ async function getMostActiveUsers({ limit = 5, days = 30 } = {}) {
     `,
     [daySpan, userLimit]
   );
+  const live = await getLiveActivity();
+  const merged = [...dbUsers];
+
+  live.forEach((session) => {
+    const existing = merged.find((user) => user.UserId === session.UserId);
+    if (existing) {
+      existing.TotalPlays += 1;
+      existing.TotalWatchTime += session.PlaybackDuration;
+    } else {
+      merged.push({
+        UserId: session.UserId,
+        UserName: session.UserName,
+        TotalPlays: 1,
+        TotalWatchTime: session.PlaybackDuration,
+      });
+    }
+  });
+
+  return merged.sort((a, b) => b.TotalPlays - a.TotalPlays).slice(0, userLimit);
 }
 
 async function getWatchStatisticsOverTime({ days = 30, userId } = {}) {
@@ -106,7 +211,7 @@ async function getWatchStatisticsOverTime({ days = 30, userId } = {}) {
     userFilter = `AND "UserId" = $${params.length}`;
   }
 
-  return rows(
+  const dbStats = await rows(
     `
     SELECT
       TO_CHAR((${ACTIVITY_TS})::date, 'YYYY-MM-DD') AS date,
@@ -120,12 +225,26 @@ async function getWatchStatisticsOverTime({ days = 30, userId } = {}) {
     `,
     params
   );
+  const live = (await getLiveActivity()).filter((session) => !userId || session.UserId === userId);
+  const merged = [...dbStats];
+
+  live.forEach((session) => {
+    const existing = merged.find((point) => point.date === session.date);
+    if (existing) {
+      existing.plays += 1;
+      existing.duration += session.PlaybackDuration;
+    } else {
+      merged.push({ date: session.date, plays: 1, duration: session.PlaybackDuration });
+    }
+  });
+
+  return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 async function getPopularHourOfDay({ days = 30 } = {}) {
   const daySpan = parseDays(days) - 1;
 
-  return rows(
+  const dbHours = await rows(
     `
     SELECT
       EXTRACT(HOUR FROM ${ACTIVITY_TS})::int AS hour,
@@ -137,12 +256,21 @@ async function getPopularHourOfDay({ days = 30 } = {}) {
     `,
     [daySpan]
   );
+  const live = await getLiveActivity();
+
+  live.forEach((session) => {
+    const existing = dbHours.find((row) => row.hour === session.hour);
+    if (existing) existing.plays += 1;
+    else dbHours.push({ hour: session.hour, plays: 1 });
+  });
+
+  return dbHours.sort((a, b) => a.hour - b.hour);
 }
 
 async function getPopularDayOfWeek({ days = 30 } = {}) {
   const daySpan = parseDays(days) - 1;
 
-  return rows(
+  const dbDays = await rows(
     `
     SELECT
       EXTRACT(DOW FROM ${ACTIVITY_TS})::int AS day,
@@ -154,12 +282,21 @@ async function getPopularDayOfWeek({ days = 30 } = {}) {
     `,
     [daySpan]
   );
+  const live = await getLiveActivity();
+
+  live.forEach((session) => {
+    const existing = dbDays.find((row) => row.day === session.day);
+    if (existing) existing.plays += 1;
+    else dbDays.push({ day: session.day, plays: 1 });
+  });
+
+  return dbDays.sort((a, b) => a.day - b.day);
 }
 
 async function getMostUsedPlaybackMethod({ days = 30 } = {}) {
   const daySpan = parseDays(days) - 1;
 
-  return rows(
+  const dbMethods = await rows(
     `
     SELECT
       COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
@@ -171,12 +308,21 @@ async function getMostUsedPlaybackMethod({ days = 30 } = {}) {
     `,
     [daySpan]
   );
+  const live = await getLiveActivity();
+
+  live.forEach((session) => {
+    const existing = dbMethods.find((row) => row.method === session.PlayMethod);
+    if (existing) existing.count += 1;
+    else dbMethods.push({ method: session.PlayMethod, count: 1 });
+  });
+
+  return dbMethods.sort((a, b) => b.count - a.count);
 }
 
 async function getMostUsedClients({ days = 30 } = {}) {
   const daySpan = parseDays(days) - 1;
 
-  return rows(
+  const dbClients = await rows(
     `
     SELECT
       "Client" AS client,
@@ -190,11 +336,20 @@ async function getMostUsedClients({ days = 30 } = {}) {
     `,
     [daySpan]
   );
+  const live = await getLiveActivity();
+
+  live.forEach((session) => {
+    const existing = dbClients.find((row) => row.client === session.Client);
+    if (existing) existing.count += 1;
+    else dbClients.push({ client: session.Client, count: 1 });
+  });
+
+  return dbClients.sort((a, b) => b.count - a.count);
 }
 
 async function getUserStats(userId) {
   if (userId) {
-    return one(
+    const user = await one(
       `
       SELECT
         u."Id" AS "UserId",
@@ -210,9 +365,16 @@ async function getUserStats(userId) {
       `,
       [userId]
     );
+    const live = (await getLiveActivity()).filter((session) => session.UserId === userId);
+    if (!user) return null;
+    return {
+      ...user,
+      TotalPlays: (user.TotalPlays ?? 0) + live.length,
+      TotalWatchTime: (user.TotalWatchTime ?? 0) + live.reduce((sum, item) => sum + item.PlaybackDuration, 0),
+    };
   }
 
-  return rows(
+  const users = await rows(
     `
     SELECT
       u."Id" AS "UserId",
@@ -227,6 +389,26 @@ async function getUserStats(userId) {
     ORDER BY "TotalPlays" DESC
     `
   );
+  const live = await getLiveActivity();
+
+  live.forEach((session) => {
+    const existing = users.find((user) => user.UserId === session.UserId);
+    if (existing) {
+      existing.TotalPlays += 1;
+      existing.TotalWatchTime += session.PlaybackDuration;
+    } else {
+      users.push({
+        UserId: session.UserId,
+        UserName: session.UserName,
+        TotalPlays: 1,
+        TotalWatchTime: session.PlaybackDuration,
+        LastSeen: new Date().toISOString(),
+        FavoriteGenre: null,
+      });
+    }
+  });
+
+  return users.sort((a, b) => b.TotalPlays - a.TotalPlays);
 }
 
 async function getUserActivity(userId) {
@@ -408,20 +590,36 @@ async function getLibraryStats(libraryId) {
     `,
     [libraryId]
   );
+  const live = (await getLiveActivity()).filter((session) => session.LibraryId === libraryId);
+  const liveTop = live[0]
+    ? {
+        Id: live[0].NowPlayingItemId,
+        Name: live[0].NowPlayingItemName,
+        Type: live[0].Type,
+        PlayCount: 1,
+      }
+    : null;
+
+  const mostPlayedItem = topItem
+    ? {
+        Id: topItem.Id,
+        Name: topItem.Name,
+        Type: topItem.Type,
+        PlayCount: topItem.PlayCount + live.filter((session) => session.NowPlayingItemId === topItem.Id).length,
+      }
+    : liveTop ?? undefined;
 
   return {
     Name: stats.Name,
     TotalItems: stats.TotalItems ?? 0,
-    TotalPlayCount: stats.TotalPlayCount ?? 0,
-    TotalWatchTime: stats.TotalWatchTime ?? 0,
-    MostPlayedItem: topItem
-      ? { Id: topItem.Id, Name: topItem.Name, Type: topItem.Type, PlayCount: topItem.PlayCount }
-      : undefined,
+    TotalPlayCount: (stats.TotalPlayCount ?? 0) + live.length,
+    TotalWatchTime: (stats.TotalWatchTime ?? 0) + live.reduce((sum, item) => sum + item.PlaybackDuration, 0),
+    MostPlayedItem: mostPlayedItem,
   };
 }
 
 async function getLibraryItems(libraryId) {
-  return rows(
+  const items = await rows(
     `
     SELECT
       i."Id",
@@ -453,6 +651,14 @@ async function getLibraryItems(libraryId) {
     `,
     [libraryId]
   );
+  const live = (await getLiveActivity()).filter((session) => session.LibraryId === libraryId);
+
+  live.forEach((session) => {
+    const existing = items.find((item) => item.Id === session.NowPlayingItemId || item.Id === session.EpisodeId);
+    if (existing) existing.PlayCount += 1;
+  });
+
+  return items;
 }
 
 async function getActivityTimeline() {
