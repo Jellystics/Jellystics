@@ -22,7 +22,7 @@ const update_query = [
   {
     table: "jf_library_items",
     query:
-      ' ON CONFLICT ("Id") DO UPDATE SET "Name" = EXCLUDED."Name", "PremiereDate" = EXCLUDED."PremiereDate", "EndDate" = EXCLUDED."EndDate", "CommunityRating" = EXCLUDED."CommunityRating", "RunTimeTicks" = EXCLUDED."RunTimeTicks", "ProductionYear" = EXCLUDED."ProductionYear", "Type" = EXCLUDED."Type", "Status" = EXCLUDED."Status", "ImageTagsPrimary" = EXCLUDED."ImageTagsPrimary", "ImageTagsBanner" = EXCLUDED."ImageTagsBanner", "ImageTagsLogo" = EXCLUDED."ImageTagsLogo", "ImageTagsThumb" = EXCLUDED."ImageTagsThumb", "BackdropImageTags" = EXCLUDED."BackdropImageTags", "ParentId" = EXCLUDED."ParentId", "PrimaryImageHash" = EXCLUDED."PrimaryImageHash", "DateCreated" = EXCLUDED."DateCreated", archived=false, "Genres" = EXCLUDED."Genres"',
+      ' ON CONFLICT ("Id") DO UPDATE SET "Name" = EXCLUDED."Name", "PremiereDate" = EXCLUDED."PremiereDate", "EndDate" = EXCLUDED."EndDate", "CommunityRating" = EXCLUDED."CommunityRating", "RunTimeTicks" = EXCLUDED."RunTimeTicks", "ProductionYear" = EXCLUDED."ProductionYear", "Type" = EXCLUDED."Type", "Status" = EXCLUDED."Status", "ImageTagsPrimary" = EXCLUDED."ImageTagsPrimary", "ImageTagsBanner" = EXCLUDED."ImageTagsBanner", "ImageTagsLogo" = EXCLUDED."ImageTagsLogo", "ImageTagsThumb" = EXCLUDED."ImageTagsThumb", "BackdropImageTags" = EXCLUDED."BackdropImageTags", "ParentId" = EXCLUDED."ParentId", "PrimaryImageHash" = EXCLUDED."PrimaryImageHash", "DateCreated" = EXCLUDED."DateCreated", archived=false, "Genres" = EXCLUDED."Genres", "AlbumId" = EXCLUDED."AlbumId", "Album" = EXCLUDED."Album", "AlbumArtist" = EXCLUDED."AlbumArtist", "IndexNumber" = EXCLUDED."IndexNumber"',
   },
   {
     table: "jf_library_seasons",

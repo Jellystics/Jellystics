@@ -693,6 +693,36 @@ router.get("/getGenreStats", (req, res) => {
   sendRepoResult(res, statsRepo.getGenreStats({ libraryId }), []);
 });
 
+router.get("/getLibraryTracks", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getLibraryTracks(libraryId), []);
+});
+
+router.get("/getLibraryAlbums", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getLibraryAlbums(libraryId), []);
+});
+
+router.get("/getLibraryArtists", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getLibraryArtists(libraryId), []);
+});
+
+router.get("/getArtistAlbums", (req, res) => {
+  const { libraryId, artist } = req.query;
+  if (!libraryId || !artist) return res.status(400).send("libraryId and artist are required");
+  sendRepoResult(res, statsRepo.getArtistAlbums(libraryId, artist), []);
+});
+
+router.get("/getAlbumTracks", (req, res) => {
+  const { albumId } = req.query;
+  if (!albumId) return res.status(400).send("albumId is required");
+  sendRepoResult(res, statsRepo.getAlbumTracks(albumId), []);
+});
+
 router.get("/getActivityTimeline", (req, res) => {
   sendRepoResult(res, statsRepo.getActivityTimeline(), []);
 });

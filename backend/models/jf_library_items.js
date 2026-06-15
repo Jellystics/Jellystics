@@ -20,6 +20,10 @@ const jf_library_items_columns = [
   "PrimaryImageHash",
   "archived",
   "Genres",
+  "AlbumId",
+  "Album",
+  "AlbumArtist",
+  "IndexNumber",
 ];
 
 const jf_library_items_mapping = (item) => ({
@@ -51,6 +55,10 @@ const jf_library_items_mapping = (item) => ({
       : null,
   archived: false,
   Genres: item.Genres && Array.isArray(item.Genres) ? JSON.stringify(item.Genres.map(titleCase)) : [],
+  AlbumId: item.AlbumId ?? null,
+  Album: item.Album ?? null,
+  AlbumArtist: item.AlbumArtist ?? null,
+  IndexNumber: item.IndexNumber ?? null,
 });
 
 // Utility function to title-case a string

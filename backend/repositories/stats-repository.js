@@ -116,7 +116,7 @@ async function getMostPlayedItems({ type = "all", limit = 5, days = 30 } = {}) {
   const dbItems = await rows(
     `
     SELECT
-      COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemId") AS "Id",
+      a."NowPlayingItemId" AS "Id",
       COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
       COUNT(*)::int AS "PlayCount",
       CASE
@@ -127,7 +127,7 @@ async function getMostPlayedItems({ type = "all", limit = 5, days = 30 } = {}) {
     LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
     WHERE ${ACTIVITY_TS} >= CURRENT_DATE - MAKE_INTERVAL(days => $1)
       ${typeFilter}
-    GROUP BY 1, 2, 4
+    GROUP BY a."NowPlayingItemId", 2, 4
     ORDER BY "PlayCount" DESC
     LIMIT $${params.length}
     `,
@@ -943,6 +943,145 @@ async function getLibraryLastPlayed({ libraryId } = {}) {
   );
 }
 
+async function getLibraryTracks(libraryId) {
+  return rows(
+    `
+    SELECT
+      i."Id",
+      i."Name",
+      i."AlbumArtist" AS "Artist",
+      i."Album",
+      i."AlbumId",
+      i."IndexNumber",
+      i."RunTimeTicks",
+      COALESCE(pc.play_count, 0)::int AS "PlayCount"
+    FROM jf_library_items i
+    LEFT JOIN (
+      SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+      FROM jf_playback_activity
+      GROUP BY "NowPlayingItemId"
+    ) pc ON pc."NowPlayingItemId" = i."Id"
+    WHERE i."ParentId" = $1
+      AND i."Type" = 'Audio'
+      AND i.archived = false
+    ORDER BY
+      COALESCE(i."AlbumArtist", '') ASC,
+      COALESCE(i."Album", '') ASC,
+      i."IndexNumber" NULLS LAST,
+      i."Name" ASC
+    LIMIT 5000
+    `,
+    [libraryId]
+  );
+}
+
+async function getLibraryAlbums(libraryId) {
+  return rows(
+    `
+    SELECT
+      i."AlbumId" AS "Id",
+      i."Album" AS "Name",
+      i."AlbumArtist" AS "Artist",
+      MAX(i."ProductionYear") AS "ProductionYear",
+      COUNT(i."Id")::int AS "TrackCount",
+      COALESCE(SUM(pc.play_count), 0)::int AS "PlayCount"
+    FROM jf_library_items i
+    LEFT JOIN (
+      SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+      FROM jf_playback_activity
+      GROUP BY "NowPlayingItemId"
+    ) pc ON pc."NowPlayingItemId" = i."Id"
+    WHERE i."ParentId" = $1
+      AND i.archived = false
+      AND i."Type" = 'Audio'
+      AND i."AlbumId" IS NOT NULL
+    GROUP BY i."AlbumId", i."Album", i."AlbumArtist"
+    ORDER BY i."Album"
+    `,
+    [libraryId]
+  );
+}
+
+async function getLibraryArtists(libraryId) {
+  return rows(
+    `
+    SELECT
+      i."AlbumArtist" AS "Name",
+      COUNT(DISTINCT i."AlbumId")::int AS "AlbumCount",
+      COUNT(i."Id")::int AS "TrackCount",
+      COALESCE(SUM(pc.play_count), 0)::int AS "PlayCount"
+    FROM jf_library_items i
+    LEFT JOIN (
+      SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+      FROM jf_playback_activity
+      GROUP BY "NowPlayingItemId"
+    ) pc ON pc."NowPlayingItemId" = i."Id"
+    WHERE i."ParentId" = $1
+      AND i.archived = false
+      AND i."Type" = 'Audio'
+      AND i."AlbumArtist" IS NOT NULL
+    GROUP BY i."AlbumArtist"
+    ORDER BY i."AlbumArtist"
+    `,
+    [libraryId]
+  );
+}
+
+async function getArtistAlbums(libraryId, artistName) {
+  return rows(
+    `
+    SELECT
+      i."AlbumId" AS "Id",
+      i."Album" AS "Name",
+      i."AlbumArtist" AS "Artist",
+      MAX(i."ProductionYear") AS "ProductionYear",
+      COUNT(i."Id")::int AS "TrackCount",
+      COALESCE(SUM(pc.play_count), 0)::int AS "PlayCount"
+    FROM jf_library_items i
+    LEFT JOIN (
+      SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+      FROM jf_playback_activity
+      GROUP BY "NowPlayingItemId"
+    ) pc ON pc."NowPlayingItemId" = i."Id"
+    WHERE i."ParentId" = $1
+      AND i.archived = false
+      AND i."Type" = 'Audio'
+      AND i."AlbumArtist" = $2
+      AND i."AlbumId" IS NOT NULL
+    GROUP BY i."AlbumId", i."Album", i."AlbumArtist"
+    ORDER BY i."Album"
+    `,
+    [libraryId, artistName]
+  );
+}
+
+async function getAlbumTracks(albumId) {
+  return rows(
+    `
+    SELECT
+      i."Id",
+      i."Name",
+      i."IndexNumber",
+      i."RunTimeTicks",
+      i."AlbumId",
+      i."Album" AS "AlbumName",
+      i."AlbumArtist" AS "Artist",
+      COALESCE(pc.play_count, 0)::int AS "PlayCount"
+    FROM jf_library_items i
+    LEFT JOIN (
+      SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+      FROM jf_playback_activity
+      GROUP BY "NowPlayingItemId"
+    ) pc ON pc."NowPlayingItemId" = i."Id"
+    WHERE i."AlbumId" = $1
+      AND i."Type" = 'Audio'
+      AND i.archived = false
+    ORDER BY i."IndexNumber" NULLS LAST, i."Name"
+    `,
+    [albumId]
+  );
+}
+
 async function getGlobalUserStats({ userId, hours = 24 } = {}) {
   if (!userId) return null;
   return one(
@@ -981,4 +1120,9 @@ module.exports = {
   getMostViewedLibraries,
   getLibraryLastPlayed,
   getGlobalUserStats,
+  getLibraryTracks,
+  getLibraryAlbums,
+  getLibraryArtists,
+  getArtistAlbums,
+  getAlbumTracks,
 };

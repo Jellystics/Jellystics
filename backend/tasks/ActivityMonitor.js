@@ -303,7 +303,20 @@ async function ActivityMonitor(defaultInterval) {
         /////get data from jf_playback_activity within the last hour with progress of <=80% for current items in session
 
         const ExistingRecords = await db
-          .query(`SELECT * FROM jf_recent_playback_activity(${NEW_WATCH_EVENT_THRESHOLD_HOURS})`)
+          .query(
+            `SELECT a.*,
+              COALESCE(i."RunTimeTicks", e."RunTimeTicks") AS "RunTimeTicks",
+              CASE
+                WHEN COALESCE(i."RunTimeTicks", e."RunTimeTicks") > 0
+                THEN (a."PlaybackDuration"::float * 10000000.0 / COALESCE(i."RunTimeTicks", e."RunTimeTicks")::float) * 100.0
+                ELSE 0
+              END AS "Progress"
+            FROM jf_playback_activity a
+            LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+            LEFT JOIN jf_library_episodes e ON e."Id" = a."EpisodeId"
+            WHERE a."ActivityDateInserted"::timestamptz >= NOW() - MAKE_INTERVAL(hours => $1::integer)`,
+            [NEW_WATCH_EVENT_THRESHOLD_HOURS],
+          )
           .then((res) => {
             if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) {
               return res.rows.filter(
@@ -318,6 +331,7 @@ async function ActivityMonitor(defaultInterval) {
           })
           .catch((err) => {
             console.error("Error fetching existing records:", err);
+            return [];
           });
         let ExistingDataToUpdate = [];
 

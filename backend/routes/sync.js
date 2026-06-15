@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const db = require("../db");
 
 const dayjs = require("dayjs");
@@ -1306,6 +1307,111 @@ function sleep(ms) {
     setTimeout(resolve, ms);
   });
 }
+
+//////////////////////////////////////////////////////importPlaybackBackup
+const _upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+router.post("/importPlaybackBackup", _upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const content = req.file.buffer.toString("utf-8");
+    const lines = content.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+
+    const parsedRows = [];
+    for (const line of lines) {
+      const cols = line.split("\t");
+      if (cols.length < 9) continue;
+      const duration = parseInt(cols[8], 10);
+      parsedRows.push({
+        DateCreated: cols[0].trim(),
+        UserId: cols[1].trim(),
+        ItemId: cols[2].trim(),
+        ItemType: cols[3].trim(),
+        ItemName: cols[4].trim(),
+        PlaybackMethod: cols[5].trim(),
+        ClientName: cols[6].trim(),
+        DeviceName: cols[7].trim(),
+        PlayDuration: isNaN(duration) || duration < 0 ? 0 : duration,
+      });
+    }
+
+    if (parsedRows.length === 0) {
+      return res.status(400).json({ error: "No valid rows found in file" });
+    }
+
+    const maxRowResult = await db.query(
+      `SELECT COALESCE(MAX("rowid"::bigint), 0) AS "MaxRowId" FROM jf_playback_reporting_plugin_data`
+    );
+    const maxRowId = parseInt(maxRowResult.rows[0]?.MaxRowId ?? 0, 10);
+
+    const DataToInsert = parsedRows.map((row, index) =>
+      mappingPlaybackReporting([
+        String(maxRowId + index + 1),
+        row.DateCreated,
+        row.UserId,
+        row.ItemId,
+        row.ItemType,
+        row.ItemName,
+        row.PlaybackMethod,
+        row.ClientName,
+        row.DeviceName,
+        row.PlayDuration,
+      ])
+    );
+
+    const insertResult = await db.insertBulk("jf_playback_reporting_plugin_data", DataToInsert, columnsPlaybackReporting);
+
+    if (insertResult.Result !== "SUCCESS") {
+      return res.status(500).json({ error: insertResult.message });
+    }
+
+    await db.query(`
+      INSERT INTO jf_playback_activity (
+        "Id", "IsPaused", "UserId", "UserName", "Client", "DeviceName", "DeviceId",
+        "ApplicationVersion", "NowPlayingItemId", "NowPlayingItemName",
+        "SeasonId", "SeriesName", "EpisodeId",
+        "PlaybackDuration", "ActivityDateInserted", "PlayMethod",
+        "MediaStreams", "TranscodingInfo", "PlayState", "OriginalContainer", "RemoteEndPoint", "ServerId",
+        "imported"
+      )
+      SELECT
+        p."rowid",
+        false,
+        p."UserId",
+        COALESCE(u."Name", p."UserId"),
+        p."ClientName",
+        p."DeviceName",
+        NULL, NULL,
+        p."ItemId",
+        p."ItemName",
+        e."SeasonId",
+        s."Name",
+        e."EpisodeId",
+        p."PlayDuration",
+        p."DateCreated",
+        p."PlaybackMethod",
+        NULL, NULL, NULL, NULL, NULL, NULL,
+        true
+      FROM jf_playback_reporting_plugin_data p
+      LEFT JOIN jf_users u ON u."Id" = p."UserId"
+      LEFT JOIN jf_library_episodes e ON e."EpisodeId" = p."ItemId"
+      LEFT JOIN jf_library_items s ON s."Id" = e."SeriesId"
+      ON CONFLICT ("Id") DO NOTHING
+    `);
+
+    for (const view of db.materializedViews) {
+      await db.refreshMaterializedView(view);
+    }
+
+    res.json({ imported: parsedRows.length });
+  } catch (error) {
+    console.error("[importPlaybackBackup]", error);
+    res.status(500).json({ error: String(error) });
+  }
+});
 
 // Handle other routes
 router.use((req, res) => {
