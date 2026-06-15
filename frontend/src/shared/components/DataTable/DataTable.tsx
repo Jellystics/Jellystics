@@ -143,7 +143,6 @@ export default function DataTable<T>({
           boxShadow: 'none',
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: 2,
           overflowX: 'auto',
         }}
       >

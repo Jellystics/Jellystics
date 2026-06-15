@@ -10,7 +10,7 @@ interface ChartCardProps {
 
 export default function ChartCard({ title, children, loading, height = 280, action }: ChartCardProps) {
   return (
-    <Paper sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+    <Paper sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
       <Box
         sx={{
           px: 3,

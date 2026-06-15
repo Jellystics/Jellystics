@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import socket from '@/lib/socket'
 import {
   Box, AppBar, Toolbar, IconButton, Drawer, Container,
-  useTheme, useMediaQuery, Collapse,
+  useTheme, useMediaQuery, Collapse, Tooltip,
 } from '@mui/material'
-import { Navigation24Regular } from '@fluentui/react-icons'
+import { Navigation24Regular, WeatherMoon24Regular, WeatherSunny24Regular } from '@fluentui/react-icons'
 import { Outlet } from 'react-router-dom'
 import SidebarContent from './Sidebar'
 import UserMenu from './UserMenu'
+import { useThemeMode } from '@/lib/ThemeModeContext'
 
 const DRAWER_WIDTH = 240
 
@@ -16,6 +17,7 @@ export default function AppShell() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [open, setOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { mode, toggleMode } = useThemeMode()
 
   useEffect(() => {
     socket.connect()
@@ -66,6 +68,13 @@ export default function AppShell() {
             </IconButton>
           </Collapse>
           <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'} enterDelay={500}>
+            <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
+              {mode === 'dark'
+                ? <WeatherSunny24Regular style={{ fontSize: 20 }} />
+                : <WeatherMoon24Regular style={{ fontSize: 20 }} />}
+            </IconButton>
+          </Tooltip>
           <UserMenu />
         </Toolbar>
       </AppBar>

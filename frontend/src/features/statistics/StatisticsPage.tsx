@@ -85,7 +85,7 @@ export default function StatisticsPage() {
           <ChartCard title={t('stats.playsOverTime30d')} loading={loading} height={240}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={overTime} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={tooltipStyle} />
@@ -101,7 +101,7 @@ export default function StatisticsPage() {
           <ChartCard title={t('stats.playsByHour')} loading={loading} height={220}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="hour" tick={{ fontSize: 9, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={tooltipStyle} />
@@ -114,7 +114,7 @@ export default function StatisticsPage() {
           <ChartCard title={t('stats.playsByDayOfWeek')} loading={loading} height={220}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={tooltipStyle} />

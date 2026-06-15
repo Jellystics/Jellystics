@@ -34,7 +34,7 @@ export default function ActivityChart({ data, loading }: ActivityChartProps) {
               <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 11, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} />
           <Tooltip

@@ -46,7 +46,7 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
   const theme = useTheme()
   const [showCollapse, setShowCollapse] = useState(false)
 
-  const activeColor = darken(theme.palette.primary.main, 0.55)
+  const activeColor = darken(theme.palette.primary.main, 0.45)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -84,11 +84,17 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
         spacing={0}
         sx={{ px: 1, pt: 1, pb: 1, flexGrow: 1, overflow: 'auto' }}
       >
-        {navItems.map((item) => {
-          const isActive =
-            item.path === '/'
-              ? location.pathname === '/'
-              : location.pathname.startsWith(item.path)
+        {(() => {
+          const activeItem = navItems
+            .filter((item) =>
+              item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+            )
+            .sort((a, b) => b.path.length - a.path.length)[0]
+
+          return navItems.map((item) => {
+          const isActive = activeItem?.key === item.key
 
           return (
             <Tooltip key={item.key} title="" placement="right">
@@ -104,12 +110,12 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
                   px: '4px',
                   pl: '14px',
                   mb: '2px',
-                  color: isActive ? 'primary.main' : 'text.secondary',
+                  color: isActive ? '#ffffff' : 'text.secondary',
                   bgcolor: isActive ? activeColor : 'transparent',
                   transition: 'background-color 200ms cubic-bezier(0.4,0,0.2,1)',
                   '&:hover': {
                     bgcolor: isActive ? activeColor : 'action.hover',
-                    color: isActive ? 'primary.main' : 'text.primary',
+                    color: isActive ? '#ffffff' : 'text.primary',
                   },
                 }}
               >
@@ -126,7 +132,8 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
               </ButtonBase>
             </Tooltip>
           )
-        })}
+        })
+        })()}
       </Stack>
     </Box>
   )
