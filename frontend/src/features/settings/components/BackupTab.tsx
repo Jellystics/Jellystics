@@ -25,7 +25,13 @@ export default function BackupTab() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   const loadBackups = () => {
-    api.get('/backup/getBackupFiles').then((r) => setBackups(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/backup/files').then((r) => {
+      setBackups((r.data ?? []).map((f: { name: string; size: number; datecreated: string }) => ({
+        name: f.name,
+        size: f.size,
+        createdAt: f.datecreated,
+      })))
+    }).catch(() => {}).finally(() => setLoading(false))
   }
 
   useEffect(() => { loadBackups() }, [])
@@ -33,7 +39,7 @@ export default function BackupTab() {
   const createBackup = async () => {
     setCreating(true)
     try {
-      await api.post('/backup/runBackup')
+      await api.get('/backup/beginBackup')
       enqueueSnackbar(t('settings.backupCreated'), { variant: 'success' })
       loadBackups()
     } catch {
@@ -45,7 +51,7 @@ export default function BackupTab() {
 
   const deleteBackup = async (name: string) => {
     try {
-      await api.delete(`/backup/deleteBackup/${name}`)
+      await api.delete(`/backup/files/${encodeURIComponent(name)}`)
       enqueueSnackbar(t('settings.backupDeleted'), { variant: 'success' })
       setBackups((prev) => prev.filter((b) => b.name !== name))
     } catch {
@@ -80,7 +86,7 @@ export default function BackupTab() {
                     slotProps={{ primary: { style: { fontSize: 13 } }, secondary: { style: { fontSize: 11 } } }}
                   />
                   <ListItemSecondaryAction>
-                    <IconButton size="small" href={`/api/backup/download/${b.name}`} download>
+                    <IconButton size="small" href={`/backup/files/${encodeURIComponent(b.name)}`} download>
                       <ArrowDownload24Regular style={{ fontSize: 18 }} />
                     </IconButton>
                     <IconButton size="small" color="error" onClick={() => setDeleteTarget(b.name)}>

@@ -25,7 +25,7 @@ export default function TasksTab() {
 
   useEffect(() => {
     api
-      .get('/utils/getTasks')
+      .get('/api/getTasks')
       .then((r) => setTasks(r.data ?? []))
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -40,7 +40,7 @@ export default function TasksTab() {
 
   const runTask = async (name: string) => {
     try {
-      await api.post(`/utils/runTask/${name}`)
+      await api.post(`/api/runTask/${name}`)
       enqueueSnackbar(t('settings.taskStarted'), { variant: 'info' })
     } catch {
       enqueueSnackbar(t('common.error'), { variant: 'error' })

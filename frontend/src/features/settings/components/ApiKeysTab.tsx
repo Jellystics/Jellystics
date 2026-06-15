@@ -10,15 +10,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
-import { format, parseISO } from 'date-fns'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
 import api from '@/lib/axios'
 
 interface ApiKey {
-  id: number
   name: string
   key: string
-  createdAt: string
 }
 
 const schema = z.object({ name: z.string().min(1) })
@@ -30,18 +27,18 @@ export default function ApiKeysTab() {
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const load = () => {
-    api.get('/auth/getApiKeys').then((r) => setKeys(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/api/keys').then((r) => setKeys(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
   const onAdd = async (data: FormData) => {
     try {
-      await api.post('/auth/createApiKey', data)
+      await api.post('/api/keys', data)
       enqueueSnackbar(t('settings.apiKeyCreated'), { variant: 'success' })
       setDialogOpen(false)
       reset()
@@ -51,11 +48,11 @@ export default function ApiKeysTab() {
     }
   }
 
-  const onDelete = async (id: number) => {
+  const onDelete = async (key: string) => {
     try {
-      await api.delete(`/auth/deleteApiKey/${id}`)
+      await api.delete('/api/keys', { data: { key } })
       enqueueSnackbar(t('settings.apiKeyDeleted'), { variant: 'success' })
-      setKeys((prev) => prev.filter((k) => k.id !== id))
+      setKeys((prev) => prev.filter((k) => k.key !== key))
     } catch {
       enqueueSnackbar(t('common.error'), { variant: 'error' })
     } finally {
@@ -81,7 +78,7 @@ export default function ApiKeysTab() {
           ) : (
             <List disablePadding>
               {keys.map((k) => (
-                <ListItem key={k.id} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
+                <ListItem key={k.key} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
                   <ListItemText
                     primary={k.name}
                     secondary={
@@ -92,15 +89,12 @@ export default function ApiKeysTab() {
                         <IconButton size="small" onClick={() => { navigator.clipboard.writeText(k.key); enqueueSnackbar(t('common.copied'), { variant: 'success' }) }}>
                           <Copy24Regular style={{ fontSize: 14 }} />
                         </IconButton>
-                        <Typography variant="caption" color="text.secondary">
-                          · {format(parseISO(k.createdAt), 'dd/MM/yyyy')}
-                        </Typography>
                       </Box>
                     }
                     slotProps={{ primary: { style: { fontSize: 13, fontWeight: 500 } } }}
                   />
                   <ListItemSecondaryAction>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(k.id)}>
+                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(k.key)}>
                       <Delete24Regular style={{ fontSize: 18 }} />
                     </IconButton>
                   </ListItemSecondaryAction>

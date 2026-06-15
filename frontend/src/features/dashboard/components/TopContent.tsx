@@ -18,7 +18,7 @@ export default function TopContent({ items, loading }: TopContentProps) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardHeader title={t('dashboard.topContent')} titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }} />
+      <CardHeader title={t('dashboard.topContent')} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (

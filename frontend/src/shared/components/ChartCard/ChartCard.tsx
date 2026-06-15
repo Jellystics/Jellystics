@@ -31,7 +31,7 @@ export default function ChartCard({ title, children, loading, height = 280, acti
         {loading ? (
           <Skeleton variant="rectangular" width="100%" height={height} sx={{ borderRadius: 2 }} />
         ) : (
-          <Box sx={{ height }}>{children}</Box>
+          <Box sx={{ height, minWidth: 0, minHeight: height, width: '100%' }}>{children}</Box>
         )}
       </Box>
     </Paper>

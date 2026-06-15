@@ -18,7 +18,7 @@ export default function TopUsers({ users, loading }: TopUsersProps) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardHeader title={t('dashboard.topUsers')} titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }} />
+      <CardHeader title={t('dashboard.topUsers')} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (

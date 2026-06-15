@@ -16,6 +16,7 @@ export default defineConfig({
       '/auth': { target: 'http://localhost:3000', changeOrigin: true },
       '/sync': { target: 'http://localhost:3000', changeOrigin: true },
       '/stats': { target: 'http://localhost:3000', changeOrigin: true },
+      '/sessions': { target: 'http://localhost:3000', changeOrigin: true },
       '/backup': { target: 'http://localhost:3000', changeOrigin: true },
       '/logs': { target: 'http://localhost:3000', changeOrigin: true },
       '/utils': { target: 'http://localhost:3000', changeOrigin: true },

@@ -44,7 +44,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
             <Chip label={activeSessions.length} size="small" color={activeSessions.length > 0 ? 'primary' : 'default'} sx={{ height: 20, fontSize: 11 }} />
           </Box>
         }
-        titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }}
+        slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }}
       />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (

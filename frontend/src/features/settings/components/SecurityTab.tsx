@@ -33,9 +33,9 @@ export default function SecurityTab() {
 
   const onSubmit = async (data: PwFormData) => {
     try {
-      await api.post('/auth/updatePassword', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
+      await api.post('/api/updatePassword', {
+        current_password: data.currentPassword,
+        new_password: data.newPassword,
       })
       enqueueSnackbar(t('settings.passwordChanged'), { variant: 'success' })
       reset()

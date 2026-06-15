@@ -3,7 +3,18 @@ const express = require("express");
 const db = require("../db");
 const dbHelper = require("../classes/db-helper");
 
+const statsRepo = require("../repositories/stats-repository");
+
 const dayjs = require("dayjs");
+
+function sendRepoResult(res, promise, empty = null) {
+  promise
+    .then((data) => res.send(data ?? empty))
+    .catch((error) => {
+      console.log(error);
+      res.status(503).json({ error: "Failed to load statistics" });
+    });
+}
 
 const router = express.Router();
 
@@ -854,6 +865,96 @@ router.get("/getGenreLibraryStats", async (req, res) => {
     res.status(503);
     res.send(error);
   }
+});
+
+// Frontend-compatible GET endpoints (Jellystics React UI)
+
+router.get("/getGlobalStats", (req, res) => {
+  sendRepoResult(res, statsRepo.getGlobalStats(), {
+    TotalPlays: 0,
+    TotalWatchTime: 0,
+    ActiveUsers: 0,
+    TotalUsers: 0,
+    TotalLibraries: 0,
+    TotalItems: 0,
+  });
+});
+
+router.get("/getMostPlayedItems", (req, res) => {
+  sendRepoResult(res, statsRepo.getMostPlayedItems(req.query), []);
+});
+
+router.get("/getMostActiveUsers", (req, res) => {
+  sendRepoResult(res, statsRepo.getMostActiveUsers(req.query), []);
+});
+
+router.get("/getWatchStatisticsOverTime", (req, res) => {
+  sendRepoResult(res, statsRepo.getWatchStatisticsOverTime(req.query), []);
+});
+
+router.get("/getPopularHourOfDay", (req, res) => {
+  sendRepoResult(res, statsRepo.getPopularHourOfDay(req.query), []);
+});
+
+router.get("/getPopularDayOfWeek", (req, res) => {
+  sendRepoResult(res, statsRepo.getPopularDayOfWeek(req.query), []);
+});
+
+router.get("/getMostUsedPlaybackMethod", (req, res) => {
+  sendRepoResult(res, statsRepo.getMostUsedPlaybackMethod(req.query), []);
+});
+
+router.get("/getMostUsedClients", (req, res) => {
+  sendRepoResult(res, statsRepo.getMostUsedClients(req.query), []);
+});
+
+router.get("/getUserStats", (req, res) => {
+  const { userId } = req.query;
+  sendRepoResult(res, statsRepo.getUserStats(userId), userId ? null : []);
+});
+
+router.get("/getUserActivity", (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send("userId is required");
+  sendRepoResult(res, statsRepo.getUserActivity(userId), []);
+});
+
+router.get("/getUserActivityByDate", (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send("userId is required");
+  sendRepoResult(res, statsRepo.getUserActivityByDate(userId), []);
+});
+
+router.get("/getUserGenreStats", (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send("userId is required");
+  sendRepoResult(res, statsRepo.getGenreStats({ userId }), []);
+});
+
+router.get("/getLibraries", (req, res) => {
+  sendRepoResult(res, statsRepo.getLibraries(), []);
+});
+
+router.get("/getLibraryStats", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getLibraryStats(libraryId), null);
+});
+
+router.get("/getLibraryItems", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getLibraryItems(libraryId), []);
+});
+
+router.get("/getGenreStats", (req, res) => {
+  const { libraryId } = req.query;
+  if (!libraryId) return res.status(400).send("libraryId is required");
+  sendRepoResult(res, statsRepo.getGenreStats({ libraryId }), []);
+});
+
+router.get("/getActivityTimeline", (req, res) => {
+  sendRepoResult(res, statsRepo.getActivityTimeline(), []);
 });
 
 // Handle other routes

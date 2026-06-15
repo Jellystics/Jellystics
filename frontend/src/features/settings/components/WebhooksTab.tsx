@@ -37,13 +37,19 @@ export default function WebhooksTab() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const load = () => {
-    api.get('/webhooks/getWebhooks').then((r) => setWebhooks(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/webhooks/').then((r) => setWebhooks(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
   const onAdd = async (data: FormData) => {
     try {
-      await api.post('/webhooks/addWebhook', data)
+      await api.post('/webhooks/', {
+        name: data.name,
+        url: data.url,
+        enabled: true,
+        trigger_type: 'event',
+        event_type: 'playback_started',
+      })
       enqueueSnackbar(t('settings.webhookAdded'), { variant: 'success' })
       setDialogOpen(false)
       reset()
@@ -55,7 +61,7 @@ export default function WebhooksTab() {
 
   const onDelete = async (id: number) => {
     try {
-      await api.delete(`/webhooks/deleteWebhook/${id}`)
+      await api.delete(`/webhooks/${id}`)
       enqueueSnackbar(t('settings.webhookDeleted'), { variant: 'success' })
       setWebhooks((prev) => prev.filter((w) => w.id !== id))
     } catch {

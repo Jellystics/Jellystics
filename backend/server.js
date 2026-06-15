@@ -22,10 +22,11 @@ const apiRouter = require("./routes/api");
 const proxyRouter = require("./routes/proxy");
 const { router: syncRouter } = require("./routes/sync");
 const statsRouter = require("./routes/stats");
+const sessionsRouter = require("./routes/sessions");
 const backupRouter = require("./routes/backup");
 const logRouter = require("./routes/logging");
 const utilsRouter = require("./routes/utils");
-// const webhooksRouter = require("./routes/webhooks");
+const webhooksRouter = require("./routes/webhooks");
 
 // tasks
 const ActivityMonitor = require("./tasks/ActivityMonitor");
@@ -158,6 +159,9 @@ app.use("/sync", authenticate, syncRouter, () => {
 app.use("/stats", authenticate, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
+app.use("/sessions", authenticate, sessionsRouter, () => {
+  /*  #swagger.tags = ['Sessions']*/
+});
 app.use("/backup", authenticate, backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
@@ -167,9 +171,9 @@ app.use("/logs", authenticate, logRouter, () => {
 app.use("/utils", authenticate, utilsRouter, () => {
   /*  #swagger.tags = ['Utils']*/
 }); // mount the API router at /utils, with JWT middleware
-// app.use("/webhooks", authenticate, webhooksRouter, () => {
-//   /*  #swagger.tags = ['Webhooks']*/
-// }); // mount the API router at /webhooks, with JWT middleware
+app.use("/webhooks", authenticate, webhooksRouter, () => {
+  /*  #swagger.tags = ['Webhooks']*/
+});
 
 // Swagger
 app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));

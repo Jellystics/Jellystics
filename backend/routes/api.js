@@ -1889,6 +1889,57 @@ router.post("/getActivityTimeLine", async (req, res) => {
 
 //Tasks
 
+router.get("/getTasks", async (req, res) => {
+  try {
+    const TaskList = require("../global/task-list");
+    const taskManager = new TaskManager().getInstance();
+    const tasks = Object.keys(TaskList).map((key) => ({
+      name: key,
+      displayName: key.replace(/([A-Z])/g, " $1").trim(),
+      running: taskManager.isTaskRunning(TaskList[key].name),
+    }));
+    res.send(tasks);
+  } catch (error) {
+    console.log(error);
+    res.status(503);
+    res.send(error);
+  }
+});
+
+router.post("/runTask/:name", async (req, res) => {
+  const { name } = req.params;
+  const TaskList = require("../global/task-list");
+  const triggertype = require("../logging/triggertype");
+  const taskManager = new TaskManager().getInstance();
+
+  if (!TaskList[name]) {
+    res.status(404);
+    return res.send("Task not found");
+  }
+
+  const task = TaskList[name];
+  if (taskManager.isTaskRunning(task.name)) {
+    res.status(400);
+    return res.send("Task already running");
+  }
+
+  const success = taskManager.addTask({
+    task,
+    onComplete: () => res.send("Task completed"),
+    onError: (error) => {
+      console.error(error);
+      res.status(500).send("Task failed");
+    },
+  });
+
+  if (!success) {
+    res.status(400);
+    return res.send("Task already running");
+  }
+
+  taskManager.startTask(task, triggertype.Manual);
+});
+
 router.get("/stopTask", async (req, res) => {
   const { task } = req.query;
 

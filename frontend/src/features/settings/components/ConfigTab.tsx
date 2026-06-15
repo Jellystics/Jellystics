@@ -42,12 +42,20 @@ export default function ConfigTab() {
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
-    api.get('/utils/getAppConfig').then((r) => reset(r.data)).catch(() => {})
+    api.get('/api/getconfig').then((r) => {
+      const data = r.data
+      reset({
+        JellyfinUrl: data.JF_HOST ?? '',
+        ApiKey: '',
+        SyncIntervalMinutes: data.settings?.Tasks?.JellyfinSync?.Interval ?? 60,
+        KeepLogsForDays: data.settings?.KeepLogsForDays ?? 30,
+      })
+    }).catch(() => {})
   }, [reset])
 
   const onSubmit = async (data: FormData) => {
     try {
-      await api.post('/utils/updateConfig', data)
+      await api.post('/api/setconfig', { JF_HOST: data.JellyfinUrl, JF_API_KEY: data.ApiKey })
       enqueueSnackbar(t('settings.configSaved'), { variant: 'success' })
     } catch {
       enqueueSnackbar(t('common.saveError'), { variant: 'error' })

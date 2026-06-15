@@ -34,8 +34,18 @@ export default function LogsTab() {
 
   useEffect(() => {
     api
-      .get('/logging/getLogs')
-      .then((r) => setLogs(r.data ?? []))
+      .get('/logs/getLogs')
+      .then((r) => {
+        setLogs((r.data ?? []).map((row: Record<string, unknown>, i: number) => ({
+          id: i,
+          level: String(row.Result ?? 'info').toLowerCase() === 'failed' ? 'error' as const
+            : String(row.Result ?? 'info').toLowerCase() === 'running' ? 'warn' as const
+            : 'info' as const,
+          message: String(row.Log ?? row.Result ?? ''),
+          timestamp: String(row.TimeRun ?? ''),
+          task: String(row.Name ?? ''),
+        })))
+      })
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
   }, [t])

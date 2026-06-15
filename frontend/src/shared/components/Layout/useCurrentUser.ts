@@ -1,4 +1,4 @@
 export function useCurrentUser() {
-  const username = localStorage.getItem('jellystat-username') ?? ''
+  const username = localStorage.getItem('jellystics-username') ?? ''
   return { username }
 }

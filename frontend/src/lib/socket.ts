@@ -4,7 +4,7 @@ const socket = io('/', {
   withCredentials: true,
   autoConnect: false,
   auth: (cb) => {
-    cb({ token: localStorage.getItem('jellystat-token') })
+    cb({ token: localStorage.getItem('jellystics-token') })
   },
 })
 
