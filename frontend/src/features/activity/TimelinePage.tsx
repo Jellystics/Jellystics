@@ -27,11 +27,18 @@ export default function TimelinePage() {
   const debouncedSearch = useDebounce(search)
 
   useEffect(() => {
-    api
-      .get('/stats/getActivityTimeline')
-      .then((r) => setEntries(r.data ?? []))
-      .catch(() => setError(t('common.loadError')))
-      .finally(() => setLoading(false))
+    const load = (showLoading = true) => {
+      if (showLoading) setLoading(true)
+      api
+        .get('/stats/getActivityTimeline')
+        .then((r) => setEntries(r.data ?? []))
+        .catch(() => setError(t('common.loadError')))
+        .finally(() => setLoading(false))
+    }
+
+    load()
+    const interval = window.setInterval(() => load(false), 15000)
+    return () => window.clearInterval(interval)
   }, [t])
 
   const filtered = entries.filter((e) =>

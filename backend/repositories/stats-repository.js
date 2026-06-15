@@ -435,6 +435,52 @@ async function getUserActivity(userId) {
   );
 }
 
+async function getAllUserActivity() {
+  const activity = await rows(
+    `
+    SELECT
+      "Id", "UserId", "UserName",
+      "NowPlayingItemId" AS "ItemId",
+      "NowPlayingItemName",
+      "SeriesName", "SeasonId", "EpisodeId",
+      "Client", "DeviceName", "DeviceId", "ApplicationVersion",
+      "PlayMethod",
+      "IsPaused",
+      false AS "IsActive",
+      ("PlaybackDuration" * 600000000)::bigint AS "PlayDuration",
+      "ActivityDateInserted",
+      "RemoteEndPoint"
+    FROM jf_playback_activity
+    ORDER BY ${ACTIVITY_TS} DESC
+    LIMIT 500
+    `
+  );
+
+  const live = await getLiveActivity();
+  const liveActivity = live.map((session) => ({
+    Id: `live-${session.UserId}-${session.NowPlayingItemId}`,
+    UserId: session.UserId,
+    UserName: session.UserName,
+    ItemId: session.NowPlayingItemId,
+    NowPlayingItemName: session.NowPlayingItemName,
+    SeriesName: null,
+    SeasonId: null,
+    EpisodeId: session.EpisodeId,
+    Client: session.Client,
+    DeviceName: null,
+    DeviceId: null,
+    ApplicationVersion: null,
+    PlayMethod: session.PlayMethod,
+    IsPaused: false,
+    IsActive: true,
+    PlayDuration: session.PlaybackDuration * 600000000,
+    ActivityDateInserted: new Date().toISOString(),
+    RemoteEndPoint: null,
+  }));
+
+  return [...liveActivity, ...activity];
+}
+
 async function getUserActivityByDate(userId) {
   return rows(
     `
@@ -662,7 +708,7 @@ async function getLibraryItems(libraryId) {
 }
 
 async function getActivityTimeline() {
-  return rows(
+  const timeline = await rows(
     `
     SELECT
       a."Id",
@@ -680,6 +726,25 @@ async function getActivityTimeline() {
     LIMIT 500
     `
   );
+  const live = await getLiveActivity();
+  const now = Date.now();
+  const liveTimeline = live.map((session) => {
+    const durationSeconds = session.PlaybackDuration * 60;
+    return {
+      Id: `live-${session.UserId}-${session.NowPlayingItemId}`,
+      UserId: session.UserId,
+      UserName: session.UserName,
+      ItemId: session.NowPlayingItemId,
+      ItemName: session.NowPlayingItemName,
+      StartTime: new Date(now - durationSeconds * 1000).toISOString(),
+      EndTime: new Date(now).toISOString(),
+      Duration: durationSeconds,
+      Client: session.Client,
+      PlayMethod: session.PlayMethod,
+    };
+  });
+
+  return [...liveTimeline, ...timeline];
 }
 
 module.exports = {
@@ -692,6 +757,7 @@ module.exports = {
   getMostUsedPlaybackMethod,
   getMostUsedClients,
   getUserStats,
+  getAllUserActivity,
   getUserActivity,
   getUserActivityByDate,
   getGenreStats,
