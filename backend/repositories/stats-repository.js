@@ -269,6 +269,30 @@ async function getUserActivityByDate(userId) {
 }
 
 async function getGenreStats({ userId, libraryId }) {
+  if (libraryId && !userId) {
+    return rows(
+      `
+      SELECT
+        genre AS "Genre",
+        COUNT(*)::int AS "Count",
+        0::int AS "PlayCount"
+      FROM jf_library_items i
+      CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE
+          WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["No Genre"]'::jsonb
+          ELSE i."Genres"
+        END
+      ) AS genre
+      WHERE i."ParentId" = $1
+        AND i.archived = false
+        AND i."Type" NOT IN ('Season', 'Folder')
+      GROUP BY genre
+      ORDER BY "Count" DESC, genre ASC
+      `,
+      [libraryId]
+    );
+  }
+
   const values = [];
   const where = [];
 
@@ -373,11 +397,13 @@ async function getLibraryStats(libraryId) {
       i."Type",
       COUNT(a."Id")::int AS "PlayCount"
     FROM jf_library_items i
-    JOIN jf_playback_activity a
+    LEFT JOIN jf_playback_activity a
       ON a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id"
-    WHERE i."ParentId" = $1 AND i.archived = false
+    WHERE i."ParentId" = $1
+      AND i.archived = false
+      AND i."Type" NOT IN ('Season', 'Folder')
     GROUP BY i."Id", i."Name", i."Type"
-    ORDER BY "PlayCount" DESC
+    ORDER BY "PlayCount" DESC, i."Name" ASC
     LIMIT 1
     `,
     [libraryId]
