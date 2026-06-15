@@ -3,16 +3,10 @@ import {
   ListItemAvatar, Avatar, Chip, Skeleton, Box, Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 interface TopUser { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 interface TopUsersProps { users: TopUser[]; loading: boolean }
-
-function formatWatchTime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
 
 export default function TopUsers({ users, loading }: TopUsersProps) {
   const { t } = useTranslation()

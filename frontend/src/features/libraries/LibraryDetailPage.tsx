@@ -15,6 +15,7 @@ import {
   Play24Regular, Clock24Regular, Star24Regular,
   Search20Regular, VideoClip24Regular,
 } from '@fluentui/react-icons'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd']
 
@@ -81,7 +82,7 @@ export default function LibraryDetailPage() {
           <StatCard label={t('stats.totalPlays')} value={stats?.TotalPlayCount ?? '—'} icon={<Play24Regular />} loading={loading} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.watchTime')} value={stats ? `${Math.floor((stats.TotalWatchTime ?? 0) / 60)}h` : '—'} icon={<Clock24Regular />} loading={loading} />
+          <StatCard label={t('stats.watchTime')} value={stats ? formatWatchTime(stats.TotalWatchTime) : '—'} icon={<Clock24Regular />} loading={loading} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard label={t('library.topItem')} value={stats?.MostPlayedItem?.Name ?? '—'} icon={<Star24Regular />} loading={loading} />

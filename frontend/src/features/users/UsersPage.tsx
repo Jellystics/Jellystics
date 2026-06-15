@@ -8,15 +8,9 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 const col = createColumnHelper<UserStats>()
-
-function formatWatchTime(minutes: number): string {
-  if (!minutes) return '0h'
-  const h = Math.floor(minutes / 60)
-  if (h < 24) return `${h}h`
-  return `${Math.floor(h / 24)}d ${h % 24}h`
-}
 
 export default function UsersPage() {
   const { t } = useTranslation()

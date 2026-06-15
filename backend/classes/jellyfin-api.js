@@ -459,7 +459,10 @@ class JellyfinAPI {
 
   async getSessions() {
     if (!this.configReady) {
-      return [];
+      const success = await this.#fetchConfig();
+      if (!success) {
+        return [];
+      }
     }
     try {
       if (
@@ -473,7 +476,7 @@ class JellyfinAPI {
 
         const socketUrl = hostUrl.replace(/^http/, "ws").replace(/^https/, "wss") + "/socket";
         const sessionData = await getSessionData(socketUrl, this.config.JF_API_KEY);
-        if (sessionData != null) {
+        if (Array.isArray(sessionData) && sessionData.length > 0) {
           return sessionData;
         }
       }
@@ -508,7 +511,7 @@ class JellyfinAPI {
           (session) =>
             session.NowPlayingItem !== undefined &&
             session.NowPlayingItem.Type != "Trailer" &&
-            session.NowPlayingItem.ProviderIds["prerolls.video"] == undefined
+            session.NowPlayingItem.ProviderIds?.["prerolls.video"] == undefined
         );
       }
       return result;

@@ -12,6 +12,7 @@ import StatCard from '@/shared/components/StatCard/StatCard'
 import api from '@/lib/axios'
 import type { WatchStatOverTime, HourStat, DayStat, PlayMethodStat, ClientStat } from '@/shared/types/stats'
 import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 const COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe']
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -76,7 +77,7 @@ export default function StatisticsPage() {
           <StatCard label={t('stats.totalPlays30d')} value={totalPlays} icon={<Play24Regular />} loading={loading} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.watchTime30d')} value={`${Math.floor(totalDuration / 60)}h`} icon={<Clock24Regular />} loading={loading} />
+          <StatCard label={t('stats.watchTime30d')} value={formatWatchTime(totalDuration)} icon={<Clock24Regular />} loading={loading} />
         </Grid>
       </Grid>
 

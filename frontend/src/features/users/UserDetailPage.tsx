@@ -19,15 +19,9 @@ import type { Activity } from '@/shared/types/activity'
 import type { UserStats, UserActivity } from '@/shared/types/user'
 import type { GenreStat } from '@/shared/types/library'
 import { Play24Regular, Clock24Regular, Star24Regular } from '@fluentui/react-icons'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 const col = createColumnHelper<Activity>()
-
-function formatWatchTime(minutes: number): string {
-  if (!minutes) return '0h'
-  const h = Math.floor(minutes / 60)
-  if (h < 24) return `${h}h`
-  return `${Math.floor(h / 24)}d ${h % 24}h`
-}
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>()

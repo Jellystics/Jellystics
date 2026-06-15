@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Box, Card, CardContent, CardHeader, Chip, Avatar, Typography,
   LinearProgress, Tooltip, Skeleton,
@@ -26,6 +26,10 @@ function formatDuration(ticks?: number): string {
 export default function LiveSessions({ initialSessions, loading }: LiveSessionsProps) {
   const { t } = useTranslation()
   const [sessions, setSessions] = useState<Session[]>(initialSessions)
+
+  useEffect(() => {
+    setSessions(initialSessions)
+  }, [initialSessions])
 
   const handleSessionUpdate = useCallback((data: unknown) => {
     if (Array.isArray(data)) setSessions(data as Session[])

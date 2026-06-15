@@ -11,14 +11,7 @@ import ActivityChart from './components/ActivityChart'
 import TopContent from './components/TopContent'
 import TopUsers from './components/TopUsers'
 import { useDashboard } from './hooks/useDashboard'
-
-function formatWatchTime(minutes: number): string {
-  if (!minutes) return '0h'
-  const h = Math.floor(minutes / 60)
-  if (h < 24) return `${h}h`
-  const d = Math.floor(h / 24)
-  return `${d}d ${h % 24}h`
-}
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 export default function DashboardPage() {
   const { t } = useTranslation()
