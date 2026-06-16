@@ -4,7 +4,7 @@ import {
   Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
   IconButton, Tooltip, Table, TableBody, TableCell, TableHead, TableRow,
-  TableSortLabel, TablePagination, Paper,
+  TableSortLabel, TablePagination, Paper, Pagination, ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
@@ -24,7 +24,7 @@ import type { LibraryItem, LibraryStats, GenreStat } from '@/shared/types/librar
 import {
   Play24Regular, Clock24Regular, Star24Regular,
   Search20Regular, VideoClip24Regular, MusicNote224Regular,
-  Person24Regular, ArrowLeft24Regular,
+  Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular,
 } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
@@ -372,6 +372,406 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
   )
 }
 
+// ─── Items grid with pagination ────────────────────────────────────────────
+
+const GRID_PAGE_SIZE = 24
+
+function ItemsGridView({ items, loading, navigate, libraryId, t }: {
+  items: LibraryItem[]
+  loading: boolean
+  navigate: ReturnType<typeof useNavigate>
+  libraryId: string
+  t: (k: string, fb?: string) => string
+}) {
+  const [page, setPage] = useState(1)
+  const pageCount = Math.ceil(items.length / GRID_PAGE_SIZE)
+  const paged = items.slice((page - 1) * GRID_PAGE_SIZE, page * GRID_PAGE_SIZE)
+
+  // Reset to page 1 when items change (e.g. new search)
+  useEffect(() => { setPage(1) }, [items.length])
+
+  return (
+    <Box>
+      <Grid container spacing={2}>
+        {loading ? (
+          Array.from({ length: GRID_PAGE_SIZE }).map((_, index) => (
+            <Grid key={index} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+              <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 2 }} />
+            </Grid>
+          ))
+        ) : paged.length === 0 ? (
+          <Grid size={{ xs: 12 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              {t('common.noData')}
+            </Typography>
+          </Grid>
+        ) : (
+          paged.map((item) => {
+            const size = formatSize(item.Size)
+            return (
+              <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+                <Card
+                  sx={{
+                    height: '100%', overflow: 'hidden', borderRadius: 2,
+                    border: '1px solid', borderColor: 'divider',
+                    transition: 'transform 160ms ease, border-color 160ms ease',
+                    '&:hover': { transform: 'translateY(-3px)', borderColor: 'primary.main' },
+                  }}
+                >
+                  <CardActionArea onClick={() => navigate(`/libraries/${libraryId}/items/${item.Id}`)} sx={{ height: '100%' }}>
+                    <Box
+                      sx={{
+                        position: 'relative', aspectRatio: '2 / 3',
+                        bgcolor: 'rgba(255,255,255,0.04)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
+                      <Box
+                        component="img"
+                        src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`}
+                        alt={item.Name}
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      {size && (
+                        <Chip
+                          label={size}
+                          size="small"
+                          sx={{
+                            position: 'absolute', right: 6, bottom: 6, height: 20, fontSize: 10,
+                            bgcolor: 'primary.main', color: 'primary.contrastText',
+                          }}
+                        />
+                      )}
+                    </Box>
+                    <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
+                        {item.Name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                        {item.ProductionYear && (
+                          <Typography variant="caption" color="text.secondary">{item.ProductionYear}</Typography>
+                        )}
+                        {item.CommunityRating && (
+                          <Typography variant="caption" color="warning.main">
+                            ★ {item.CommunityRating.toFixed(1)}
+                          </Typography>
+                        )}
+                        {item.PlayCount > 0 && (
+                          <Typography variant="caption" color="text.secondary">
+                            {item.PlayCount} {t('common.plays')}
+                          </Typography>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            )
+          })
+        )}
+      </Grid>
+
+      {!loading && pageCount > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+          <Pagination
+            count={pageCount}
+            page={page}
+            onChange={(_, v) => { setPage(v); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            color="primary"
+            shape="rounded"
+          />
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+// ─── Items table with poster preview ───────────────────────────────────────
+
+const itemColHelper = createColumnHelper<LibraryItem>()
+
+function ItemsTableView({ items, loading, navigate, libraryId, t }: {
+  items: LibraryItem[]
+  loading: boolean
+  navigate: ReturnType<typeof useNavigate>
+  libraryId: string
+  t: (k: string, fb?: string) => string
+}) {
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [hovered, setHovered] = useState<LibraryItem | null>(null)
+
+  const columns = useMemo(() => [
+    itemColHelper.display({
+      id: 'poster',
+      size: 52,
+      header: '',
+      cell: (info) => {
+        const item = info.row.original
+        return (
+          <Box
+            sx={{
+              width: 36, height: 52, borderRadius: 1, overflow: 'hidden',
+              bgcolor: 'rgba(255,255,255,0.06)', flexShrink: 0, position: 'relative',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <VideoClip24Regular style={{ fontSize: 16, opacity: 0.35, position: 'absolute' }} />
+            <Box
+              component="img"
+              src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=80&quality=80`}
+              alt={item.Name}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
+              sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </Box>
+        )
+      },
+    }),
+    itemColHelper.accessor('Name', {
+      header: t('library.title', 'Titre'),
+      cell: (info) => {
+        const item = info.row.original
+        return (
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+              {info.getValue()}
+            </Typography>
+            {item.SeriesName && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                {item.SeriesName}
+                {item.ParentIndexNumber != null && item.IndexNumber != null
+                  ? ` — S${item.ParentIndexNumber}E${item.IndexNumber}`
+                  : ''}
+              </Typography>
+            )}
+          </Box>
+        )
+      },
+    }),
+    itemColHelper.accessor('Type', {
+      header: t('library.type', 'Type'),
+      size: 90,
+      cell: (info) => (
+        <Chip label={info.getValue()} size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
+      ),
+    }),
+    itemColHelper.accessor('ProductionYear', {
+      header: t('library.year', 'Année'),
+      size: 70,
+      cell: (info) => (
+        <Typography variant="caption" color="text.secondary">
+          {info.getValue() ?? '—'}
+        </Typography>
+      ),
+    }),
+    itemColHelper.accessor('CommunityRating', {
+      header: '★',
+      size: 60,
+      cell: (info) => {
+        const v = info.getValue()
+        return v
+          ? <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>★ {v.toFixed(1)}</Typography>
+          : <Typography variant="caption" color="text.disabled">—</Typography>
+      },
+    }),
+    itemColHelper.accessor('PlayCount', {
+      header: t('common.plays'),
+      size: 80,
+      cell: (info) => {
+        const v = info.getValue()
+        return v > 0
+          ? <Chip label={v} size="small" sx={{ fontSize: 11, height: 20 }} />
+          : <Typography variant="caption" color="text.disabled">0</Typography>
+      },
+    }),
+    itemColHelper.accessor('Size', {
+      header: t('library.size', 'Taille'),
+      size: 90,
+      cell: (info) => (
+        <Typography variant="caption" color="text.secondary">
+          {formatSize(info.getValue()) ?? '—'}
+        </Typography>
+      ),
+    }),
+  ], [t])
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 25 } },
+  })
+
+  if (loading) {
+    return (
+      <Paper variant="outlined" sx={{ borderRadius: 2 }}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <Box key={i} sx={{ display: 'flex', gap: 2, px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', alignItems: 'center' }}>
+            <Skeleton variant="rectangular" width={36} height={52} sx={{ borderRadius: 1, flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Skeleton variant="text" width="45%" />
+              <Skeleton variant="text" width="25%" />
+            </Box>
+            <Skeleton variant="text" width={60} />
+            <Skeleton variant="text" width={40} />
+            <Skeleton variant="text" width={40} />
+          </Box>
+        ))}
+      </Paper>
+    )
+  }
+
+  return (
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+      {/* Table */}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {table.getHeaderGroups().flatMap((hg) => hg.headers).map((header) => (
+                  <TableCell
+                    key={header.id}
+                    style={{ width: header.column.columnDef.size }}
+                    sx={{ fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', bgcolor: 'rgba(255,255,255,0.03)', py: 1.25 }}
+                  >
+                    {header.column.getCanSort() ? (
+                      <TableSortLabel
+                        active={header.column.getIsSorted() !== false}
+                        direction={header.column.getIsSorted() === 'asc' ? 'asc' : 'desc'}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableSortLabel>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {table.getRowModel().rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                    {t('common.noData')}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    hover
+                    onClick={() => navigate(`/libraries/${libraryId}/items/${row.original.Id}`)}
+                    onMouseEnter={() => setHovered(row.original)}
+                    sx={{
+                      cursor: 'pointer',
+                      '&:last-child td': { borderBottom: 0 },
+                      bgcolor: hovered?.Id === row.original.Id ? 'action.selected' : undefined,
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} sx={{ fontSize: 13, py: 0.75, maxWidth: 260, overflow: 'hidden' }}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <TablePagination
+            component="div"
+            count={table.getCoreRowModel().rows.length}
+            page={table.getState().pagination.pageIndex}
+            rowsPerPage={table.getState().pagination.pageSize}
+            rowsPerPageOptions={[25, 50, 100]}
+            onPageChange={(_, p) => table.setPageIndex(p)}
+            onRowsPerPageChange={(e) => table.setPageSize(Number(e.target.value))}
+            labelRowsPerPage={t('common.rowsPerPage', 'Lignes/page')}
+          />
+        </Paper>
+      </Box>
+
+      {/* Poster preview panel */}
+      <Box
+        sx={{
+          width: 200,
+          flexShrink: 0,
+          position: 'sticky',
+          top: 80,
+          display: { xs: 'none', lg: 'block' },
+        }}
+        onMouseLeave={() => setHovered(null)}
+      >
+        <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', transition: 'opacity 200ms', opacity: hovered ? 1 : 0.35 }}>
+          <Box
+            sx={{
+              position: 'relative', aspectRatio: '2 / 3',
+              bgcolor: 'rgba(255,255,255,0.05)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <VideoClip24Regular style={{ fontSize: 48, opacity: 0.25 }} />
+            {hovered && (
+              <Box
+                component="img"
+                key={hovered.Id}
+                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(hovered.Id)}&fillWidth=400&quality=90`}
+                alt={hovered.Name}
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 200ms' }}
+              />
+            )}
+          </Box>
+          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+            {hovered ? (
+              <>
+                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 0.75 }}>
+                  {hovered.Name}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
+                  <Chip label={hovered.Type} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  {hovered.ProductionYear && (
+                    <Chip label={hovered.ProductionYear} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                  )}
+                </Box>
+                {hovered.CommunityRating != null && (
+                  <Typography variant="caption" color="warning.main" sx={{ display: 'block', fontWeight: 600, mb: 0.5 }}>
+                    ★ {hovered.CommunityRating.toFixed(1)}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  {hovered.PlayCount > 0
+                    ? `${hovered.PlayCount} ${t('common.plays')}`
+                    : t('library.neverPlayed', 'Jamais lu')}
+                </Typography>
+                {hovered.Size != null && formatSize(hovered.Size) && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                    {formatSize(hovered.Size)}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', textAlign: 'center', py: 1 }}>
+                {t('library.hoverToPreview', 'Survolez une ligne')}
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
+  )
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────
 
 export default function LibraryDetailPage() {
@@ -391,6 +791,7 @@ export default function LibraryDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
 
   const [historyData, setHistoryData] = useState<HistoryPoint[]>([])
   const [itemsWithStats, setItemsWithStats] = useState<ItemWithStats[]>([])
@@ -633,7 +1034,7 @@ export default function LibraryDetailPage() {
       {/* ── REGULAR: Items ── */}
       {!isMusicLibrary && tab === 0 && (
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
             <TextField
               size="small"
               placeholder={t('common.search')}
@@ -650,88 +1051,31 @@ export default function LibraryDetailPage() {
               }}
               sx={{ width: { xs: '100%', sm: 260 } }}
             />
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+              {filteredItems.length} {t('common.items')}
+            </Typography>
+            <Box sx={{ ml: 'auto' }}>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, v) => v && setViewMode(v)}
+                size="small"
+              >
+                <ToggleButton value="grid" aria-label="grid view">
+                  <Grid24Regular style={{ fontSize: 18 }} />
+                </ToggleButton>
+                <ToggleButton value="table" aria-label="table view">
+                  <TableSimple24Regular style={{ fontSize: 18 }} />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Box>
-          <Grid container spacing={2}>
-            {loading ? (
-              Array.from({ length: 12 }).map((_, index) => (
-                <Grid key={index} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
-                  <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 2 }} />
-                </Grid>
-              ))
-            ) : filteredItems.length === 0 ? (
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                  {t('common.noData')}
-                </Typography>
-              </Grid>
-            ) : (
-              filteredItems.map((item) => {
-                const size = formatSize(item.Size)
-                return (
-                  <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
-                    <Card
-                      sx={{
-                        height: '100%', overflow: 'hidden', borderRadius: 2,
-                        border: '1px solid', borderColor: 'divider',
-                        transition: 'transform 160ms ease, border-color 160ms ease',
-                        '&:hover': { transform: 'translateY(-3px)', borderColor: 'primary.main' },
-                      }}
-                    >
-                      <CardActionArea onClick={() => navigate(`/libraries/${id}/items/${item.Id}`)} sx={{ height: '100%' }}>
-                        <Box
-                          sx={{
-                            position: 'relative', aspectRatio: '2 / 3',
-                            bgcolor: 'rgba(255,255,255,0.04)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >
-                          <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
-                          <Box
-                            component="img"
-                            src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`}
-                            alt={item.Name}
-                            loading="lazy"
-                            onError={(e) => { e.currentTarget.style.display = 'none' }}
-                            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                          {size && (
-                            <Chip
-                              label={size}
-                              size="small"
-                              sx={{
-                                position: 'absolute', right: 6, bottom: 6, height: 20, fontSize: 10,
-                                bgcolor: 'primary.main', color: 'primary.contrastText',
-                              }}
-                            />
-                          )}
-                        </Box>
-                        <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
-                            {item.Name}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
-                            {item.ProductionYear && (
-                              <Typography variant="caption" color="text.secondary">{item.ProductionYear}</Typography>
-                            )}
-                            {item.CommunityRating && (
-                              <Typography variant="caption" color="warning.main">
-                                ★ {item.CommunityRating.toFixed(1)}
-                              </Typography>
-                            )}
-                            {item.PlayCount > 0 && (
-                              <Typography variant="caption" color="text.secondary">
-                                {item.PlayCount} {t('common.plays')}
-                              </Typography>
-                            )}
-                          </Box>
-                        </CardContent>
-                      </CardActionArea>
-                    </Card>
-                  </Grid>
-                )
-              })
-            )}
-          </Grid>
+
+          {viewMode === 'grid' ? (
+            <ItemsGridView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
+          ) : (
+            <ItemsTableView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
+          )}
         </Box>
       )}
 

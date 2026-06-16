@@ -105,7 +105,12 @@
     "stats": "Stats",
     "activityOverTime": "Activity over time",
     "topItems": "Most watched items",
-    "playMethod": "Playback method"
+    "playMethod": "Playback method",
+    "title": "Title",
+    "type": "Type",
+    "size": "Size",
+    "neverPlayed": "Never played",
+    "hoverToPreview": "Hover a row to preview"
   },
   "users": {
     "user": "User",

@@ -105,7 +105,12 @@
     "stats": "Stats",
     "activityOverTime": "Activité dans le temps",
     "topItems": "Éléments les plus regardés",
-    "playMethod": "Méthode de lecture"
+    "playMethod": "Méthode de lecture",
+    "title": "Titre",
+    "type": "Type",
+    "size": "Taille",
+    "neverPlayed": "Jamais lu",
+    "hoverToPreview": "Survolez une ligne"
   },
   "users": {
     "user": "Utilisateur",

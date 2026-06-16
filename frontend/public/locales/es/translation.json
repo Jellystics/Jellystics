@@ -105,7 +105,12 @@
     "stats": "Estadísticas",
     "activityOverTime": "Actividad en el tiempo",
     "topItems": "Elementos más vistos",
-    "playMethod": "Método de reproducción"
+    "playMethod": "Método de reproducción",
+    "title": "Título",
+    "type": "Tipo",
+    "size": "Tamaño",
+    "neverPlayed": "Nunca visto",
+    "hoverToPreview": "Pasa el cursor sobre una fila"
   },
   "users": {
     "user": "Usuario",
