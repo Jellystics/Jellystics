@@ -2590,5 +2590,58 @@ func (h *StatsFrontendHandler) GetLibraryItemsPlayMethodStats(c *gin.Context) {
 	})
 }
 
+// ---------------------------------------------------------------------------
+// GET /stats/getPlaybacksByLibraryOverTime?days=30
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
+	rawDays, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	allTime := rawDays <= 0
+
+	type Row struct {
+		Date        string `json:"date"        gorm:"column:date"`
+		LibraryId   string `json:"libraryId"   gorm:"column:LibraryId"`
+		LibraryName string `json:"libraryName" gorm:"column:LibraryName"`
+		Count       int    `json:"count"       gorm:"column:count"`
+	}
+	var rows []Row
+
+	baseQuery := `
+		SELECT
+		  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
+		  l."Id" AS "LibraryId",
+		  l."Name" AS "LibraryName",
+		  COUNT(DISTINCT a."Id")::int AS count
+		FROM jf_libraries l
+		JOIN (
+		  SELECT "Id", "ParentId" AS "LibraryId" FROM jf_library_items WHERE archived = false
+		  UNION ALL
+		  SELECT "Id", "LibraryId" FROM jf_music_tracks WHERE archived = false
+		) all_items ON all_items."LibraryId" = l."Id"
+		JOIN jf_playback_activity a
+		  ON (a."NowPlayingItemId" = all_items."Id" OR a."EpisodeId" = all_items."Id")`
+
+	if allTime {
+		h.db.Raw(baseQuery+`
+		WHERE l.archived = false
+		GROUP BY date, l."Id", l."Name"
+		ORDER BY date, l."Name"
+		`).Scan(&rows)
+	} else {
+		days := rawDays - 1
+		h.db.Raw(baseQuery+`
+		  AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+		WHERE l.archived = false
+		GROUP BY date, l."Id", l."Name"
+		ORDER BY date, l."Name"
+		`, days).Scan(&rows)
+	}
+
+	if rows == nil {
+		rows = []Row{}
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
 // ensure math is used
 var _ = math.Floor

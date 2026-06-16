@@ -1,13 +1,14 @@
-import { Grid, Alert } from '@mui/material'
+import { Grid, Alert, ToggleButtonGroup, ToggleButton } from '@mui/material'
 import {
   Play24Regular, Clock24Regular, People24Regular,
   VideoClip24Regular, Library24Regular, Apps24Regular,
 } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 import { PieChart } from '@mui/x-charts/PieChart'
 import { BarChart } from '@mui/x-charts/BarChart'
+import { ScatterChart } from '@mui/x-charts/ScatterChart'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
@@ -18,6 +19,7 @@ import TopContent from './components/TopContent'
 import TopUsers from './components/TopUsers'
 import { useDashboard } from './hooks/useDashboard'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import api from '@/lib/axios'
 
 // Chart colors — independent of the UI primary color
 const CHART_COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
@@ -27,6 +29,27 @@ export default function DashboardPage() {
   const { t } = useTranslation()
   const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
+
+  interface LibraryDayPoint { date: string; libraryId: string; libraryName: string; count: number }
+  const [libraryOverTime, setLibraryOverTime] = useState<LibraryDayPoint[]>([])
+  const [libraryOverTimeLoading, setLibraryOverTimeLoading] = useState(true)
+  const [libraryDays, setLibraryDays] = useState<7 | 30 | 0>(0)
+
+  useEffect(() => {
+    setLibraryOverTimeLoading(true)
+    api.get('/stats/getPlaybacksByLibraryOverTime', { params: { days: 0 } })
+      .then((r) => setLibraryOverTime(r.data ?? []))
+      .catch(() => setLibraryOverTime([]))
+      .finally(() => setLibraryOverTimeLoading(false))
+  }, [])
+
+  const filteredLibraryOverTime = useMemo(() => {
+    if (libraryDays === 0) return libraryOverTime
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - libraryDays)
+    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    return libraryOverTime.filter((r) => r.date >= cutoffStr)
+  }, [libraryOverTime, libraryDays])
 
   const {
     globalStats, sessions, topItems, topUsers,
@@ -89,6 +112,25 @@ export default function DashboardPage() {
 
   const dayFormatter = (v: number | null) =>
     dayMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0)
+
+  // Scatter: group by library, x = date timestamp, y = count
+  const librarySeries = useMemo(() => {
+    const map = new Map<string, { name: string; points: { x: number; y: number; id: string }[] }>()
+    for (const row of filteredLibraryOverTime) {
+      if (!map.has(row.libraryId)) map.set(row.libraryId, { name: row.libraryName, points: [] })
+      map.get(row.libraryId)!.points.push({
+        x: new Date(row.date).getTime(),
+        y: row.count,
+        id: `${row.libraryId}-${row.date}`,
+      })
+    }
+    return Array.from(map.entries()).map(([id, { name, points }], i) => ({
+      id,
+      label: name,
+      data: points,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+    }))
+  }, [filteredLibraryOverTime])
 
   return (
     <>
@@ -254,7 +296,7 @@ export default function DashboardPage() {
       </Grid>
 
       {/* Top clients */}
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12 }}>
           <ChartCard
             title={t('stats.topClients')}
@@ -276,6 +318,44 @@ export default function DashboardPage() {
               grid={{ vertical: true }}
               slotProps={{ legend: { hidden: true } }}
               margin={{ left: 160, right: 16, top: 8, bottom: 36 }}
+            />
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      {/* Playbacks over time by library */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12 }}>
+          <ChartCard
+            title={t('stats.playbacksByLibrary', 'Playbacks by library')}
+            loading={libraryOverTimeLoading}
+            empty={!libraryOverTimeLoading && librarySeries.length === 0}
+            height={320}
+            action={
+              <ToggleButtonGroup
+                value={libraryDays}
+                exclusive
+                onChange={(_, v) => { if (v !== null) setLibraryDays(v) }}
+                size="small"
+                sx={{ '& .MuiToggleButton-root': { px: 1.5, py: 0.25, fontSize: 12, textTransform: 'none', borderRadius: '90px !important', border: 'none', '&.Mui-selected': { fontWeight: 600 } } }}
+              >
+                <ToggleButton value={7}>7d</ToggleButton>
+                <ToggleButton value={30}>30d</ToggleButton>
+                <ToggleButton value={0}>{t('common.all', 'All')}</ToggleButton>
+              </ToggleButtonGroup>
+            }
+          >
+            <ScatterChart
+              series={librarySeries}
+              xAxis={[{
+                scaleType: 'time',
+                valueFormatter: (v) => new Date(v).toLocaleDateString(),
+              }]}
+              yAxis={[{ label: t('common.plays', 'Plays') }]}
+              height={320}
+              sx={{ width: '100%' }}
+              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'right' } } }}
+              margin={{ left: 50, right: 20, top: 40, bottom: 40 }}
             />
           </ChartCard>
         </Grid>
