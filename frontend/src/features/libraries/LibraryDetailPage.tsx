@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
@@ -22,12 +22,15 @@ import StatCard from '@/shared/components/StatCard/StatCard'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import api from '@/lib/axios'
 import type { LibraryItem, LibraryStats, GenreStat } from '@/shared/types/library'
+import type { Activity } from '@/shared/types/activity'
 import {
   Play24Regular, Clock24Regular, Star24Regular,
   Search20Regular, VideoClip24Regular, MusicNote224Regular,
   Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular,
 } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
+import { getDateLocale } from '@/lib/dateLocale'
 
 const COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
 const CHART_BAR = '#60a5fa'
@@ -919,6 +922,165 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
   )
 }
 
+// ─── Activity tab ───────────────────────────────────────────────────────────
+
+const actColHelper = createColumnHelper<Activity>()
+
+function formatPlayDuration(ticks: number): string {
+  const totalSeconds = Math.floor(ticks / 10_000_000)
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function LibraryActivityTab({ data, loading, onRefresh, t }: {
+  data: Activity[]
+  loading: boolean
+  onRefresh: () => void
+  t: (k: string, fb?: string) => string
+}) {
+  const columns = useMemo(() => [
+    actColHelper.accessor('UserName', {
+      header: t('activity.user', 'User'),
+      cell: (info) => {
+        const row = info.row.original
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                bgcolor: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+              }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 11, lineHeight: 1, position: 'absolute' }}>
+                {row.UserName.slice(0, 2).toUpperCase()}
+              </Typography>
+              <Box
+                component="img"
+                src={`/proxy/Users/${encodeURIComponent(row.UserId)}/Images/Primary?fillWidth=32&quality=80`}
+                alt={row.UserName}
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </Box>
+            <Typography variant="body2" noWrap>{row.UserName}</Typography>
+          </Box>
+        )
+      },
+    }),
+    actColHelper.accessor('NowPlayingItemName', {
+      header: t('activity.item', 'Media'),
+      cell: (info) => {
+        const row = info.row.original
+        const label = row.SeriesName ? `${row.SeriesName} — ${row.NowPlayingItemName}` : row.NowPlayingItemName
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: 40, height: 27, borderRadius: 0.5, overflow: 'hidden', flexShrink: 0,
+                bgcolor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+              }}
+            >
+              <VideoClip24Regular style={{ fontSize: 14, opacity: 0.4, position: 'absolute' }} />
+              <Box
+                component="img"
+                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=60&quality=80`}
+                alt={row.NowPlayingItemName}
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </Box>
+            <Typography variant="body2" noWrap title={label}>{label}</Typography>
+          </Box>
+        )
+      },
+    }),
+    actColHelper.accessor('Client', {
+      header: t('activity.client', 'Client'),
+      cell: (info) => <Typography variant="body2" noWrap>{info.getValue()}</Typography>,
+    }),
+    actColHelper.accessor('DeviceName', {
+      header: t('activity.device', 'Device'),
+      cell: (info) => <Typography variant="body2" noWrap>{info.getValue()}</Typography>,
+    }),
+    actColHelper.accessor('PlayMethod', {
+      header: t('activity.method', 'Method'),
+      cell: (info) => {
+        const v = info.getValue()
+        return v
+          ? <Chip label={v} size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
+          : <Typography variant="caption" color="text.disabled">—</Typography>
+      },
+    }),
+    actColHelper.accessor('ActivityDateInserted', {
+      header: t('activity.date', 'Date'),
+      cell: (info) => {
+        const v = info.getValue()
+        try {
+          return (
+            <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+              {format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() })}
+            </Typography>
+          )
+        } catch {
+          return <Typography variant="body2">{v}</Typography>
+        }
+      },
+    }),
+    actColHelper.accessor('PlayDuration', {
+      header: t('activity.duration', 'Duration'),
+      cell: (info) => {
+        const v = info.getValue()
+        return (
+          <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+            {v > 0 ? formatPlayDuration(v) : '—'}
+          </Typography>
+        )
+      },
+    }),
+    actColHelper.accessor('RemoteEndPoint', {
+      header: t('activity.ip', 'IP'),
+      cell: (info) => {
+        const v = info.getValue()
+        return <Typography variant="caption" color="text.secondary">{v ?? '—'}</Typography>
+      },
+    }),
+  ], [t])
+
+  const filterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'UserName', label: t('activity.user'), type: 'select' },
+    { id: 'Client', label: t('activity.client'), type: 'select' },
+    { id: 'PlayMethod', label: t('activity.method'), type: 'select' },
+    { id: 'NowPlayingItemType', label: t('activity.mediaType', 'Type'), type: 'select' },
+    { id: 'DeviceName', label: t('activity.device'), type: 'select' },
+    {
+      id: 'PlayDuration',
+      label: t('activity.duration'),
+      type: 'range',
+      unit: 'min',
+      transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
+    },
+  ], [t])
+
+  return (
+    <DataTable
+      data={data}
+      columns={columns}
+      loading={loading}
+      searchable
+      searchPlaceholder={t('activity.search', 'Search activity...')}
+      filterDefs={filterDefs}
+      onRefresh={onRefresh}
+    />
+  )
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────
 
 export default function LibraryDetailPage() {
@@ -941,6 +1103,7 @@ export default function LibraryDetailPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
 
   const [historyData, setHistoryData] = useState<HistoryPoint[]>([])
+  const [activityHistory, setActivityHistory] = useState<Activity[]>([])
   const [itemsWithStats, setItemsWithStats] = useState<ItemWithStats[]>([])
   const [playMethodStats, setPlayMethodStats] = useState<PlayMethodStat[]>([])
   const [lastPlayed, setLastPlayed] = useState<LastPlayedRow[]>([])
@@ -948,57 +1111,58 @@ export default function LibraryDetailPage() {
   const isMusicLibrary = !loading && (tracks.length > 0 || artists.length > 0 || albums.length > 0)
   const albumsSynced = albums.length > 0
 
-  useEffect(() => {
+  const load = useCallback((showLoading = true) => {
     if (!id) return
-    const load = (showLoading = true) => {
-      if (showLoading) setLoading(true)
-      Promise.allSettled([
-        api.get(`/stats/getLibraryStats?libraryId=${id}`),
-        api.get(`/stats/getLibraryItems?libraryId=${id}`),
-        api.get(`/stats/getGenreStats?libraryId=${id}`),
-        api.post(`/api/getLibraryHistory`, { libraryid: id }),
-        api.post(`/stats/getLibraryItemsWithStats`, { libraryid: id }),
-        api.post(`/stats/getLibraryItemsPlayMethodStats`, { libraryid: id }),
-        api.post(`/stats/getLibraryLastPlayed`, { libraryid: id }),
-        api.get(`/stats/getLibraryAlbums?libraryId=${id}`),
-        api.get(`/stats/getLibraryArtists?libraryId=${id}`),
-        api.get(`/stats/getLibraryTracks?libraryId=${id}`),
-      ]).then(([statsRes, itemsRes, genresRes, historyRes, itemsStatsRes, methodRes, lastPlayedRes, albumsRes, artistsRes, tracksRes]) => {
-        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
-        if (itemsRes.status === 'fulfilled') setItems(itemsRes.value.data ?? [])
-        if (genresRes.status === 'fulfilled') setGenres(genresRes.value.data ?? [])
-        if (albumsRes.status === 'fulfilled') setAlbums(albumsRes.value.data ?? [])
-        if (artistsRes.status === 'fulfilled') setArtists(artistsRes.value.data ?? [])
-        if (tracksRes.status === 'fulfilled') setTracks(tracksRes.value.data ?? [])
+    if (showLoading) setLoading(true)
+    Promise.allSettled([
+      api.get(`/stats/getLibraryStats?libraryId=${id}`),
+      api.get(`/stats/getLibraryItems?libraryId=${id}`),
+      api.get(`/stats/getGenreStats?libraryId=${id}`),
+      api.post(`/api/getLibraryHistory`, { libraryid: id }),
+      api.post(`/stats/getLibraryItemsWithStats`, { libraryid: id }),
+      api.post(`/stats/getLibraryItemsPlayMethodStats`, { libraryid: id }),
+      api.post(`/stats/getLibraryLastPlayed`, { libraryid: id }),
+      api.get(`/stats/getLibraryAlbums?libraryId=${id}`),
+      api.get(`/stats/getLibraryArtists?libraryId=${id}`),
+      api.get(`/stats/getLibraryTracks?libraryId=${id}`),
+    ]).then(([statsRes, itemsRes, genresRes, historyRes, itemsStatsRes, methodRes, lastPlayedRes, albumsRes, artistsRes, tracksRes]) => {
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
+      if (itemsRes.status === 'fulfilled') setItems(itemsRes.value.data ?? [])
+      if (genresRes.status === 'fulfilled') setGenres(genresRes.value.data ?? [])
+      if (albumsRes.status === 'fulfilled') setAlbums(albumsRes.value.data ?? [])
+      if (artistsRes.status === 'fulfilled') setArtists(artistsRes.value.data ?? [])
+      if (tracksRes.status === 'fulfilled') setTracks(tracksRes.value.data ?? [])
 
-        if (historyRes.status === 'fulfilled') {
-          const raw: { ActivityDateInserted: string }[] = historyRes.value.data?.results ?? []
-          const byDate: Record<string, number> = {}
-          raw.forEach((row) => {
-            try {
-              const day = format(parseISO(row.ActivityDateInserted), 'dd/MM/yyyy')
-              byDate[day] = (byDate[day] ?? 0) + 1
-            } catch { /* ignore */ }
-          })
-          setHistoryData(Object.entries(byDate).map(([date, plays]) => ({ date, plays })).sort((a, b) => a.date.localeCompare(b.date)))
-        }
+      if (historyRes.status === 'fulfilled') {
+        const raw: Activity[] = historyRes.value.data?.results ?? []
+        const byDate: Record<string, number> = {}
+        raw.forEach((row) => {
+          try {
+            const day = format(parseISO(row.ActivityDateInserted), 'dd/MM/yyyy')
+            byDate[day] = (byDate[day] ?? 0) + 1
+          } catch { /* ignore */ }
+        })
+        setHistoryData(Object.entries(byDate).map(([date, plays]) => ({ date, plays })).sort((a, b) => a.date.localeCompare(b.date)))
+        setActivityHistory(raw)
+      }
 
-        if (itemsStatsRes.status === 'fulfilled') {
-          const results: ItemWithStats[] = itemsStatsRes.value.data?.results ?? []
-          setItemsWithStats([...results].sort((a, b) => b.times_played - a.times_played).slice(0, 10))
-        }
+      if (itemsStatsRes.status === 'fulfilled') {
+        const results: ItemWithStats[] = itemsStatsRes.value.data?.results ?? []
+        setItemsWithStats([...results].sort((a, b) => b.times_played - a.times_played).slice(0, 10))
+      }
 
-        if (methodRes.status === 'fulfilled') setPlayMethodStats(methodRes.value.data?.stats ?? [])
-        if (lastPlayedRes.status === 'fulfilled') setLastPlayed(lastPlayedRes.value.data ?? [])
-      })
-        .catch(() => setError(t('common.loadError')))
-        .finally(() => setLoading(false))
-    }
+      if (methodRes.status === 'fulfilled') setPlayMethodStats(methodRes.value.data?.stats ?? [])
+      if (lastPlayedRes.status === 'fulfilled') setLastPlayed(lastPlayedRes.value.data ?? [])
+    })
+      .catch(() => setError(t('common.loadError')))
+      .finally(() => setLoading(false))
+  }, [id, t])
 
+  useEffect(() => {
     load()
     const interval = window.setInterval(() => load(false), 15000)
     return () => window.clearInterval(interval)
-  }, [id, t])
+  }, [load])
 
   const handleSelectArtist = async (artistId: string, artistName: string) => {
     setSelectedArtist(artistName)
@@ -1030,6 +1194,7 @@ export default function LibraryDetailPage() {
   )
 
   const statsTabIndex = isMusicLibrary ? 3 : 1
+  const activityTabIndex = isMusicLibrary ? 4 : 2
 
   return (
     <>
@@ -1058,11 +1223,13 @@ export default function LibraryDetailPage() {
             <Tab label={t('library.artists', 'Artistes')} />
             <Tab label={t('library.tracks', 'Titres')} />
             <Tab label={t('library.stats', 'Stats')} />
+            <Tab label={t('library.activityHistory', "Historique d'activité")} />
           </Tabs>
         ) : (
           <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>
             <Tab label={t('library.items')} />
             <Tab label={t('library.stats', 'Stats')} />
+            <Tab label={t('library.activityHistory', "Historique d'activité")} />
           </Tabs>
         )}
       </Box>
@@ -1223,6 +1390,11 @@ export default function LibraryDetailPage() {
             <ItemsTableView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
           )}
         </Box>
+      )}
+
+      {/* ── Activity tab ── */}
+      {tab === activityTabIndex && (
+        <LibraryActivityTab data={activityHistory} loading={loading} onRefresh={load} t={t} />
       )}
 
       {/* ── Stats tab (tab 3 for music, tab 1 for regular) ── */}

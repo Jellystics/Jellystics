@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
@@ -12,7 +12,7 @@ import { BarChart } from '@mui/x-charts/BarChart'
 import { useTheme } from '@mui/material/styles'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
-import DataTable from '@/shared/components/DataTable/DataTable'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import ActivityHeatmap from './components/ActivityHeatmap'
 import GenreRadarChart from './components/GenreRadarChart'
@@ -96,6 +96,20 @@ export default function UserDetailPage() {
       cell: (i) => { const s = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}` : `${m}${t('time.minuteShort')}` },
     }),
   ]
+
+  const activityFilterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'Client', label: t('activity.client'), type: 'select' },
+    { id: 'PlayMethod', label: t('activity.method'), type: 'select' },
+    { id: 'NowPlayingItemType', label: t('activity.mediaType', 'Type'), type: 'select' },
+    { id: 'DeviceName', label: t('activity.device'), type: 'select' },
+    {
+      id: 'PlayDuration',
+      label: t('activity.duration'),
+      type: 'range',
+      unit: 'min',
+      transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
+    },
+  ], [t])
 
   const username = userStats?.UserName ?? id ?? '...'
 
@@ -186,7 +200,15 @@ export default function UserDetailPage() {
         </Tabs>
       </Box>
 
-      {tab === 0 && <DataTable data={activity} columns={columns} loading={loading} />}
+      {tab === 0 && (
+        <DataTable
+          data={activity}
+          columns={columns}
+          loading={loading}
+          filterDefs={activityFilterDefs}
+          onRefresh={load}
+        />
+      )}
 
       {tab === 1 && (
         <>

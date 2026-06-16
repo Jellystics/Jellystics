@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Alert, Avatar, Box, Card, CardActionArea, CardContent, Grid, Skeleton, Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { BarChart } from '@mui/x-charts/BarChart'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
-import DataTable from '@/shared/components/DataTable/DataTable'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import api from '@/lib/axios'
@@ -123,6 +123,10 @@ export default function UsersPage() {
     }),
     col.accessor('FavoriteGenre', { header: t('users.favoriteGenre'), cell: (i) => (i.getValue() as string | undefined) ?? '—' }),
   ]
+
+  const filterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'FavoriteGenre', label: t('users.favoriteGenre'), type: 'select' },
+  ], [t])
 
   return (
     <>
@@ -244,7 +248,7 @@ export default function UsersPage() {
         </ChartCard>
       </Box>
 
-      <DataTable data={users} columns={columns} loading={loading} searchPlaceholder={t('users.search')} onRefresh={load} />
+      <DataTable data={users} columns={columns} loading={loading} searchPlaceholder={t('users.search')} onRefresh={load} filterDefs={filterDefs} />
     </>
   )
 }

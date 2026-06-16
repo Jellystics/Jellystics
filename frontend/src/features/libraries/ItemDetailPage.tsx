@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Avatar, Box, Card, CardContent, Chip, Grid, Skeleton, Typography,
@@ -12,7 +12,7 @@ import {
 } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
-import DataTable from '@/shared/components/DataTable/DataTable'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import type { ItemDetails, ItemWatchHistory, ItemWatchUser } from '@/shared/types/library'
@@ -38,20 +38,20 @@ export default function ItemDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = useCallback((showLoading = true) => {
     if (!itemId) return
-    const load = (showLoading = true) => {
-      if (showLoading) setLoading(true)
-      api.get(`/stats/getItemDetails?itemId=${itemId}`)
-        .then((res) => setDetails(res.data))
-        .catch(() => setError(t('common.loadError')))
-        .finally(() => setLoading(false))
-    }
+    if (showLoading) setLoading(true)
+    api.get(`/stats/getItemDetails?itemId=${itemId}`)
+      .then((res) => setDetails(res.data))
+      .catch(() => setError(t('common.loadError')))
+      .finally(() => setLoading(false))
+  }, [itemId, t])
 
+  useEffect(() => {
     load()
     const interval = window.setInterval(() => load(false), 15000)
     return () => window.clearInterval(interval)
-  }, [itemId, t])
+  }, [load])
 
   const item = details?.item
 
@@ -87,6 +87,13 @@ export default function ItemDetailPage() {
         : <Chip label={t('status.finished')} size="small" sx={{ height: 20, fontSize: 11 }} />,
     }),
   ]
+
+  const historyFilterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'UserName', label: t('activity.user'), type: 'select' },
+    { id: 'Client', label: t('activity.client'), type: 'select' },
+    { id: 'DeviceName', label: t('activity.device'), type: 'select' },
+    { id: 'PlayMethod', label: t('activity.method'), type: 'select' },
+  ], [t])
 
   return (
     <>
@@ -173,14 +180,14 @@ export default function ItemDetailPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t('item.whoWatched')}</Typography>
-          <DataTable data={details?.users ?? []} columns={userColumns} loading={loading} searchable={false} />
+          <DataTable data={details?.users ?? []} columns={userColumns} loading={loading} searchable={false} onRefresh={load} />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>{t('item.watchHistory')}</Typography>
-          <DataTable data={details?.history ?? []} columns={historyColumns} loading={loading} searchPlaceholder={t('item.searchHistory')} />
+          <DataTable data={details?.history ?? []} columns={historyColumns} loading={loading} searchPlaceholder={t('item.searchHistory')} filterDefs={historyFilterDefs} onRefresh={load} />
         </CardContent>
       </Card>
     </>

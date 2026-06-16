@@ -89,7 +89,9 @@
     "ip": "Adresse IP",
     "search": "Rechercher une activité...",
     "transcodes": "Transcodages",
-    "directPlays": "Lectures directes"
+    "directPlays": "Lectures directes",
+    "version": "Version",
+    "mediaType": "Type"
   },
   "library": {
     "itemName": "Nom",
@@ -112,7 +114,8 @@
     "neverPlayed": "Jamais lu",
     "hoverToPreview": "Survolez une ligne",
     "showGenres": "Genres affichés",
-    "allGenres": "Tous les genres"
+    "allGenres": "Tous les genres",
+    "activityHistory": "Historique d'activité"
   },
   "users": {
     "user": "Utilisateur",
@@ -234,7 +237,13 @@
     "refresh": "Actualiser",
     "active": "actif",
     "disabled": "désactivé",
-    "url": "URL"
+    "url": "URL",
+    "filters": "Filtres",
+    "clearAll": "Tout effacer",
+    "clear": "Effacer",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "selected": "sélectionnés"
   },
   "theme": {
     "lightMode": "Mode clair",

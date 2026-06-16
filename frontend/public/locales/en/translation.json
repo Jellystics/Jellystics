@@ -89,7 +89,9 @@
     "ip": "IP Address",
     "search": "Search activity...",
     "transcodes": "Transcodes",
-    "directPlays": "Direct Plays"
+    "directPlays": "Direct Plays",
+    "version": "Version",
+    "mediaType": "Type"
   },
   "library": {
     "itemName": "Name",
@@ -112,7 +114,8 @@
     "neverPlayed": "Never played",
     "hoverToPreview": "Hover a row to preview",
     "showGenres": "Genres shown",
-    "allGenres": "All genres"
+    "allGenres": "All genres",
+    "activityHistory": "Activity history"
   },
   "users": {
     "user": "User",
@@ -234,7 +237,13 @@
     "refresh": "Refresh",
     "active": "active",
     "disabled": "disabled",
-    "url": "URL"
+    "url": "URL",
+    "filters": "Filters",
+    "clearAll": "Clear all",
+    "clear": "Clear",
+    "apply": "Apply",
+    "reset": "Reset",
+    "selected": "selected"
   },
   "theme": {
     "lightMode": "Light mode",

@@ -89,7 +89,9 @@
     "ip": "Dirección IP",
     "search": "Buscar actividad...",
     "transcodes": "Transcodificaciones",
-    "directPlays": "Reproducciones directas"
+    "directPlays": "Reproducciones directas",
+    "version": "Versión",
+    "mediaType": "Tipo"
   },
   "library": {
     "itemName": "Nombre",
@@ -112,7 +114,8 @@
     "neverPlayed": "Nunca visto",
     "hoverToPreview": "Pasa el cursor sobre una fila",
     "showGenres": "Géneros mostrados",
-    "allGenres": "Todos los géneros"
+    "allGenres": "Todos los géneros",
+    "activityHistory": "Historial de actividad"
   },
   "users": {
     "user": "Usuario",
@@ -234,7 +237,13 @@
     "refresh": "Actualizar",
     "active": "activo",
     "disabled": "desactivado",
-    "url": "URL"
+    "url": "URL",
+    "filters": "Filtros",
+    "clearAll": "Borrar todo",
+    "clear": "Borrar",
+    "apply": "Aplicar",
+    "reset": "Restablecer",
+    "selected": "seleccionados"
   },
   "theme": {
     "lightMode": "Modo claro",
