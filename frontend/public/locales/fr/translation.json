@@ -213,7 +213,17 @@
     "cronExpression": "Expression cron",
     "cronSaved": "Planification sauvegardée",
     "cronHelp": "Format cron standard : minute heure jour mois jour_semaine (ex. \"0 * * * *\" = chaque heure)",
-    "cronHint": "Utilisez des expressions cron pour planifier les tâches (ex. \"0 * * * *\" = chaque heure, \"0 0 * * *\" = tous les jours à minuit)"
+    "cronHint": "Utilisez des expressions cron pour planifier les tâches (ex. \"0 * * * *\" = chaque heure, \"0 0 * * *\" = tous les jours à minuit)",
+    "addPalette": "Ajouter une palette",
+    "paletteName": "Nom de la palette",
+    "paletteLight": "Couleur claire",
+    "paletteDark": "Couleur sombre",
+    "paletteAdded": "Palette ajoutée",
+    "paletteDeleted": "Palette supprimée",
+    "siteIcon": "Icône du site",
+    "uploadIcon": "Importer une icône",
+    "iconSaved": "Icône mise à jour",
+    "iconHint": "PNG, JPG ou SVG — recommandé 256×256 px ou carré"
   },
   "firstRun": {
     "title": "Bienvenue sur Jellystics !",
@@ -260,7 +270,8 @@
     "clear": "Effacer",
     "apply": "Appliquer",
     "reset": "Réinitialiser",
-    "selected": "sélectionnés"
+    "selected": "sélectionnés",
+    "preview": "Aperçu"
   },
   "theme": {
     "lightMode": "Mode clair",

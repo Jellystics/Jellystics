@@ -2,7 +2,7 @@ import { createTheme, alpha } from '@mui/material/styles'
 import type { ThemeMode } from './ThemeModeContext'
 
 const MODE_KEY = 'jellystics-theme-mode'
-const PRIMARY_COLOR = '#64748b'
+const DEFAULT_PRIMARY = '#64748b'
 
 export function getThemeMode(): ThemeMode {
   return (localStorage.getItem(MODE_KEY) as ThemeMode) ?? 'dark'
@@ -21,7 +21,7 @@ export function buildTheme(mode: ThemeMode = getThemeMode()) {
       background: isDark
         ? { default: '#111114', paper: '#18181f' }
         : { default: '#f0f2f5', paper: '#ffffff' },
-      primary: { main: PRIMARY_COLOR, contrastText: '#ffffff' },
+      primary: { main: DEFAULT_PRIMARY },
       secondary: { main: '#475569' },
       divider: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
       text: isDark
@@ -160,4 +160,3 @@ export function buildTheme(mode: ThemeMode = getThemeMode()) {
   })
 }
 
-export const theme = buildTheme()

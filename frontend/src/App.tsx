@@ -10,6 +10,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import { buildTheme, getThemeMode, setThemeMode } from '@/lib/theme'
 import { ThemeModeContext, type ThemeMode } from '@/lib/ThemeModeContext'
+import { PaletteProvider } from '@/lib/PaletteContext'
+import { FaviconProvider } from '@/lib/FaviconContext'
+import { applyStoredFavicon } from '@/lib/favicon'
 import { router } from '@/lib/router'
 import '@/lib/i18n'
 import socket from '@/lib/socket'
@@ -90,7 +93,7 @@ function ScrollbarStyles() {
   )
 }
 
-export default function App() {
+function ThemedApp() {
   const [mode, setMode] = useState<ThemeMode>(getThemeMode)
 
   const toggleMode = () => {
@@ -120,5 +123,18 @@ export default function App() {
         </LocalizationProvider>
       </ThemeProvider>
     </ThemeModeContext.Provider>
+  )
+}
+
+// Apply any saved custom favicon immediately on load
+applyStoredFavicon()
+
+export default function App() {
+  return (
+    <FaviconProvider>
+      <PaletteProvider>
+        <ThemedApp />
+      </PaletteProvider>
+    </FaviconProvider>
   )
 }
