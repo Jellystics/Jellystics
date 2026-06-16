@@ -2430,21 +2430,28 @@ func (h *StatsFrontendHandler) GetLibraryItemsPlayMethodStats(c *gin.Context) {
 	}
 
 	now := time.Now()
-	endTime := now
-	hours := 24
-	if body.Hours != nil && *body.Hours > 0 {
-		hours = *body.Hours
-	}
-	startTime := now.Add(-time.Duration(hours) * time.Hour)
 
-	if body.StartDate != nil && *body.StartDate != "" {
-		if t, err := time.Parse("2006-01-02", *body.StartDate); err == nil {
-			startTime = t
+	hasTimeFilter := (body.Hours != nil && *body.Hours > 0) ||
+		(body.StartDate != nil && *body.StartDate != "") ||
+		(body.EndDate != nil && *body.EndDate != "")
+
+	startTime := time.Time{}
+	endTime := now
+	if hasTimeFilter {
+		hours := 24
+		if body.Hours != nil && *body.Hours > 0 {
+			hours = *body.Hours
 		}
-	}
-	if body.EndDate != nil && *body.EndDate != "" {
-		if t, err := time.Parse("2006-01-02", *body.EndDate); err == nil {
-			endTime = t.Add(24 * time.Hour)
+		startTime = now.Add(-time.Duration(hours) * time.Hour)
+		if body.StartDate != nil && *body.StartDate != "" {
+			if t, err := time.Parse("2006-01-02", *body.StartDate); err == nil {
+				startTime = t
+			}
+		}
+		if body.EndDate != nil && *body.EndDate != "" {
+			if t, err := time.Parse("2006-01-02", *body.EndDate); err == nil {
+				endTime = t.Add(24 * time.Hour)
+			}
 		}
 	}
 
@@ -2454,14 +2461,24 @@ func (h *StatsFrontendHandler) GetLibraryItemsPlayMethodStats(c *gin.Context) {
 		PlayMethod           *string `gorm:"column:PlayMethod"`
 	}
 	var rawRows []RawRow
-	h.db.Raw(`
+	query := h.db.Raw(`
 		SELECT a."ActivityDateInserted", a."PlaybackDuration", a."PlayMethod"
 		FROM jf_playback_activity a
 		JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
 		WHERE i."ParentId" = ?
-		AND a."ActivityDateInserted" BETWEEN ? AND ?
 		ORDER BY a."ActivityDateInserted" DESC
-	`, body.LibraryId, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339)).Scan(&rawRows)
+	`, body.LibraryId)
+	if hasTimeFilter {
+		query = h.db.Raw(`
+			SELECT a."ActivityDateInserted", a."PlaybackDuration", a."PlayMethod"
+			FROM jf_playback_activity a
+			JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+			WHERE i."ParentId" = ?
+			AND a."ActivityDateInserted" BETWEEN ? AND ?
+			ORDER BY a."ActivityDateInserted" DESC
+		`, body.LibraryId, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
+	}
+	query.Scan(&rawRows)
 
 	var records []playMethodRecord
 	for _, r := range rawRows {
