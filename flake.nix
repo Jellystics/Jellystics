@@ -21,6 +21,7 @@
               nodejs_24
               pnpm
 	            go-task
+              go
             ];
           };
         }
