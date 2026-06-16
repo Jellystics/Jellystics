@@ -17,6 +17,11 @@ interface Task {
   lastRun?: string
 }
 
+interface ImportResult {
+  count?: number
+  error?: string
+}
+
 export default function TasksTab() {
   const { t } = useTranslation()
   const { enqueueSnackbar } = useSnackbar()
@@ -24,10 +29,14 @@ export default function TasksTab() {
   const [logs, setLogs] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const logsRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ count?: number; error?: string } | null>(null)
+  const playbackFileInputRef = useRef<HTMLInputElement>(null)
+  const jellystatFileInputRef = useRef<HTMLInputElement>(null)
+  const [playbackFile, setPlaybackFile] = useState<File | null>(null)
+  const [jellystatFile, setJellystatFile] = useState<File | null>(null)
+  const [playbackImporting, setPlaybackImporting] = useState(false)
+  const [jellystatImporting, setJellystatImporting] = useState(false)
+  const [playbackImportResult, setPlaybackImportResult] = useState<ImportResult | null>(null)
+  const [jellystatImportResult, setJellystatImportResult] = useState<ImportResult | null>(null)
 
   useEffect(() => {
     api
@@ -44,25 +53,53 @@ export default function TasksTab() {
     }, 50)
   })
 
-  const handleImport = async () => {
-    if (!importFile) return
-    setImporting(true)
-    setImportResult(null)
+  const importPlaybackReportingBackup = async () => {
+    if (!playbackFile) return
+    setPlaybackImporting(true)
+    setPlaybackImportResult(null)
     try {
       const form = new FormData()
-      form.append('file', importFile)
+      form.append('file', playbackFile)
       const res = await api.post('/sync/importPlaybackBackup', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      setImportResult({ count: res.data.imported })
-      enqueueSnackbar(t('settings.importBackupSuccess', { count: res.data.imported }), { variant: 'success' })
-      setImportFile(null)
+      const count = res.data.imported
+      setPlaybackImportResult({ count })
+      enqueueSnackbar(t('settings.importBackupSuccess', { count }), { variant: 'success' })
+      setPlaybackFile(null)
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('settings.importBackupError')
-      setImportResult({ error: msg })
+      setPlaybackImportResult({ error: msg })
       enqueueSnackbar(t('settings.importBackupError'), { variant: 'error' })
     } finally {
-      setImporting(false)
+      setPlaybackImporting(false)
+    }
+  }
+
+  const importJellystatBackup = async () => {
+    if (!jellystatFile) return
+    setJellystatImporting(true)
+    setJellystatImportResult(null)
+    try {
+      const form = new FormData()
+      form.append('file', jellystatFile)
+      const uploaded = await api.post('/backup/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const fileName = uploaded.data.fileName as string
+      const restoredResponse = await api.get(`/backup/restore/${encodeURIComponent(fileName)}`)
+      const restored = (restoredResponse.data.restored ?? {}) as Record<string, number>
+      const count = Object.values(restored).reduce((sum, value) => sum + Number(value || 0), 0)
+
+      setJellystatImportResult({ count })
+      enqueueSnackbar(t('settings.jellystatImportSuccess', { count }), { variant: 'success' })
+      setJellystatFile(null)
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('settings.jellystatImportError')
+      setJellystatImportResult({ error: msg })
+      enqueueSnackbar(t('settings.jellystatImportError'), { variant: 'error' })
+    } finally {
+      setJellystatImporting(false)
     }
   }
 
@@ -107,20 +144,20 @@ export default function TasksTab() {
         </CardContent>
       </Card>
 
-      {/* Import Playback Backup */}
+      {/* Jellyfin Playback Reporting Plugin import */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.importBackup')}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.importBackupDesc')}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.importPlaybackReportingBackup')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.importPlaybackReportingBackupDesc')}</Typography>
 
           <input
-            ref={fileInputRef}
+            ref={playbackFileInputRef}
             type="file"
-            accept=".tsv,.txt"
+            accept=".tsv,.txt,text/tab-separated-values,text/plain"
             style={{ display: 'none' }}
             onChange={(e) => {
-              setImportFile(e.target.files?.[0] ?? null)
-              setImportResult(null)
+              setPlaybackFile(e.target.files?.[0] ?? null)
+              setPlaybackImportResult(null)
               e.target.value = ''
             }}
           />
@@ -130,15 +167,15 @@ export default function TasksTab() {
               variant="outlined"
               size="small"
               startIcon={<Document24Regular style={{ fontSize: 16 }} />}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
+              onClick={() => playbackFileInputRef.current?.click()}
+              disabled={playbackImporting}
             >
               {t('settings.importBackupSelect')}
             </Button>
 
-            {importFile && (
+            {playbackFile && (
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }} noWrap>
-                {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+                {playbackFile.name} ({(playbackFile.size / 1024).toFixed(1)} KB)
               </Typography>
             )}
 
@@ -146,24 +183,86 @@ export default function TasksTab() {
               variant="contained"
               size="small"
               startIcon={<ArrowUpload24Regular style={{ fontSize: 16 }} />}
-              onClick={handleImport}
-              disabled={!importFile || importing}
+              onClick={importPlaybackReportingBackup}
+              disabled={!playbackFile || playbackImporting}
               sx={{ ml: 'auto' }}
             >
               {t('settings.importBackupRun')}
             </Button>
           </Box>
 
-          {importing && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+          {playbackImporting && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
 
-          {importResult && !importing && (
+          {playbackImportResult && !playbackImporting && (
             <Alert
-              severity={importResult.error ? 'error' : 'success'}
+              severity={playbackImportResult.error ? 'error' : 'success'}
               sx={{ mt: 2, borderRadius: 2 }}
             >
-              {importResult.error
-                ? importResult.error
-                : t('settings.importBackupSuccess', { count: importResult.count })}
+              {playbackImportResult.error
+                ? playbackImportResult.error
+                : t('settings.importBackupSuccess', { count: playbackImportResult.count })}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Jellystat import */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.importJellystatBackup')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.importJellystatBackupDesc')}</Typography>
+
+          <input
+            ref={jellystatFileInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              setJellystatFile(e.target.files?.[0] ?? null)
+              setJellystatImportResult(null)
+              e.target.value = ''
+            }}
+          />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Document24Regular style={{ fontSize: 16 }} />}
+              onClick={() => jellystatFileInputRef.current?.click()}
+              disabled={jellystatImporting}
+            >
+              {t('settings.importBackupSelect')}
+            </Button>
+
+            {jellystatFile && (
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }} noWrap>
+                {jellystatFile.name} ({(jellystatFile.size / 1024 / 1024).toFixed(1)} MB)
+              </Typography>
+            )}
+
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<ArrowUpload24Regular style={{ fontSize: 16 }} />}
+              onClick={importJellystatBackup}
+              disabled={!jellystatFile || jellystatImporting}
+              sx={{ ml: 'auto' }}
+            >
+              {t('settings.importBackupRun')}
+            </Button>
+          </Box>
+
+          {jellystatImporting && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+
+          {jellystatImportResult && !jellystatImporting && (
+            <Alert
+              severity={jellystatImportResult.error ? 'error' : 'success'}
+              sx={{ mt: 2, borderRadius: 2 }}
+            >
+              {jellystatImportResult.error
+                ? jellystatImportResult.error
+                : t('settings.jellystatImportSuccess', { count: jellystatImportResult.count })}
             </Alert>
           )}
         </CardContent>

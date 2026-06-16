@@ -172,12 +172,18 @@
     "keyName": "Nombre de la clave",
     "noApiKeys": "Sin claves API",
     "importBackup": "Importar copia de seguridad",
-    "importBackupDesc": "Importa un archivo TSV exportado desde el plugin Jellyfin Playback Reporting",
+    "importBackupDesc": "Importa una copia JSON de Jellystat/Jellystics o un TSV exportado desde el plugin Jellyfin Playback Reporting",
     "importBackupSelect": "Seleccionar archivo",
     "importBackupRun": "Importar",
     "importBackupSuccess": "{{count}} registros importados correctamente",
     "importBackupError": "Error al importar",
-    "importBackupNoFile": "Ningún archivo seleccionado"
+    "importBackupNoFile": "Ningún archivo seleccionado",
+    "importPlaybackReportingBackup": "Importar Jellyfin Playback Reporting Plugin",
+    "importPlaybackReportingBackupDesc": "Importa un archivo TSV o TXT exportado desde el plugin Jellyfin Playback Reporting.",
+    "importJellystatBackup": "Importar copia de seguridad Jellystat",
+    "importJellystatBackupDesc": "Importa una copia JSON de Jellystat/Jellystics. Se restauran bibliotecas, elementos, usuarios, historial y metadatos.",
+    "jellystatImportSuccess": "{{count}} filas restauradas correctamente",
+    "jellystatImportError": "Error al importar Jellystat"
   },
   "frame": {
     "language": "Idioma",

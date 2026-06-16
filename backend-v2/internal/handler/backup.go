@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -271,7 +272,7 @@ func restoreTableData(ctx context.Context, repos *repository.Container, tableNam
 	switch tableName {
 	case "jf_playback_activity":
 		var rows []models.JFPlaybackActivity
-		if err := json.Unmarshal(rawRows, &rows); err != nil {
+		if err := unmarshalBackupRows(rawRows, &rows); err != nil {
 			return 0, err
 		}
 		for i := range rows {
@@ -312,7 +313,7 @@ func restoreTableData(ctx context.Context, repos *repository.Container, tableNam
 
 	case "jf_library_items":
 		var rows []models.JFLibraryItem
-		if err := json.Unmarshal(rawRows, &rows); err != nil {
+		if err := unmarshalBackupRows(rawRows, &rows); err != nil {
 			return 0, err
 		}
 		if len(rows) > 0 {
@@ -336,7 +337,7 @@ func restoreTableData(ctx context.Context, repos *repository.Container, tableNam
 
 	case "jf_library_episodes":
 		var rows []models.JFLibraryEpisode
-		if err := json.Unmarshal(rawRows, &rows); err != nil {
+		if err := unmarshalBackupRows(rawRows, &rows); err != nil {
 			return 0, err
 		}
 		if len(rows) > 0 {
@@ -346,14 +347,76 @@ func restoreTableData(ctx context.Context, repos *repository.Container, tableNam
 		}
 		return len(rows), nil
 
+	case "jf_item_info":
+		var rows []models.JFItemInfo
+		if err := unmarshalBackupRows(rawRows, &rows); err != nil {
+			return 0, err
+		}
+		if len(rows) > 0 {
+			if err := repos.ItemInfo.Upsert(ctx, rows); err != nil {
+				return 0, err
+			}
+		}
+		return len(rows), nil
+
 	default:
-		// Count without restoring (e.g. jf_item_info, jf_playback_reporting_plugin_data).
+		// Count without restoring unsupported legacy tables.
 		var rows []json.RawMessage
 		if err := json.Unmarshal(rawRows, &rows); err != nil {
 			return 0, nil
 		}
 		return len(rows), nil
 	}
+}
+
+var backupIntegerFields = map[string]struct{}{
+	"RunTimeTicks":      {},
+	"ProductionYear":    {},
+	"IndexNumber":       {},
+	"ParentIndexNumber": {},
+	"Size":              {},
+	"Bitrate":           {},
+	"PlaybackDuration":  {},
+	"PlayDuration":      {},
+	"total_play_time":   {},
+	"item_count":        {},
+	"season_count":      {},
+	"episode_count":     {},
+}
+
+var backupFloatFields = map[string]struct{}{
+	"CommunityRating": {},
+}
+
+func unmarshalBackupRows(rawRows json.RawMessage, target any) error {
+	var rows []map[string]any
+	if err := json.Unmarshal(rawRows, &rows); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		for key, value := range row {
+			s, ok := value.(string)
+			if !ok || strings.TrimSpace(s) == "" {
+				continue
+			}
+			if _, ok := backupIntegerFields[key]; ok {
+				if parsed, err := strconv.ParseInt(s, 10, 64); err == nil {
+					row[key] = parsed
+				}
+				continue
+			}
+			if _, ok := backupFloatFields[key]; ok {
+				if parsed, err := strconv.ParseFloat(s, 64); err == nil {
+					row[key] = parsed
+				}
+			}
+		}
+	}
+	normalized, err := json.Marshal(rows)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(normalized, target)
 }
 
 // DELETE /backup/files/:name
