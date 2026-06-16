@@ -10,6 +10,7 @@ import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 import api from '@/lib/axios'
 import { ChartMultiple24Regular } from '@fluentui/react-icons'
+import { useChartColors } from '@/lib/chartColors'
 
 interface ActivityPoint {
   date: string
@@ -23,10 +24,10 @@ const PRESETS = [
   { days: 90, label: '3m' },
 ]
 
-const COLOR_PLAYS = '#60a5fa'
-const COLOR_DURATION = '#34d399'
-
 export default function ActivityChart() {
+  const chartColors = useChartColors()
+  const COLOR_PLAYS = chartColors[0]
+  const COLOR_DURATION = chartColors[1]
   const { t } = useTranslation()
   const [days, setDays] = useState(30)
   const [metric, setMetric] = useState<ActivityMetric>('count')

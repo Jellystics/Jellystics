@@ -12,14 +12,13 @@ import type { WatchStatOverTime, HourStat, DayStat, PlayMethodStat, ClientStat }
 import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
+import { useChartColors } from '@/lib/chartColors'
 
 type ActiveUser = { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
 
-// Chart colors — independent of the UI primary color
-const CHART_COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
-
 export default function StatisticsPage() {
+  const CHART_COLORS = useChartColors()
   const { t } = useTranslation()
   const [overTime, setOverTime] = useState<WatchStatOverTime[]>([])
   const [byHour, setByHour] = useState<HourStat[]>([])
@@ -161,7 +160,7 @@ export default function StatisticsPage() {
           >
             <BarChart
               xAxis={[{ data: dayData.map((d) => d.day), scaleType: 'band' }]}
-              series={[{ data: dayData.map((d) => dayChart.getValue(d)), label: dayChart.label, valueFormatter: dayChart.formatter, color: CHART_COLORS[1] }]}
+              series={[{ data: dayData.map((d) => dayChart.getValue(d)), label: dayChart.label, valueFormatter: dayChart.formatter, color: CHART_COLORS[0] }]}
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
@@ -257,7 +256,7 @@ export default function StatisticsPage() {
                 data: topItems.map((d) => d.PlayCount),
                 label: t('common.plays'),
                 valueFormatter: (v) => String(v ?? 0),
-                color: CHART_COLORS[2],
+                color: CHART_COLORS[0],
               }]}
               height={280}
               sx={{ width: '100%' }}

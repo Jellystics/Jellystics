@@ -76,7 +76,8 @@
     "mostActiveUsers": "Most active users",
     "topItems": "Top viewed items",
     "recentPlays": "Plays (24h)",
-    "genreDetail": "Genre breakdown"
+    "genreDetail": "Genre breakdown",
+    "playbacksByLibrary": "Playbacks by library"
   },
   "activity": {
     "user": "User",
@@ -115,12 +116,26 @@
     "hoverToPreview": "Hover a row to preview",
     "showGenres": "Genres shown",
     "allGenres": "All genres",
-    "activityHistory": "Activity history"
+    "activityHistory": "Activity history",
+    "seasons": "seasons",
+    "tracks": "tracks",
+    "trackTitle": "Title",
+    "artist": "Artist",
+    "album": "Album",
+    "albums": "Albums",
+    "artists": "Artists",
+    "duration": "Duration",
+    "syncRequired": "Run a full sync to display this section.",
+    "topTracks": "Most played tracks"
   },
   "users": {
     "user": "User",
     "lastSeen": "Last Seen",
+    "firstSeen": "First Watch",
     "favoriteGenre": "Favorite Genre",
+    "uniqueItems": "Unique Items",
+    "favoriteClient": "Favorite Client",
+    "favoriteDevice": "Favorite Device",
     "search": "Search users...",
     "activityHeatmap": "Activity Heatmap",
     "watchHistory": "Watch History",
@@ -231,6 +246,8 @@
     "all": "All",
     "less": "Less",
     "more": "More",
+    "back": "Back",
+    "rowsPerPage": "Rows per page",
     "columns": "Columns",
     "user": "User",
     "administrator": "Administrator",

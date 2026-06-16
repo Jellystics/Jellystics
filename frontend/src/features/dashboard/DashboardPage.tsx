@@ -20,12 +20,11 @@ import TopUsers from './components/TopUsers'
 import { useDashboard } from './hooks/useDashboard'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import api from '@/lib/axios'
-
-// Chart colors — independent of the UI primary color
-const CHART_COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
-const CHART_BAR = '#60a5fa'
+import { useChartColors } from '@/lib/chartColors'
 
 export default function DashboardPage() {
+  const CHART_COLORS = useChartColors()
+  const CHART_BAR = CHART_COLORS[0]
   const { t } = useTranslation()
   const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')

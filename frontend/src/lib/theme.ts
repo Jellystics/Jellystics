@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles'
+import { createTheme, alpha } from '@mui/material/styles'
 import type { ThemeMode } from './ThemeModeContext'
 
 const MODE_KEY = 'jellystics-theme-mode'
@@ -101,9 +101,50 @@ export function buildTheme(mode: ThemeMode = getThemeMode()) {
           root: { backgroundImage: 'none' },
         },
       },
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            minHeight: 36,
+            overflow: 'initial',
+            '& .MuiTabs-scroller': { overflow: 'initial !important' },
+          },
+          indicator: { bottom: 'initial' },
+        },
+      },
       MuiTab: {
         styleOverrides: {
-          root: { textTransform: 'none' },
+          root: ({ theme }) => ({
+            textTransform: 'none',
+            padding: '8px 0px',
+            overflow: 'initial',
+            minHeight: 36,
+            minWidth: 0,
+            marginRight: 32,
+            '&:last-of-type': { marginRight: 0 },
+            transition: theme.transitions.create(['background-color', 'color']),
+            '&::after': {
+              content: "''",
+              borderRadius: 8,
+              position: 'absolute',
+              top: 4,
+              bottom: 4,
+              left: -8,
+              right: -8,
+              transition: theme.transitions.create(['background-color']),
+            },
+            '&.MuiButtonBase-root .MuiTouchRipple-root': {
+              borderRadius: 8,
+              top: 4,
+              bottom: 4,
+              left: -8,
+              right: -8,
+            },
+            '&:hover': {
+              '&:not(.Mui-selected)': { color: theme.palette.text.primary },
+              '&::after': { backgroundColor: theme.palette.action.hover },
+              '&.Mui-selected::after': { backgroundColor: alpha(theme.palette.primary.main, 0.06) },
+            },
+          }),
         },
       },
       MuiCard: {

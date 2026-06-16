@@ -76,7 +76,8 @@
     "mostActiveUsers": "Usuarios más activos",
     "topItems": "Contenidos más vistos",
     "recentPlays": "Reproducciones (24h)",
-    "genreDetail": "Detalle por género"
+    "genreDetail": "Detalle por género",
+    "playbacksByLibrary": "Reproducciones por biblioteca"
   },
   "activity": {
     "user": "Usuario",
@@ -115,12 +116,26 @@
     "hoverToPreview": "Pasa el cursor sobre una fila",
     "showGenres": "Géneros mostrados",
     "allGenres": "Todos los géneros",
-    "activityHistory": "Historial de actividad"
+    "activityHistory": "Historial de actividad",
+    "seasons": "temporadas",
+    "tracks": "pistas",
+    "trackTitle": "Título",
+    "artist": "Artista",
+    "album": "Álbum",
+    "albums": "Álbumes",
+    "artists": "Artistas",
+    "duration": "Duración",
+    "syncRequired": "Ejecuta una sincronización completa para mostrar esta sección.",
+    "topTracks": "Pistas más reproducidas"
   },
   "users": {
     "user": "Usuario",
     "lastSeen": "Última actividad",
+    "firstSeen": "Primera reproducción",
     "favoriteGenre": "Género favorito",
+    "uniqueItems": "Contenidos únicos",
+    "favoriteClient": "Cliente favorito",
+    "favoriteDevice": "Dispositivo favorito",
     "search": "Buscar usuario...",
     "activityHeatmap": "Mapa de actividad",
     "watchHistory": "Historial",
@@ -231,6 +246,8 @@
     "all": "Todos",
     "less": "Menos",
     "more": "Más",
+    "back": "Volver",
+    "rowsPerPage": "Filas por página",
     "columns": "Columnas",
     "user": "Usuario",
     "administrator": "Administrador",

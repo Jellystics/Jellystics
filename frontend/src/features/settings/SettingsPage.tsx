@@ -1,5 +1,4 @@
-import { Box, Typography, ButtonBase } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { Box, Tab, Tabs } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
@@ -11,7 +10,7 @@ import SecurityTab from './components/SecurityTab'
 import LogsTab from './components/LogsTab'
 import ApiKeysTab from './components/ApiKeysTab'
 
-const TABS: { key: string; view: string }[] = [
+const TABS = [
   { key: 'settings.config',   view: 'config' },
   { key: 'settings.tasks',    view: 'tasks' },
   { key: 'settings.backup',   view: 'backup' },
@@ -23,69 +22,44 @@ const TABS: { key: string; view: string }[] = [
 
 export default function SettingsPage() {
   const { t } = useTranslation()
-  const theme = useTheme()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const currentView = searchParams.get('view') ?? 'config'
-  const tab = TABS.findIndex((t) => t.view === currentView).valueOf()
-  const activeTab = tab >= 0 ? tab : 0
-  const setTab = (index: number) => setSearchParams({ view: TABS[index].view }, { replace: true })
-
-  const activeColor = theme.palette.mode === 'dark'
-    ? theme.palette.primary.main
-    : theme.palette.primary.main
+  const tabIndex = TABS.findIndex((tab) => tab.view === currentView)
+  const activeTab = tabIndex >= 0 ? tabIndex : 0
 
   return (
     <>
       <PageHeader title={t('nav.settings')} />
 
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          flexWrap: 'wrap',
-          mb: 3,
-          pb: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        {TABS.map(({ key }, index) => {
-          const isActive = activeTab === index
-          return (
-            <ButtonBase
-              key={key}
-              onClick={() => setTab(index)}
-              sx={{
-                px: 2,
-                py: 0.75,
-                borderRadius: '90px',
-                fontSize: 13,
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#ffffff' : 'text.secondary',
-                bgcolor: isActive ? activeColor : 'transparent',
-                transition: 'all 200ms cubic-bezier(0.4,0,0.2,1)',
-                '&:hover': {
-                  bgcolor: isActive ? activeColor : theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                  color: isActive ? '#ffffff' : 'text.primary',
-                },
-              }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 'inherit', fontSize: 'inherit', color: 'inherit' }}>
-                {t(key)}
-              </Typography>
-            </ButtonBase>
-          )
-        })}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setSearchParams({ view: TABS[v].view }, { replace: true })}
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          {TABS.map(({ key }) => (
+            <Tab key={key} label={t(key)} />
+          ))}
+        </Tabs>
       </Box>
 
-      {activeTab === 0 && <ConfigTab />}
-      {activeTab === 1 && <TasksTab />}
-      {activeTab === 2 && <BackupTab />}
-      {activeTab === 3 && <WebhooksTab />}
-      {activeTab === 4 && <SecurityTab />}
-      {activeTab === 5 && <LogsTab />}
-      {activeTab === 6 && <ApiKeysTab />}
+      <Box
+        key={activeTab}
+        sx={{
+          animation: 'fadeIn 150ms ease-in-out',
+          '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } },
+        }}
+      >
+        {activeTab === 0 && <ConfigTab />}
+        {activeTab === 1 && <TasksTab />}
+        {activeTab === 2 && <BackupTab />}
+        {activeTab === 3 && <WebhooksTab />}
+        {activeTab === 4 && <SecurityTab />}
+        {activeTab === 5 && <LogsTab />}
+        {activeTab === 6 && <ApiKeysTab />}
+      </Box>
     </>
   )
 }

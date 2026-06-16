@@ -686,31 +686,45 @@ func (h *StatsFrontendHandler) GetUserStats(c *gin.Context) {
 	userId := c.Query("userId")
 
 	type UserStat struct {
-		UserId         string  `json:"UserId"`
-		UserName       string  `json:"UserName"`
-		TotalPlays     int     `json:"TotalPlays"`
-		TotalWatchTime int     `json:"TotalWatchTime"`
-		LastSeen       *string `json:"LastSeen"`
-		FavoriteGenre  *string `json:"FavoriteGenre"`
+		UserId          string  `json:"UserId"`
+		UserName        string  `json:"UserName"`
+		TotalPlays      int     `json:"TotalPlays"`
+		TotalWatchTime  int     `json:"TotalWatchTime"`
+		UniqueItems     int     `json:"UniqueItems"`
+		LastSeen        *string `json:"LastSeen"`
+		FirstSeen       *string `json:"FirstSeen"`
+		MostUsedClient  *string `json:"MostUsedClient"`
+		MostUsedDevice  *string `json:"MostUsedDevice"`
 	}
+
+	const userStatSQL = `
+		SELECT
+		  u."Id" AS "UserId",
+		  u."Name" AS "UserName",
+		  COUNT(a."Id")::int AS "TotalPlays",
+		  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
+		  COUNT(DISTINCT a."NowPlayingItemId")::int AS "UniqueItems",
+		  COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
+		  MIN(a."ActivityDateInserted") AS "FirstSeen",
+		  (
+		    SELECT a2."Client" FROM jf_playback_activity a2
+		    WHERE a2."UserId" = u."Id" AND a2."Client" IS NOT NULL AND a2."Client" <> ''
+		    GROUP BY a2."Client" ORDER BY COUNT(*) DESC LIMIT 1
+		  ) AS "MostUsedClient",
+		  (
+		    SELECT a2."DeviceName" FROM jf_playback_activity a2
+		    WHERE a2."UserId" = u."Id" AND a2."DeviceName" IS NOT NULL AND a2."DeviceName" <> ''
+		    GROUP BY a2."DeviceName" ORDER BY COUNT(*) DESC LIMIT 1
+		  ) AS "MostUsedDevice"
+		FROM jf_users u
+		LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+	`
 
 	live := h.getLiveActivity(c.Request.Context())
 
 	if userId != "" {
 		var row UserStat
-		h.db.Raw(`
-			SELECT
-			  u."Id" AS "UserId",
-			  u."Name" AS "UserName",
-			  COUNT(a."Id")::int AS "TotalPlays",
-			  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
-			  COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
-			  NULL::text AS "FavoriteGenre"
-			FROM jf_users u
-			LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
-			WHERE u."Id" = ?
-			GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate"
-		`, userId).Scan(&row)
+		h.db.Raw(userStatSQL+`WHERE u."Id" = ? GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate"`, userId).Scan(&row)
 
 		for _, ls := range live {
 			if ls.UserId == userId {
@@ -723,19 +737,7 @@ func (h *StatsFrontendHandler) GetUserStats(c *gin.Context) {
 	}
 
 	var rows []UserStat
-	h.db.Raw(`
-		SELECT
-		  u."Id" AS "UserId",
-		  u."Name" AS "UserName",
-		  COUNT(a."Id")::int AS "TotalPlays",
-		  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
-		  COALESCE(MAX(a."ActivityDateInserted"), u."LastActivityDate", u."LastLoginDate") AS "LastSeen",
-		  NULL::text AS "FavoriteGenre"
-		FROM jf_users u
-		LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
-		GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate"
-		ORDER BY "TotalPlays" DESC
-	`).Scan(&rows)
+	h.db.Raw(userStatSQL + `GROUP BY u."Id", u."Name", u."LastActivityDate", u."LastLoginDate" ORDER BY "TotalPlays" DESC`).Scan(&rows)
 
 	if rows == nil {
 		rows = []UserStat{}
