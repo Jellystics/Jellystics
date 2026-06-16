@@ -1,10 +1,11 @@
-import { Grid, Alert, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { useState, useEffect, useMemo } from 'react'
+import type { ReactNode } from 'react'
+import { Grid, Alert, Box } from '@mui/material'
 import {
   Play24Regular, Clock24Regular, People24Regular,
   VideoClip24Regular, Library24Regular, Apps24Regular,
 } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
-import { useState, useEffect, useMemo } from 'react'
 
 import { PieChart } from '@mui/x-charts/PieChart'
 import { BarChart } from '@mui/x-charts/BarChart'
@@ -13,6 +14,7 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
+import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
 import LiveSessions from './components/LiveSessions'
 import ActivityChart from './components/ActivityChart'
 import TopContent from './components/TopContent'
@@ -22,6 +24,15 @@ import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import api from '@/lib/axios'
 import { useChartColors } from '@/lib/chartColors'
 
+type HourStat = { hour: number; plays: number; duration: number }
+type DayStat = { day: number; plays: number; duration: number }
+type PlaybackMethod = { method: string; count: number; duration: number }
+type ClientStat = { client: string; count: number; duration: number }
+type TopItem = { Id: string; Name: string; PlayCount: number; Type: string }
+type TopUser = { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
+type LibraryViewCount = { Name: string; Count: number }
+type LibraryDayPoint = { date: string; libraryId: string; libraryName: string; count: number }
+
 export default function DashboardPage() {
   const CHART_COLORS = useChartColors()
   const CHART_BAR = CHART_COLORS[0]
@@ -29,33 +40,106 @@ export default function DashboardPage() {
   const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
 
-  interface LibraryDayPoint { date: string; libraryId: string; libraryName: string; count: number }
+  // ── Plays by hour ─────────────────────────────────────────────────────────
+  const [hourDays, setHourDays] = useState(30)
+  const [hourlyStats, setHourlyStats] = useState<HourStat[]>([])
+  const [hourLoading, setHourLoading] = useState(true)
+  useEffect(() => {
+    setHourLoading(true)
+    api.get(`/stats/getPopularHourOfDay?days=${hourDays}`)
+      .then(r => setHourlyStats(r.data ?? []))
+      .catch(() => setHourlyStats([]))
+      .finally(() => setHourLoading(false))
+  }, [hourDays])
+
+  // ── Plays by day of week ──────────────────────────────────────────────────
+  const [dayDays, setDayDays] = useState(30)
+  const [weeklyStats, setWeeklyStats] = useState<DayStat[]>([])
+  const [dayLoading, setDayLoading] = useState(true)
+  useEffect(() => {
+    setDayLoading(true)
+    api.get(`/stats/getPopularDayOfWeek?days=${dayDays}`)
+      .then(r => setWeeklyStats(r.data ?? []))
+      .catch(() => setWeeklyStats([]))
+      .finally(() => setDayLoading(false))
+  }, [dayDays])
+
+  // ── Playback methods ──────────────────────────────────────────────────────
+  const [methodDays, setMethodDays] = useState(30)
+  const [playbackMethods, setPlaybackMethods] = useState<PlaybackMethod[]>([])
+  const [methodLoading, setMethodLoading] = useState(true)
+  useEffect(() => {
+    setMethodLoading(true)
+    api.get(`/stats/getMostUsedPlaybackMethod?days=${methodDays}`)
+      .then(r => setPlaybackMethods(r.data ?? []))
+      .catch(() => setPlaybackMethods([]))
+      .finally(() => setMethodLoading(false))
+  }, [methodDays])
+
+  // ── Top clients ───────────────────────────────────────────────────────────
+  const [clientDays, setClientDays] = useState(30)
+  const [topClients, setTopClients] = useState<ClientStat[]>([])
+  const [clientLoading, setClientLoading] = useState(true)
+  useEffect(() => {
+    setClientLoading(true)
+    api.get(`/stats/getMostUsedClients?days=${clientDays}`)
+      .then(r => setTopClients(r.data ?? []))
+      .catch(() => setTopClients([]))
+      .finally(() => setClientLoading(false))
+  }, [clientDays])
+
+  // ── Top items ─────────────────────────────────────────────────────────────
+  const [topItemsDays, setTopItemsDays] = useState(30)
+  const [topItems, setTopItems] = useState<TopItem[]>([])
+  const [topItemsLoading, setTopItemsLoading] = useState(true)
+  useEffect(() => {
+    setTopItemsLoading(true)
+    api.get(`/stats/getMostPlayedItems?limit=20&days=${topItemsDays}`)
+      .then(r => setTopItems(r.data ?? []))
+      .catch(() => setTopItems([]))
+      .finally(() => setTopItemsLoading(false))
+  }, [topItemsDays])
+
+  // ── Top users ─────────────────────────────────────────────────────────────
+  const [topUsersDays, setTopUsersDays] = useState(30)
+  const [topUsers, setTopUsers] = useState<TopUser[]>([])
+  const [topUsersLoading, setTopUsersLoading] = useState(true)
+  useEffect(() => {
+    setTopUsersLoading(true)
+    api.get(`/stats/getMostActiveUsers?limit=5&days=${topUsersDays}`)
+      .then(r => setTopUsers(r.data ?? []))
+      .catch(() => setTopUsers([]))
+      .finally(() => setTopUsersLoading(false))
+  }, [topUsersDays])
+
+  // ── Most viewed libraries ─────────────────────────────────────────────────
+  const [libsDays, setLibsDays] = useState(30)
+  const [mostViewedLibraries, setMostViewedLibraries] = useState<LibraryViewCount[]>([])
+  const [libsLoading, setLibsLoading] = useState(true)
+  useEffect(() => {
+    setLibsLoading(true)
+    api.post('/stats/getMostViewedLibraries', { days: libsDays })
+      .then(r => setMostViewedLibraries(r.data ?? []))
+      .catch(() => setMostViewedLibraries([]))
+      .finally(() => setLibsLoading(false))
+  }, [libsDays])
+
+  // ── Playbacks over time by library ────────────────────────────────────────
+  const [libraryDays, setLibraryDays] = useState(30)
   const [libraryOverTime, setLibraryOverTime] = useState<LibraryDayPoint[]>([])
   const [libraryOverTimeLoading, setLibraryOverTimeLoading] = useState(true)
-  const [libraryDays, setLibraryDays] = useState<7 | 30 | 0>(0)
-
   useEffect(() => {
     setLibraryOverTimeLoading(true)
-    api.get('/stats/getPlaybacksByLibraryOverTime', { params: { days: 0 } })
-      .then((r) => setLibraryOverTime(r.data ?? []))
+    api.get(`/stats/getPlaybacksByLibraryOverTime?days=${libraryDays}`)
+      .then(r => setLibraryOverTime(r.data ?? []))
       .catch(() => setLibraryOverTime([]))
       .finally(() => setLibraryOverTimeLoading(false))
-  }, [])
+  }, [libraryDays])
 
-  const filteredLibraryOverTime = useMemo(() => {
-    if (libraryDays === 0) return libraryOverTime
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - libraryDays)
-    const cutoffStr = cutoff.toISOString().slice(0, 10)
-    return libraryOverTime.filter((r) => r.date >= cutoffStr)
-  }, [libraryOverTime, libraryDays])
+  // ── Stable data (no per-chart time range) ────────────────────────────────
+  const { globalStats, sessions, viewsByLibraryType, loading, error } = useDashboard()
 
-  const {
-    globalStats, sessions, topItems, topUsers,
-    viewsByLibraryType, mostViewedLibraries, hourlyStats, weeklyStats,
-    playbackMethods, topClients, loading, error,
-  } = useDashboard()
-
+  // ── Derived values ────────────────────────────────────────────────────────
   const mediaTypeLabels: Record<string, string> = {
     Movie: t('stats.mediaType.movie'),
     Series: t('stats.mediaType.series'),
@@ -63,7 +147,6 @@ export default function DashboardPage() {
     Other: t('stats.mediaType.other'),
   }
 
-  // Media type pie
   const pieData = viewsByLibraryType
     ? Object.entries(viewsByLibraryType)
         .filter(([, value]) => value > 0)
@@ -75,18 +158,15 @@ export default function DashboardPage() {
         }))
     : []
 
-  // Most viewed libraries bar
   const libBarLabels = mostViewedLibraries.map((l) => l.Name)
   const libBarValues = mostViewedLibraries.map((l) => l.Count)
 
-  // Plays by hour (0-23)
   const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}h`)
   const hourValues = Array.from({ length: 24 }, (_, i) => {
     const found = hourlyStats.find((s) => s.hour === i)
     return hourMetric === 'duration' ? (found?.duration ?? 0) : (found?.plays ?? 0)
   })
 
-  // Plays by day of week (0=Sun … 6=Sat)
   const dayShortKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
   const dayLabels = dayShortKeys.map((k) => t(`days.short.${k}`))
   const dayValues = Array.from({ length: 7 }, (_, i) => {
@@ -94,7 +174,6 @@ export default function DashboardPage() {
     return dayMetric === 'duration' ? (found?.duration ?? 0) : (found?.plays ?? 0)
   })
 
-  // Playback methods
   const methodData = playbackMethods.map((m, i) => ({
     id: m.method,
     value: m.count,
@@ -102,20 +181,17 @@ export default function DashboardPage() {
     color: CHART_COLORS[i % CHART_COLORS.length],
   }))
 
-  // Top clients horizontal bar
   const clientNames = topClients.map((c) => c.client)
   const clientValues = topClients.map((c) => c.count)
 
   const hourFormatter = (v: number | null) =>
     hourMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0)
-
   const dayFormatter = (v: number | null) =>
     dayMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0)
 
-  // Scatter: group by library, x = date timestamp, y = count
   const librarySeries = useMemo(() => {
     const map = new Map<string, { name: string; points: { x: number; y: number; id: string }[] }>()
-    for (const row of filteredLibraryOverTime) {
+    for (const row of libraryOverTime) {
       if (!map.has(row.libraryId)) map.set(row.libraryId, { name: row.libraryName, points: [] })
       map.get(row.libraryId)!.points.push({
         x: new Date(row.date).getTime(),
@@ -129,7 +205,14 @@ export default function DashboardPage() {
       data: points,
       color: CHART_COLORS[i % CHART_COLORS.length],
     }))
-  }, [filteredLibraryOverTime])
+  }, [libraryOverTime, CHART_COLORS])
+
+  const chartAction = (selector: ReactNode, toggle?: ReactNode) => (
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      {selector}
+      {toggle}
+    </Box>
+  )
 
   return (
     <>
@@ -158,7 +241,7 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Activity over 30d + Live sessions */}
+      {/* Activity over time + Live sessions */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 8 }}>
           <ActivityChart />
@@ -173,18 +256,17 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.playsByHour')}
-            loading={loading}
-            empty={!loading && hourlyStats.length === 0}
+            loading={hourLoading}
+            empty={!hourLoading && hourlyStats.length === 0}
             height={220}
-            action={<MetricToggle value={hourMetric} onChange={setHourMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={hourDays} onChange={setHourDays} />,
+              <MetricToggle value={hourMetric} onChange={setHourMetric} />,
+            )}
           >
             <BarChart
               xAxis={[{ data: hourLabels, scaleType: 'band' }]}
-              series={[{
-                data: hourValues,
-                color: CHART_BAR,
-                valueFormatter: hourFormatter,
-              }]}
+              series={[{ data: hourValues, color: CHART_BAR, valueFormatter: hourFormatter }]}
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
@@ -195,18 +277,17 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.playsByDayOfWeek')}
-            loading={loading}
-            empty={!loading && weeklyStats.length === 0}
+            loading={dayLoading}
+            empty={!dayLoading && weeklyStats.length === 0}
             height={220}
-            action={<MetricToggle value={dayMetric} onChange={setDayMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={dayDays} onChange={setDayDays} />,
+              <MetricToggle value={dayMetric} onChange={setDayMetric} />,
+            )}
           >
             <BarChart
               xAxis={[{ data: dayLabels, scaleType: 'band' }]}
-              series={[{
-                data: dayValues,
-                color: CHART_BAR,
-                valueFormatter: dayFormatter,
-              }]}
+              series={[{ data: dayValues, color: CHART_BAR, valueFormatter: dayFormatter }]}
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
@@ -219,10 +300,18 @@ export default function DashboardPage() {
       {/* Top content + Top users */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TopContent items={topItems} loading={loading} />
+          <TopContent
+            items={topItems}
+            loading={topItemsLoading}
+            timeRangeSelector={<TimeRangeSelector value={topItemsDays} onChange={setTopItemsDays} />}
+          />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TopUsers users={topUsers} loading={loading} />
+          <TopUsers
+            users={topUsers}
+            loading={topUsersLoading}
+            action={<TimeRangeSelector value={topUsersDays} onChange={setTopUsersDays} />}
+          />
         </Grid>
       </Grid>
 
@@ -236,12 +325,7 @@ export default function DashboardPage() {
             height={260}
           >
             <PieChart
-              series={[{
-                data: pieData,
-                innerRadius: 40,
-                paddingAngle: 2,
-                cornerRadius: 3,
-              }]}
+              series={[{ data: pieData, innerRadius: 40, paddingAngle: 2, cornerRadius: 3 }]}
               height={260}
               sx={{ width: '100%' }}
               slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'right' } } }}
@@ -251,19 +335,16 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 4 }}>
           <ChartCard
             title={t('stats.mostViewedLibraries')}
-            loading={loading}
-            empty={mostViewedLibraries.length === 0}
+            loading={libsLoading}
+            empty={!libsLoading && mostViewedLibraries.length === 0}
             height={260}
+            action={<TimeRangeSelector value={libsDays} onChange={setLibsDays} />}
           >
             <BarChart
               layout="horizontal"
               yAxis={[{ data: libBarLabels, scaleType: 'band' }]}
               xAxis={[{ label: t('common.plays') }]}
-              series={[{
-                data: libBarValues,
-                color: CHART_BAR,
-                valueFormatter: (v) => String(v ?? 0),
-              }]}
+              series={[{ data: libBarValues, color: CHART_BAR, valueFormatter: (v) => String(v ?? 0) }]}
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
@@ -275,9 +356,10 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 4 }}>
           <ChartCard
             title={t('stats.playbackMethod')}
-            loading={loading}
-            empty={methodData.length === 0}
+            loading={methodLoading}
+            empty={!methodLoading && methodData.length === 0}
             height={260}
+            action={<TimeRangeSelector value={methodDays} onChange={setMethodDays} />}
           >
             <PieChart
               series={[{
@@ -299,19 +381,16 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12 }}>
           <ChartCard
             title={t('stats.topClients')}
-            loading={loading}
-            empty={topClients.length === 0}
+            loading={clientLoading}
+            empty={!clientLoading && topClients.length === 0}
             height={260}
+            action={<TimeRangeSelector value={clientDays} onChange={setClientDays} />}
           >
             <BarChart
               layout="horizontal"
               yAxis={[{ data: clientNames, scaleType: 'band' }]}
               xAxis={[{ label: t('common.plays') }]}
-              series={[{
-                data: clientValues,
-                color: CHART_BAR,
-                valueFormatter: (v) => String(v ?? 0),
-              }]}
+              series={[{ data: clientValues, color: CHART_BAR, valueFormatter: (v) => String(v ?? 0) }]}
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
@@ -330,26 +409,11 @@ export default function DashboardPage() {
             loading={libraryOverTimeLoading}
             empty={!libraryOverTimeLoading && librarySeries.length === 0}
             height={320}
-            action={
-              <ToggleButtonGroup
-                value={libraryDays}
-                exclusive
-                onChange={(_, v) => { if (v !== null) setLibraryDays(v) }}
-                size="small"
-                sx={{ '& .MuiToggleButton-root': { px: 1.5, py: 0.25, fontSize: 12, textTransform: 'none', borderRadius: '90px !important', border: 'none', '&.Mui-selected': { fontWeight: 600 } } }}
-              >
-                <ToggleButton value={7}>7d</ToggleButton>
-                <ToggleButton value={30}>30d</ToggleButton>
-                <ToggleButton value={0}>{t('common.all', 'All')}</ToggleButton>
-              </ToggleButtonGroup>
-            }
+            action={<TimeRangeSelector value={libraryDays} onChange={setLibraryDays} />}
           >
             <ScatterChart
               series={librarySeries}
-              xAxis={[{
-                scaleType: 'time',
-                valueFormatter: (v) => new Date(v).toLocaleDateString(),
-              }]}
+              xAxis={[{ scaleType: 'time', valueFormatter: (v) => new Date(v).toLocaleDateString() }]}
               yAxis={[{ label: t('common.plays', 'Plays') }]}
               height={320}
               sx={{ width: '100%' }}

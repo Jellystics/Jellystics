@@ -60,6 +60,7 @@
     "totalUsers": "Total Users",
     "libraries": "Libraries",
     "totalItems": "Total Items",
+    "playsOverTime": "Plays over time",
     "playsOverTime30d": "Plays over 30 days",
     "playsByHour": "Plays by hour of day",
     "playsByDayOfWeek": "Plays by day of week",

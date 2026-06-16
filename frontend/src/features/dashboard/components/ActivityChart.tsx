@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { LineChart, lineClasses } from '@mui/x-charts/LineChart'
 import { labelMarkClasses } from '@mui/x-charts/ChartsLabel'
-import { Box, ButtonGroup, Button, Tooltip, IconButton } from '@mui/material'
+import { Box, Tooltip, IconButton } from '@mui/material'
 import { format, parseISO } from 'date-fns'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import { useTranslation } from 'react-i18next'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
+import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 import api from '@/lib/axios'
@@ -18,11 +19,6 @@ interface ActivityPoint {
   duration: number
 }
 
-const PRESETS = [
-  { days: 7, label: '7d' },
-  { days: 30, label: '1m' },
-  { days: 90, label: '3m' },
-]
 
 export default function ActivityChart() {
   const chartColors = useChartColors()
@@ -52,18 +48,7 @@ export default function ActivityChart() {
 
   const actions = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <ButtonGroup size="small" variant="outlined" disableElevation>
-        {PRESETS.map((p) => (
-          <Button
-            key={p.days}
-            onClick={() => setDays(p.days)}
-            variant={days === p.days ? 'contained' : 'outlined'}
-            sx={{ minWidth: 36, px: 1, fontSize: 11, fontWeight: 600, py: 0.25 }}
-          >
-            {p.label}
-          </Button>
-        ))}
-      </ButtonGroup>
+      <TimeRangeSelector value={days} onChange={setDays} />
       {!combined && <MetricToggle value={metric} onChange={setMetric} />}
       <Tooltip title={combined ? t('dashboard.singleView', 'Vue simple') : t('dashboard.combinedView', 'Vue combinée')}>
         <IconButton

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import {
   Card, CardContent, CardHeader, Typography, Chip, Skeleton, Box,
   ToggleButtonGroup, ToggleButton,
@@ -8,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 interface TopItem { Id: string; Name: string; PlayCount: number; Type: string }
-interface TopContentProps { items: TopItem[]; loading: boolean }
+interface TopContentProps { items: TopItem[]; loading: boolean; timeRangeSelector?: ReactNode }
 
 type TypeFilter = 'all' | 'Movie' | 'Series' | 'Audio'
 
@@ -18,7 +19,7 @@ function TypeFallback({ type }: { type: string }) {
   return <Library24Regular style={{ fontSize: 18, opacity: 0.5 }} />
 }
 
-export default function TopContent({ items, loading }: TopContentProps) {
+export default function TopContent({ items, loading, timeRangeSelector }: TopContentProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
@@ -34,18 +35,21 @@ export default function TopContent({ items, loading }: TopContentProps) {
       <CardHeader
         title={t('dashboard.topContent')}
         action={
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={typeFilter}
-            onChange={(_, v) => { if (v) setTypeFilter(v) }}
-            sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1, fontSize: 11, textTransform: 'none', lineHeight: 1.6 } }}
-          >
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="Movie">Movies</ToggleButton>
-            <ToggleButton value="Series">Series</ToggleButton>
-            <ToggleButton value="Audio">Music</ToggleButton>
-          </ToggleButtonGroup>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {timeRangeSelector}
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={typeFilter}
+              onChange={(_, v) => { if (v) setTypeFilter(v) }}
+              sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1, fontSize: 11, textTransform: 'none', lineHeight: 1.6 } }}
+            >
+              <ToggleButton value="all">All</ToggleButton>
+              <ToggleButton value="Movie">Movies</ToggleButton>
+              <ToggleButton value="Series">Series</ToggleButton>
+              <ToggleButton value="Audio">Music</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         }
         slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }}
       />

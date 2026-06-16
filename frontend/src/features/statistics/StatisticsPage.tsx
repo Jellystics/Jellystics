@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Grid, Alert } from '@mui/material'
-
+import { Grid, Box } from '@mui/material'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +12,7 @@ import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import { useChartColors } from '@/lib/chartColors'
+import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
 
 type ActiveUser = { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
@@ -20,51 +20,104 @@ type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
 export default function StatisticsPage() {
   const CHART_COLORS = useChartColors()
   const { t } = useTranslation()
+
+  // ── Plays over time ─────────────────────────────────────────────────────
+  const [overTimeDays, setOverTimeDays] = useState(30)
   const [overTime, setOverTime] = useState<WatchStatOverTime[]>([])
-  const [byHour, setByHour] = useState<HourStat[]>([])
-  const [byDay, setByDay] = useState<DayStat[]>([])
-  const [byMethod, setByMethod] = useState<PlayMethodStat[]>([])
-  const [byClient, setByClient] = useState<ClientStat[]>([])
+  const [overTimeLoading, setOverTimeLoading] = useState(true)
   const [overTimeMetric, setOverTimeMetric] = useState<ActivityMetric>('count')
-  const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
-  const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
-  const [methodMetric, setMethodMetric] = useState<ActivityMetric>('count')
-  const [clientMetric, setClientMetric] = useState<ActivityMetric>('count')
-  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
-  const [topItems, setTopItems] = useState<PlayedItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const load = (showLoading = true) => {
-      if (showLoading) setLoading(true)
-      Promise.all([
-        api.get('/stats/getWatchStatisticsOverTime?days=30'),
-        api.get('/stats/getPopularHourOfDay'),
-        api.get('/stats/getPopularDayOfWeek'),
-        api.get('/stats/getMostUsedPlaybackMethod'),
-        api.get('/stats/getMostUsedClients'),
-        api.get('/stats/getMostActiveUsers?limit=8'),
-        api.get('/stats/getMostPlayedItems?limit=10'),
-      ])
-        .then(([otRes, hourRes, dayRes, methodRes, clientRes, usersRes, itemsRes]) => {
-          setOverTime(otRes.data ?? [])
-          setByHour(hourRes.data ?? [])
-          setByDay(dayRes.data ?? [])
-          setByMethod(methodRes.data ?? [])
-          setByClient(clientRes.data ?? [])
-          setActiveUsers((usersRes.data ?? []).slice(0, 8))
-          setTopItems((itemsRes.data ?? []).slice(0, 10))
-        })
-        .catch(() => setError(t('common.loadError')))
-        .finally(() => setLoading(false))
-    }
+    setOverTimeLoading(true)
+    api.get(`/stats/getWatchStatisticsOverTime?days=${overTimeDays}`)
+      .then(r => setOverTime(r.data ?? []))
+      .catch(() => setOverTime([]))
+      .finally(() => setOverTimeLoading(false))
+  }, [overTimeDays])
 
-    load()
-    const interval = window.setInterval(() => load(false), 15000)
-    return () => window.clearInterval(interval)
-  }, [t])
+  // ── Plays by hour ───────────────────────────────────────────────────────
+  const [hourDays, setHourDays] = useState(30)
+  const [byHour, setByHour] = useState<HourStat[]>([])
+  const [hourLoading, setHourLoading] = useState(true)
+  const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
 
+  useEffect(() => {
+    setHourLoading(true)
+    api.get(`/stats/getPopularHourOfDay?days=${hourDays}`)
+      .then(r => setByHour(r.data ?? []))
+      .catch(() => setByHour([]))
+      .finally(() => setHourLoading(false))
+  }, [hourDays])
+
+  // ── Plays by day of week ────────────────────────────────────────────────
+  const [dayDays, setDayDays] = useState(30)
+  const [byDay, setByDay] = useState<DayStat[]>([])
+  const [dayLoading, setDayLoading] = useState(true)
+  const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
+
+  useEffect(() => {
+    setDayLoading(true)
+    api.get(`/stats/getPopularDayOfWeek?days=${dayDays}`)
+      .then(r => setByDay(r.data ?? []))
+      .catch(() => setByDay([]))
+      .finally(() => setDayLoading(false))
+  }, [dayDays])
+
+  // ── Playback method ─────────────────────────────────────────────────────
+  const [methodDays, setMethodDays] = useState(30)
+  const [byMethod, setByMethod] = useState<PlayMethodStat[]>([])
+  const [methodLoading, setMethodLoading] = useState(true)
+  const [methodMetric, setMethodMetric] = useState<ActivityMetric>('count')
+
+  useEffect(() => {
+    setMethodLoading(true)
+    api.get(`/stats/getMostUsedPlaybackMethod?days=${methodDays}`)
+      .then(r => setByMethod(r.data ?? []))
+      .catch(() => setByMethod([]))
+      .finally(() => setMethodLoading(false))
+  }, [methodDays])
+
+  // ── Top clients ─────────────────────────────────────────────────────────
+  const [clientDays, setClientDays] = useState(30)
+  const [byClient, setByClient] = useState<ClientStat[]>([])
+  const [clientLoading, setClientLoading] = useState(true)
+  const [clientMetric, setClientMetric] = useState<ActivityMetric>('count')
+
+  useEffect(() => {
+    setClientLoading(true)
+    api.get(`/stats/getMostUsedClients?days=${clientDays}`)
+      .then(r => setByClient(r.data ?? []))
+      .catch(() => setByClient([]))
+      .finally(() => setClientLoading(false))
+  }, [clientDays])
+
+  // ── Most active users ───────────────────────────────────────────────────
+  const [usersDays, setUsersDays] = useState(30)
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
+  const [usersLoading, setUsersLoading] = useState(true)
+
+  useEffect(() => {
+    setUsersLoading(true)
+    api.get(`/stats/getMostActiveUsers?limit=8&days=${usersDays}`)
+      .then(r => setActiveUsers((r.data ?? []).slice(0, 8)))
+      .catch(() => setActiveUsers([]))
+      .finally(() => setUsersLoading(false))
+  }, [usersDays])
+
+  // ── Top items ───────────────────────────────────────────────────────────
+  const [itemsDays, setItemsDays] = useState(30)
+  const [topItems, setTopItems] = useState<PlayedItem[]>([])
+  const [itemsLoading, setItemsLoading] = useState(true)
+
+  useEffect(() => {
+    setItemsLoading(true)
+    api.get(`/stats/getMostPlayedItems?limit=10&days=${itemsDays}`)
+      .then(r => setTopItems((r.data ?? []).slice(0, 10)))
+      .catch(() => setTopItems([]))
+      .finally(() => setItemsLoading(false))
+  }, [itemsDays])
+
+  // ── Derived values ──────────────────────────────────────────────────────
   const totalPlays = overTime.reduce((s, d) => s + d.plays, 0)
   const totalDuration = overTime.reduce((s, d) => s + d.duration, 0)
 
@@ -96,28 +149,37 @@ export default function StatisticsPage() {
   const methodChart = chartMetric(methodMetric)
   const clientChart = chartMetric(clientMetric)
 
+  const chartAction = (selector: React.ReactNode, toggle: React.ReactNode) => (
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      {selector}
+      {toggle}
+    </Box>
+  )
+
   return (
     <>
       <PageHeader title={t('nav.statistics')} />
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.totalPlays30d')} value={totalPlays} icon={<Play24Regular />} loading={loading} />
+          <StatCard label={t('stats.totalPlays')} value={totalPlays} icon={<Play24Regular />} loading={overTimeLoading} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.watchTime30d')} value={formatWatchTime(totalDuration)} icon={<Clock24Regular />} loading={loading} />
+          <StatCard label={t('stats.watchTime')} value={formatWatchTime(totalDuration)} icon={<Clock24Regular />} loading={overTimeLoading} />
         </Grid>
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12 }}>
           <ChartCard
-            title={t('stats.playsOverTime30d')}
-            loading={loading}
+            title={t('stats.playsOverTime')}
+            loading={overTimeLoading}
             empty={overTime.length === 0}
             height={240}
-            action={<MetricToggle value={overTimeMetric} onChange={setOverTimeMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={overTimeDays} onChange={setOverTimeDays} />,
+              <MetricToggle value={overTimeMetric} onChange={setOverTimeMetric} />,
+            )}
           >
             <BarChart
               xAxis={[{ data: overTime.map((d) => d.date), scaleType: 'band' }]}
@@ -135,10 +197,13 @@ export default function StatisticsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.playsByHour')}
-            loading={loading}
+            loading={hourLoading}
             empty={byHour.length === 0}
             height={220}
-            action={<MetricToggle value={hourMetric} onChange={setHourMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={hourDays} onChange={setHourDays} />,
+              <MetricToggle value={hourMetric} onChange={setHourMetric} />,
+            )}
           >
             <BarChart
               xAxis={[{ data: hourData.map((d) => d.hour), scaleType: 'band' }]}
@@ -153,10 +218,13 @@ export default function StatisticsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.playsByDayOfWeek')}
-            loading={loading}
+            loading={dayLoading}
             empty={byDay.length === 0}
             height={220}
-            action={<MetricToggle value={dayMetric} onChange={setDayMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={dayDays} onChange={setDayDays} />,
+              <MetricToggle value={dayMetric} onChange={setDayMetric} />,
+            )}
           >
             <BarChart
               xAxis={[{ data: dayData.map((d) => d.day), scaleType: 'band' }]}
@@ -170,21 +238,22 @@ export default function StatisticsPage() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.playbackMethod')}
-            loading={loading}
+            loading={methodLoading}
             empty={byMethod.length === 0}
             height={280}
-            action={<MetricToggle value={methodMetric} onChange={setMethodMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={methodDays} onChange={setMethodDays} />,
+              <MetricToggle value={methodMetric} onChange={setMethodMetric} />,
+            )}
           >
             <PieChart
               series={[{
                 data: byMethod.map((item, i) => ({ id: i, value: methodChart.getPieValue(item), label: item.method, color: CHART_COLORS[i % CHART_COLORS.length] })),
-                outerRadius: 100,
-                paddingAngle: 2,
-                cornerRadius: 3,
+                outerRadius: 100, paddingAngle: 2, cornerRadius: 3,
                 valueFormatter: (item) => methodChart.formatter(item.value),
               }]}
               height={280}
@@ -195,17 +264,18 @@ export default function StatisticsPage() {
         <Grid size={{ xs: 12, md: 6 }}>
           <ChartCard
             title={t('stats.topClients')}
-            loading={loading}
+            loading={clientLoading}
             empty={byClient.length === 0}
             height={280}
-            action={<MetricToggle value={clientMetric} onChange={setClientMetric} />}
+            action={chartAction(
+              <TimeRangeSelector value={clientDays} onChange={setClientDays} />,
+              <MetricToggle value={clientMetric} onChange={setClientMetric} />,
+            )}
           >
             <PieChart
               series={[{
                 data: byClient.map((item, i) => ({ id: i, value: clientChart.getPieValue(item), label: item.client, color: CHART_COLORS[i % CHART_COLORS.length] })),
-                outerRadius: 100,
-                paddingAngle: 2,
-                cornerRadius: 3,
+                outerRadius: 100, paddingAngle: 2, cornerRadius: 3,
                 valueFormatter: (item) => clientChart.formatter(item.value),
               }]}
               height={280}
@@ -215,22 +285,18 @@ export default function StatisticsPage() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={2} sx={{ mt: 2 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12 }}>
           <ChartCard
-            title={t('stats.mostActiveUsers', 'Utilisateurs les plus actifs')}
-            loading={loading}
+            title={t('stats.mostActiveUsers')}
+            loading={usersLoading}
             empty={activeUsers.length === 0}
             height={220}
+            action={<TimeRangeSelector value={usersDays} onChange={setUsersDays} />}
           >
             <BarChart
               xAxis={[{ data: activeUsers.map((d) => d.UserName), scaleType: 'band' }]}
-              series={[{
-                data: activeUsers.map((d) => d.TotalPlays),
-                label: t('common.plays'),
-                valueFormatter: (v) => String(v ?? 0),
-                color: CHART_COLORS[0],
-              }]}
+              series={[{ data: activeUsers.map((d) => d.TotalPlays), label: t('common.plays'), valueFormatter: (v) => String(v ?? 0), color: CHART_COLORS[0] }]}
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
@@ -240,24 +306,20 @@ export default function StatisticsPage() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={2} sx={{ mt: 2, mb: 2 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12 }}>
           <ChartCard
-            title={t('stats.topItems', 'Contenus les plus vus')}
-            loading={loading}
+            title={t('stats.topItems')}
+            loading={itemsLoading}
             empty={topItems.length === 0}
             height={280}
+            action={<TimeRangeSelector value={itemsDays} onChange={setItemsDays} />}
           >
             <BarChart
               layout="horizontal"
               yAxis={[{ data: topItems.map((d) => d.Name), scaleType: 'band' }]}
               xAxis={[{ label: t('common.plays') }]}
-              series={[{
-                data: topItems.map((d) => d.PlayCount),
-                label: t('common.plays'),
-                valueFormatter: (v) => String(v ?? 0),
-                color: CHART_COLORS[0],
-              }]}
+              series={[{ data: topItems.map((d) => d.PlayCount), label: t('common.plays'), valueFormatter: (v) => String(v ?? 0), color: CHART_COLORS[0] }]}
               height={280}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}

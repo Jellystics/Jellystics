@@ -60,6 +60,7 @@
     "totalUsers": "Total utilisateurs",
     "libraries": "Bibliothèques",
     "totalItems": "Total éléments",
+    "playsOverTime": "Lectures dans le temps",
     "playsOverTime30d": "Lectures sur 30 jours",
     "playsByHour": "Lectures par heure",
     "playsByDayOfWeek": "Lectures par jour",

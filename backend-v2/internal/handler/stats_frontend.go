@@ -40,6 +40,20 @@ func parseDays(value string, fallback int) int {
 	return n
 }
 
+// parseDaysAllTime returns (days, allTime).
+// days=0 → allTime=true; days=N → allTime=false, days=N; invalid → fallback, false.
+func parseDaysAllTime(c *gin.Context, fallback int) (int, bool) {
+	val := c.DefaultQuery("days", strconv.Itoa(fallback))
+	if val == "0" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil || n <= 0 {
+		return fallback, false
+	}
+	return n, false
+}
+
 type pageResult struct {
 	CurrentPage int         `json:"current_page"`
 	Pages       int         `json:"pages"`
@@ -241,7 +255,8 @@ func (h *StatsFrontendHandler) GetGlobalStats(c *gin.Context) {
 func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 	itemType := c.DefaultQuery("type", "all")
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 
 	type Item struct {
 		Id        string `json:"Id"`
@@ -251,7 +266,20 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 	}
 	var dbItems []Item
 
-	baseSQL := `
+	baseSQLAllTime := `
+		SELECT
+		  a."NowPlayingItemId" AS "Id",
+		  COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
+		  COUNT(*)::int AS "PlayCount",
+		  CASE
+		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
+		    ELSE COALESCE(i."Type", 'Unknown')
+		  END AS "Type"
+		FROM jf_playback_activity a
+		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+		WHERE 1=1
+	`
+	baseSQLDays := `
 		SELECT
 		  a."NowPlayingItemId" AS "Id",
 		  COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
@@ -266,17 +294,34 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 	`
 	suffix := ` GROUP BY a."NowPlayingItemId", 2, 4 ORDER BY "PlayCount" DESC LIMIT ?`
 
-	switch itemType {
-	case "Series":
-		h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, days, limit).Scan(&dbItems)
-	case "Audio":
-		h.db.Raw(baseSQL+` AND i."Type" = 'Audio'`+suffix, days, limit).Scan(&dbItems)
-	case "Movie":
-		h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, days, limit).Scan(&dbItems)
-	case "all":
-		h.db.Raw(baseSQL+suffix, days, limit).Scan(&dbItems)
-	default:
-		h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, days, itemType, limit).Scan(&dbItems)
+	if allTime {
+		baseSQL := baseSQLAllTime
+		switch itemType {
+		case "Series":
+			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, limit).Scan(&dbItems)
+		case "Audio":
+			h.db.Raw(baseSQL+` AND i."Type" = 'Audio'`+suffix, limit).Scan(&dbItems)
+		case "Movie":
+			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, limit).Scan(&dbItems)
+		case "all":
+			h.db.Raw(baseSQL+suffix, limit).Scan(&dbItems)
+		default:
+			h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, itemType, limit).Scan(&dbItems)
+		}
+	} else {
+		baseSQL := baseSQLDays
+		switch itemType {
+		case "Series":
+			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, daysArg, limit).Scan(&dbItems)
+		case "Audio":
+			h.db.Raw(baseSQL+` AND i."Type" = 'Audio'`+suffix, daysArg, limit).Scan(&dbItems)
+		case "Movie":
+			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, daysArg, limit).Scan(&dbItems)
+		case "all":
+			h.db.Raw(baseSQL+suffix, daysArg, limit).Scan(&dbItems)
+		default:
+			h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, daysArg, itemType, limit).Scan(&dbItems)
+		}
 	}
 
 	if dbItems == nil {
@@ -321,8 +366,9 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
 
 	type UserRow struct {
 		UserId         string `json:"UserId"`
@@ -331,18 +377,30 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 		TotalWatchTime int    `json:"TotalWatchTime"`
 	}
 	var dbRows []UserRow
-	h.db.Raw(`
-		SELECT
-		  "UserId",
-		  MAX("UserName") AS "UserName",
-		  COUNT(*)::int AS "TotalPlays",
-		  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
-		FROM jf_playback_activity
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		GROUP BY "UserId"
-		ORDER BY "TotalPlays" DESC
-		LIMIT ?
-	`, days, limit).Scan(&dbRows)
+	if allTime {
+		h.db.Raw(`
+			SELECT
+			  "UserId",
+			  MAX("UserName") AS "UserName",
+			  COUNT(*)::int AS "TotalPlays",
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
+			FROM jf_playback_activity
+			GROUP BY "UserId" ORDER BY "TotalPlays" DESC LIMIT ?
+		`, limit).Scan(&dbRows)
+	} else {
+		h.db.Raw(`
+			SELECT
+			  "UserId",
+			  MAX("UserName") AS "UserName",
+			  COUNT(*)::int AS "TotalPlays",
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
+			FROM jf_playback_activity
+			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			GROUP BY "UserId"
+			ORDER BY "TotalPlays" DESC
+			LIMIT ?
+		`, daysArg, limit).Scan(&dbRows)
+	}
 
 	if dbRows == nil {
 		dbRows = []UserRow{}
@@ -482,7 +540,8 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 
 	type Row struct {
 		Hour     int `json:"hour"`
@@ -490,16 +549,26 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 		Duration int `json:"duration"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT
-		  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
-		  COUNT(*)::int AS plays,
-		  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-		FROM jf_playback_activity
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		GROUP BY hour
-		ORDER BY hour
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT
+			  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
+			  COUNT(*)::int AS plays,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			GROUP BY hour ORDER BY hour
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT
+			  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
+			  COUNT(*)::int AS plays,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			GROUP BY hour ORDER BY hour
+		`, daysArg).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -530,7 +599,8 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 
 	type Row struct {
 		Day      int `json:"day"`
@@ -538,16 +608,26 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 		Duration int `json:"duration"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT
-		  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
-		  COUNT(*)::int AS plays,
-		  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-		FROM jf_playback_activity
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		GROUP BY day
-		ORDER BY day
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT
+			  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
+			  COUNT(*)::int AS plays,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			GROUP BY day ORDER BY day
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT
+			  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
+			  COUNT(*)::int AS plays,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			GROUP BY day ORDER BY day
+		`, daysArg).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -578,7 +658,8 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 
 	type Row struct {
 		Method   string `json:"method"`
@@ -586,16 +667,26 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 		Duration int    `json:"duration"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT
-		  COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
-		  COUNT(*)::int AS count,
-		  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-		FROM jf_playback_activity
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		GROUP BY method
-		ORDER BY count DESC
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT
+			  COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
+			  COUNT(*)::int AS count,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			GROUP BY method ORDER BY count DESC
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT
+			  COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
+			  COUNT(*)::int AS count,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			GROUP BY method ORDER BY count DESC
+		`, daysArg).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -630,7 +721,8 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
 
 	type Row struct {
 		Client   string `json:"client"`
@@ -638,18 +730,28 @@ func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
 		Duration int    `json:"duration"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT
-		  "Client" AS client,
-		  COUNT(*)::int AS count,
-		  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-		FROM jf_playback_activity
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		  AND "Client" IS NOT NULL AND "Client" <> ''
-		GROUP BY "Client"
-		ORDER BY count DESC
-		LIMIT 10
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT
+			  "Client" AS client,
+			  COUNT(*)::int AS count,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			WHERE "Client" IS NOT NULL AND "Client" <> ''
+			GROUP BY "Client" ORDER BY count DESC LIMIT 10
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT
+			  "Client" AS client,
+			  COUNT(*)::int AS count,
+			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+			FROM jf_playback_activity
+			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			  AND "Client" IS NOT NULL AND "Client" <> ''
+			GROUP BY "Client" ORDER BY count DESC LIMIT 10
+		`, daysArg).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}

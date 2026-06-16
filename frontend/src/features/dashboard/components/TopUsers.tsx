@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import {
   Card, CardContent, CardHeader, List, ListItem, ListItemText,
   ListItemAvatar, Avatar, Chip, Skeleton, Box, Typography,
@@ -6,13 +7,13 @@ import { useTranslation } from 'react-i18next'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 interface TopUser { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
-interface TopUsersProps { users: TopUser[]; loading: boolean }
+interface TopUsersProps { users: TopUser[]; loading: boolean; action?: ReactNode }
 
-export default function TopUsers({ users, loading }: TopUsersProps) {
+export default function TopUsers({ users, loading, action }: TopUsersProps) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardHeader title={t('dashboard.topUsers')} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
+      <CardHeader title={t('dashboard.topUsers')} action={action} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
