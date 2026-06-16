@@ -1175,7 +1175,6 @@ func (h *StatsFrontendHandler) GetLibraryItems(c *gin.Context) {
 		  AND i.archived = false
 		  AND i."Type" NOT IN ('Season', 'Folder')
 		ORDER BY "PlayCount" DESC NULLS LAST
-		LIMIT 500
 	`, libraryId).Scan(&rows)
 
 	if rows == nil {

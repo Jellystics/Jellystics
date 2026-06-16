@@ -3,8 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
-  IconButton, Tooltip, Table, TableBody, TableCell, TableHead, TableRow,
-  TableSortLabel, TablePagination, Paper, Pagination, ToggleButtonGroup, ToggleButton,
+  IconButton, Tooltip, Table, TableBody, TableCell, TableHead, TableRow, CircularProgress,
+  TableSortLabel, TablePagination, Paper, ToggleButtonGroup, ToggleButton,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
 import {
@@ -26,7 +26,7 @@ import type { Activity } from '@/shared/types/activity'
 import {
   Play24Regular, Clock24Regular, Star24Regular,
   Search20Regular, VideoClip24Regular, MusicNote224Regular,
-  Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular,
+  Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular, ArrowSync24Regular,
 } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
@@ -119,8 +119,8 @@ function AlbumGrid({ albums, libraryId, loading, navigate, t }: {
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
-                transition: 'transform 160ms ease, border-color 160ms ease',
-                '&:hover': { transform: 'translateY(-3px)', borderColor: 'primary.main' },
+                transition: 'border-color 160ms ease',
+                '&:hover': { borderColor: 'primary.main' },
               }}
             >
               <CardActionArea onClick={() => navigate(`/libraries/${libraryId}/albums/${album.Id}`)} sx={{ height: '100%' }}>
@@ -132,6 +132,7 @@ function AlbumGrid({ albums, libraryId, loading, navigate, t }: {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    overflow: 'hidden',
                   }}
                 >
                   <MusicNote224Regular style={{ fontSize: 44, opacity: 0.45 }} />
@@ -141,7 +142,11 @@ function AlbumGrid({ albums, libraryId, loading, navigate, t }: {
                     alt={album.Name}
                     loading="lazy"
                     onError={(e) => { e.currentTarget.style.display = 'none' }}
-                    sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    sx={{
+                      position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+                      transition: 'transform 300ms ease',
+                      '.MuiCard-root:hover &': { transform: 'scale(1.06)' },
+                    }}
                   />
                 </Box>
                 <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
@@ -524,116 +529,120 @@ function GenreDistributionCard({ genres, loading, t }: {
 
 // ─── Items grid with pagination ────────────────────────────────────────────
 
-const GRID_PAGE_SIZE = 24
+const GRID_PAGE_SIZES = [30, 50, 100] as const
 
-function ItemsGridView({ items, loading, navigate, libraryId, t }: {
+function ItemsGridView({ items, loading, navigate, libraryId, t, cols = 6 }: {
   items: LibraryItem[]
   loading: boolean
   navigate: ReturnType<typeof useNavigate>
   libraryId: string
   t: (k: string, fb?: string) => string
+  cols?: 6 | 8 | 10
 }) {
-  const [page, setPage] = useState(1)
-  const pageCount = Math.ceil(items.length / GRID_PAGE_SIZE)
-  const paged = items.slice((page - 1) * GRID_PAGE_SIZE, page * GRID_PAGE_SIZE)
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<typeof GRID_PAGE_SIZES[number]>(30)
+  const paged = items.slice(page * pageSize, (page + 1) * pageSize)
 
-  // Reset to page 1 when items change (e.g. new search)
-  useEffect(() => { setPage(1) }, [items.length])
+  // Reset to page 0 when items or pageSize change
+  useEffect(() => { setPage(0) }, [items.length, pageSize])
 
   return (
     <Box>
-      <Grid container spacing={2}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 2, alignItems: 'start' }}>
         {loading ? (
-          Array.from({ length: GRID_PAGE_SIZE }).map((_, index) => (
-            <Grid key={index} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
-              <Skeleton variant="rectangular" height={260} sx={{ borderRadius: 2 }} />
-            </Grid>
+          Array.from({ length: pageSize }).map((_, index) => (
+            <Skeleton key={index} variant="rectangular" height={260} sx={{ borderRadius: 2 }} />
           ))
         ) : paged.length === 0 ? (
-          <Grid size={{ xs: 12 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+          <Box sx={{ gridColumn: `1 / -1`, py: 4, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
               {t('common.noData')}
             </Typography>
-          </Grid>
+          </Box>
         ) : (
           paged.map((item) => {
             const size = formatSize(item.Size)
             return (
-              <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
-                <Card
-                  sx={{
-                    height: '100%', overflow: 'hidden', borderRadius: 2,
-                    border: '1px solid', borderColor: 'divider',
-                    transition: 'transform 160ms ease, border-color 160ms ease',
-                    '&:hover': { transform: 'translateY(-3px)', borderColor: 'primary.main' },
-                  }}
-                >
-                  <CardActionArea onClick={() => navigate(`/libraries/${libraryId}/items/${item.Id}`)} sx={{ height: '100%' }}>
+              <Card
+                key={item.Id}
+                sx={{
+                  overflow: 'hidden', borderRadius: 2,
+                  border: '1px solid', borderColor: 'divider',
+                  transition: 'border-color 160ms ease',
+                  '&:hover': { borderColor: 'primary.main' },
+                }}
+              >
+                <CardActionArea onClick={() => navigate(`/libraries/${libraryId}/items/${item.Id}`)}>
+                  <Box
+                    sx={{
+                      position: 'relative', aspectRatio: '2 / 3',
+                      bgcolor: 'rgba(255,255,255,0.04)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
                     <Box
+                      component="img"
+                      src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`}
+                      alt={item.Name}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
                       sx={{
-                        position: 'relative', aspectRatio: '2 / 3',
-                        bgcolor: 'rgba(255,255,255,0.04)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+                        transition: 'transform 300ms ease',
+                        '.MuiCard-root:hover &': { transform: 'scale(1.06)' },
                       }}
-                    >
-                      <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
-                      <Box
-                        component="img"
-                        src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`}
-                        alt={item.Name}
-                        loading="lazy"
-                        onError={(e) => { e.currentTarget.style.display = 'none' }}
-                        sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    {size && (
+                      <Chip
+                        label={size}
+                        size="small"
+                        sx={{
+                          position: 'absolute', right: 6, bottom: 6, height: 20, fontSize: 10,
+                          bgcolor: 'primary.main', color: 'primary.contrastText',
+                        }}
                       />
-                      {size && (
-                        <Chip
-                          label={size}
-                          size="small"
-                          sx={{
-                            position: 'absolute', right: 6, bottom: 6, height: 20, fontSize: 10,
-                            bgcolor: 'primary.main', color: 'primary.contrastText',
-                          }}
-                        />
+                    )}
+                  </Box>
+                  <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
+                      {item.Name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                      {item.ProductionYear && (
+                        <Typography variant="caption" color="text.secondary">{item.ProductionYear}</Typography>
+                      )}
+                      {item.CommunityRating && (
+                        <Typography variant="caption" color="warning.main">
+                          ★ {item.CommunityRating.toFixed(1)}
+                        </Typography>
+                      )}
+                      {item.PlayCount > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          {item.PlayCount} {t('common.plays')}
+                        </Typography>
                       )}
                     </Box>
-                    <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} title={item.Name}>
-                        {item.Name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
-                        {item.ProductionYear && (
-                          <Typography variant="caption" color="text.secondary">{item.ProductionYear}</Typography>
-                        )}
-                        {item.CommunityRating && (
-                          <Typography variant="caption" color="warning.main">
-                            ★ {item.CommunityRating.toFixed(1)}
-                          </Typography>
-                        )}
-                        {item.PlayCount > 0 && (
-                          <Typography variant="caption" color="text.secondary">
-                            {item.PlayCount} {t('common.plays')}
-                          </Typography>
-                        )}
-                      </Box>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              </Grid>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
             )
           })
         )}
-      </Grid>
+      </Box>
 
-      {!loading && pageCount > 1 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-          <Pagination
-            count={pageCount}
-            page={page}
-            onChange={(_, v) => { setPage(v); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-            color="primary"
-            shape="rounded"
-          />
-        </Box>
+      {!loading && (
+        <TablePagination
+          component="div"
+          count={items.length}
+          page={page}
+          rowsPerPage={pageSize}
+          rowsPerPageOptions={[...GRID_PAGE_SIZES]}
+          onPageChange={(_, p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          onRowsPerPageChange={(e) => setPageSize(Number(e.target.value) as typeof GRID_PAGE_SIZES[number])}
+          labelRowsPerPage={t('common.rowsPerPage', 'Lignes/page')}
+        />
       )}
     </Box>
   )
@@ -1113,6 +1122,7 @@ export default function LibraryDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [gridCols, setGridCols] = useState<6 | 8 | 10>(8)
 
   const [historyData, setHistoryData] = useState<HistoryPoint[]>([])
   const [activityHistory, setActivityHistory] = useState<Activity[]>([])
@@ -1384,7 +1394,28 @@ export default function LibraryDetailPage() {
             <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
               {filteredItems.length} {t('common.items')}
             </Typography>
-            <Box sx={{ ml: 'auto' }}>
+            <Box sx={{ ml: 'auto', display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Tooltip title={t('common.refresh')}>
+                <span>
+                  <IconButton size="small" onClick={() => load()} disabled={loading}>
+                    {loading ? <CircularProgress size={16} /> : <ArrowSync24Regular style={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              {viewMode === 'grid' && (
+                <ToggleButtonGroup
+                  value={gridCols}
+                  exclusive
+                  onChange={(_, v) => v && setGridCols(v)}
+                  size="small"
+                >
+                  {([6, 8, 10] as const).map((n) => (
+                    <ToggleButton key={n} value={n} sx={{ px: 1.25, fontSize: 12, fontWeight: 600, minWidth: 32 }}>
+                      {n}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
               <ToggleButtonGroup
                 value={viewMode}
                 exclusive
@@ -1402,7 +1433,7 @@ export default function LibraryDetailPage() {
           </Box>
 
           {viewMode === 'grid' ? (
-            <ItemsGridView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
+            <ItemsGridView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} cols={gridCols} />
           ) : (
             <ItemsTableView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
           )}
