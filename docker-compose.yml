@@ -41,7 +41,7 @@ services:
       JWT_SECRET: "my-secret-jwt-key"
       TZ: mytimezone # timezone (ex: Europe/Paris)
     volumes:
-      - jellystics-backup-data:/app/backend/backup-data
+      - jellystics-backup-data:/app/data
     ports:
       - "3000:3000"
     depends_on:

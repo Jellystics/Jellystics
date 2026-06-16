@@ -9,14 +9,14 @@ tasks:
   # ── Setup ─────────────────────────────────────────────────────────────────
 
   setup:
-    desc: Create backend-v2/.env with default values if it does not exist
+    desc: Create backend/.env with default values if it does not exist
     cmds:
       - |
-        if [ ! -f backend-v2/.env ]; then
-          cp backend-v2/.env.example backend-v2/.env
-          echo "backend-v2/.env created — edit it before running"
+        if [ ! -f backend/.env ]; then
+          cp backend/.env.example backend/.env
+          echo "backend/.env created — edit it before running"
         else
-          echo "backend-v2/.env already exists"
+          echo "backend/.env already exists"
         fi
 
   install:
@@ -48,25 +48,25 @@ tasks:
 
   backend:
     desc: Start Go backend in dev mode
-    dir: backend-v2
+    dir: backend
     cmds:
       - go run ./cmd/server
 
   backend:build:
     desc: Build Go backend binary
-    dir: backend-v2
+    dir: backend
     cmds:
       - go build -o ../dist/jellystics ./cmd/server
 
   backend:test:
     desc: Run Go unit tests
-    dir: backend-v2
+    dir: backend
     cmds:
       - go test ./...
 
   backend:tidy:
     desc: Run go mod tidy
-    dir: backend-v2
+    dir: backend
     cmds:
       - go mod tidy
 
@@ -90,8 +90,8 @@ tasks:
     desc: Build production binary with frontend embedded
     cmds:
       - task: frontend:build
-      - mkdir -p backend-v2/internal/assets/web
-      - cp -r frontend/dist/. backend-v2/internal/assets/web/
+      - mkdir -p backend/internal/assets/web
+      - cp -r frontend/dist/. backend/internal/assets/web/
       - task: backend:build
       - echo "Binary at dist/jellystics"
 
@@ -109,5 +109,5 @@ tasks:
       - task: clean
       - rm -rf frontend/node_modules frontend/dist
       - rm -rf dist
-      - rm -f backend-v2/internal/assets/web/*
+      - rm -f backend/internal/assets/web/*
       - echo "Full clean done"
