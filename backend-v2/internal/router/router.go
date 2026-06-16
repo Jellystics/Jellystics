@@ -6,12 +6,13 @@ import (
 	"github.com/Jellystics/Jellystics/internal/middleware"
 	"github.com/Jellystics/Jellystics/internal/repository"
 	"github.com/Jellystics/Jellystics/internal/service"
+	"github.com/Jellystics/Jellystics/internal/service/scheduler"
 	"github.com/Jellystics/Jellystics/internal/ws"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *gorm.DB, cfg *config.Config) *gin.Engine {
+func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *gorm.DB, cfg *config.Config, sched *scheduler.Scheduler) *gin.Engine {
 	r := gin.Default()
 
 	// CORS
@@ -29,6 +30,7 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	frontAuthH := handler.NewFrontendAuthHandler(repos, cfg)
 	configH    := handler.NewConfigApiHandler(repos, svcs)
+	configH.SetScheduler(sched)
 	sessionsH  := handler.NewSessionsApiHandler(repos)
 	tasksH     := handler.NewTasksApiHandler(svcs, repos, db)
 	proxyH     := handler.NewProxyApiHandler(repos)
@@ -184,6 +186,7 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 		api.POST("/setUntrackedUsers", configH.SetUntrackedUsers)
 		api.GET("/getTaskSettings", configH.GetTaskSettings)
 		api.POST("/setTaskSettings", configH.SetTaskSettings)
+		api.GET("/isFirstRun", configH.IsFirstRun)
 		api.GET("/getActivityMonitorSettings", configH.GetActivityMonitorSettings)
 		api.POST("/setActivityMonitorSettings", configH.SetActivityMonitorSettings)
 		api.GET("/CheckForUpdates", configH.CheckForUpdates)

@@ -147,6 +147,11 @@ func runBackupTask(ctx context.Context, repos *repository.Container) error {
 	return err
 }
 
+// RunBackupTask is an exported version of runBackupTask for use outside the handler package.
+func RunBackupTask(ctx context.Context, repos *repository.Container) error {
+	return runBackupTask(ctx, repos)
+}
+
 // POST /sync/importPlaybackBackup
 func (h *TasksApiHandler) ImportBackup(c *gin.Context) {
 	file, err := c.FormFile("file")

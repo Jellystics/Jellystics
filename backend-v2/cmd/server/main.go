@@ -11,12 +11,14 @@ import (
 	"github.com/Jellystics/Jellystics/internal/assets"
 	"github.com/Jellystics/Jellystics/internal/config"
 	"github.com/Jellystics/Jellystics/internal/database"
+	"github.com/Jellystics/Jellystics/internal/handler"
 	"github.com/Jellystics/Jellystics/internal/jellyfin"
 	"github.com/Jellystics/Jellystics/internal/migrations"
 	"github.com/Jellystics/Jellystics/internal/repository"
 	"github.com/Jellystics/Jellystics/internal/router"
 	"github.com/Jellystics/Jellystics/internal/service"
 	authsvc "github.com/Jellystics/Jellystics/internal/service/auth"
+	"github.com/Jellystics/Jellystics/internal/service/scheduler"
 	statssvc "github.com/Jellystics/Jellystics/internal/service/stats"
 	syncsvc "github.com/Jellystics/Jellystics/internal/service/sync"
 	tasksvc "github.com/Jellystics/Jellystics/internal/service/task"
@@ -45,26 +47,48 @@ func main() {
 	repos := repository.New(db)
 
 	syncSvc := syncsvc.New(repos, jfClient, hub)
+	taskSvc := tasksvc.New(repos, hub)
 
 	svcs := &service.Container{
 		Auth:    authsvc.New(repos, jfClient, cfg),
 		Sync:    syncSvc,
 		Stats:   statssvc.New(repos),
-		Task:    tasksvc.New(repos, hub),
+		Task:    taskSvc,
 		Webhook: webhooksvc.New(repos),
 	}
 
-	// Periodically broadcast live Jellyfin sessions to all Socket.IO clients.
+	// Cron scheduler: dispatches tasks based on cron expressions stored in app_config.
+	dispatch := func(ctx context.Context, name string) error {
+		return taskSvc.Run(ctx, name, func(ctx context.Context) error {
+			switch name {
+			case "Full Jellyfin Sync":
+				return syncSvc.FullSync(ctx)
+			case "Recently Added Sync":
+				return syncSvc.SyncRecentlyAdded(ctx)
+			case "Backup":
+				return handler.RunBackupTask(ctx, repos)
+			case "Jellyfin Playback Reporting Plugin Sync":
+				return syncSvc.SyncPlaybackPlugin(ctx)
+			}
+			return nil
+		})
+	}
+	runner := scheduler.NewRunner(taskSvc, dispatch)
+	sched := scheduler.New(repos, runner)
+	sched.Start(context.Background())
+
+	// Every 10 s: broadcast live sessions, update watchdog, promote finished
+	// sessions to jf_playback_activity (ActivityMonitor equivalent).
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		ctx := context.Background()
 		for range ticker.C {
-			syncSvc.BroadcastSessions(ctx)
+			syncSvc.SessionTick(ctx)
 		}
 	}()
 
-	r := router.New(svcs, repos, hub, db, cfg)
+	r := router.New(svcs, repos, hub, db, cfg, sched)
 
 	// Serve embedded SPA (production)
 	webFS, err := fs.Sub(assets.Web, "web")

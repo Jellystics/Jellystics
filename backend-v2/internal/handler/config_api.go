@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -18,13 +19,24 @@ import (
 // Override with -ldflags "-X 'github.com/Jellystics/Jellystics/internal/handler.currentAppVersion=x.y.z'"
 var currentAppVersion = "0.0.0"
 
+// Reloader is implemented by the scheduler to hot-reload cron jobs after settings change.
+type Reloader interface {
+	Reload(ctx context.Context)
+}
+
 type ConfigApiHandler struct {
-	repos *repository.Container
-	svcs  *service.Container
+	repos     *repository.Container
+	svcs      *service.Container
+	scheduler Reloader
 }
 
 func NewConfigApiHandler(repos *repository.Container, svcs *service.Container) *ConfigApiHandler {
 	return &ConfigApiHandler{repos: repos, svcs: svcs}
+}
+
+// SetScheduler wires the cron scheduler so task settings changes trigger a reload.
+func (h *ConfigApiHandler) SetScheduler(s Reloader) {
+	h.scheduler = s
 }
 
 // GET /api/getconfig
@@ -612,15 +624,12 @@ func (h *ConfigApiHandler) GetTaskSettings(c *gin.Context) {
 // POST /api/setTaskSettings
 func (h *ConfigApiHandler) SetTaskSettings(c *gin.Context) {
 	var body struct {
-		TaskName *string  `json:"taskname"`
-		Interval *float64 `json:"Interval"`
+		TaskName       *string `json:"taskname"`
+		CronExpression *string `json:"cronExpression"`
+		Enabled        *bool   `json:"enabled"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.TaskName == nil || body.Interval == nil {
-		c.String(http.StatusBadRequest, "Task Name and Interval are required")
-		return
-	}
-	if *body.Interval <= 0 {
-		c.String(http.StatusBadRequest, "A valid Interval(int) which is > 0 minutes is required")
+	if err := c.ShouldBindJSON(&body); err != nil || body.TaskName == nil {
+		c.String(http.StatusBadRequest, "taskname is required")
 		return
 	}
 
@@ -639,7 +648,14 @@ func (h *ConfigApiHandler) SetTaskSettings(c *gin.Context) {
 	if taskEntry == nil {
 		taskEntry = map[string]interface{}{}
 	}
-	taskEntry["Interval"] = *body.Interval
+	if body.CronExpression != nil && *body.CronExpression != "" {
+		taskEntry["cronExpression"] = *body.CronExpression
+	}
+	if body.Enabled != nil {
+		taskEntry["enabled"] = *body.Enabled
+	}
+	// Remove old Interval key if present
+	delete(taskEntry, "Interval")
 	tasks[*body.TaskName] = taskEntry
 	settings["Tasks"] = tasks
 
@@ -647,7 +663,39 @@ func (h *ConfigApiHandler) SetTaskSettings(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Error: " + err.Error()})
 		return
 	}
+
+	// Reload cron scheduler if available
+	if h.scheduler != nil {
+		h.scheduler.Reload(c.Request.Context())
+	}
+
 	c.JSON(http.StatusOK, tasks)
+}
+
+// GET /api/isFirstRun
+// Returns {"firstRun": true} if no successful "Full Jellyfin Sync" has ever completed.
+func (h *ConfigApiHandler) IsFirstRun(c *gin.Context) {
+	logs, err := h.repos.Log.List(c.Request.Context(), 200)
+	if err != nil {
+		// On error, assume not first run to avoid nagging loops
+		c.JSON(http.StatusOK, gin.H{"firstRun": false})
+		return
+	}
+	for _, l := range logs {
+		name := ""
+		if l.Name != nil {
+			name = *l.Name
+		}
+		result := ""
+		if l.Result != nil {
+			result = *l.Result
+		}
+		if name == "Full Jellyfin Sync" && result == "success" {
+			c.JSON(http.StatusOK, gin.H{"firstRun": false})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"firstRun": true})
 }
 
 // ─── getActivityMonitorSettings / setActivityMonitorSettings ──────────────────

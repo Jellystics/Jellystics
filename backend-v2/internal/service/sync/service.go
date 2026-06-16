@@ -56,7 +56,147 @@ func (s *Service) refreshClient(ctx context.Context) error {
 	return nil
 }
 
+const (
+	ticksPerSecond     = 10_000_000 // Jellyfin PositionTicks are 100-nanosecond intervals
+	minPlaybackSeconds = 30         // ignore sessions shorter than 30 s
+)
+
+// SessionTick is called every ~10 s. It:
+//  1. Fetches live Jellyfin sessions and broadcasts them via WebSocket.
+//  2. Upserts active sessions to jf_activity_watchdog.
+//  3. Detects sessions that have ended and promotes them to jf_playback_activity.
+func (s *Service) SessionTick(ctx context.Context) {
+	if err := s.refreshClient(ctx); err != nil {
+		return
+	}
+
+	sessions, err := s.jf.GetSessions(ctx)
+	if err != nil {
+		return
+	}
+
+	// 1. Broadcast to frontend
+	s.hub.Emit("sessions", sessions)
+
+	// 2. Build watchdog entries for currently active sessions
+	liveIDs := make(map[string]struct{}, len(sessions))
+	entries := make([]models.JFActivityWatchdog, 0)
+	for _, sess := range sessions {
+		if sess.NowPlayingItem == nil {
+			continue
+		}
+		liveIDs[sess.Id] = struct{}{}
+
+		activityId := uuid.New().String()
+		nowPlayingItemId := sess.NowPlayingItem.Id
+		var episodeId *string
+		if sess.NowPlayingItem.SeriesId != nil && *sess.NowPlayingItem.SeriesId != "" {
+			nowPlayingItemId = *sess.NowPlayingItem.SeriesId
+			episodeId = &sess.NowPlayingItem.Id
+		}
+
+		now := time.Now().Format("2006-01-02 15:04:05.000-07:00")
+		entry := models.JFActivityWatchdog{
+			Id:                   sess.Id,
+			ActivityId:           &activityId,
+			UserId:               &sess.UserId,
+			UserName:             &sess.UserName,
+			Client:               &sess.Client,
+			DeviceName:           &sess.DeviceName,
+			DeviceId:             &sess.DeviceId,
+			ApplicationVersion:   &sess.ApplicationVersion,
+			NowPlayingItemId:     &nowPlayingItemId,
+			NowPlayingItemName:   &sess.NowPlayingItem.Name,
+			EpisodeId:            episodeId,
+			SeasonId:             sess.NowPlayingItem.SeasonId,
+			SeriesName:           sess.NowPlayingItem.SeriesName,
+			ActivityDateInserted: &now,
+			RemoteEndPoint:       sess.RemoteEndPoint,
+			ServerId:             sess.ServerId,
+		}
+		if sess.PlayState != nil {
+			entry.IsPaused = &sess.PlayState.IsPaused
+			entry.PlayMethod = sess.PlayState.PlayMethod
+			// Store raw PositionTicks; ActivityMonitor converts to seconds on promotion.
+			entry.PlaybackDuration = sess.PlayState.PositionTicks
+		}
+		entries = append(entries, entry)
+	}
+	if len(entries) > 0 {
+		_ = s.repos.Watchdog.Upsert(ctx, entries)
+	}
+
+	// 3. Promote finished sessions (in watchdog but no longer live)
+	allWatchdog, err := s.repos.Watchdog.List(ctx)
+	if err != nil {
+		return
+	}
+	type promotion struct {
+		sessionID string
+		activity  models.JFPlaybackActivity
+	}
+	var promotions []promotion
+	for _, wd := range allWatchdog {
+		if _, alive := liveIDs[wd.Id]; alive {
+			continue
+		}
+		var durationSecs int64
+		if wd.PlaybackDuration != nil {
+			durationSecs = *wd.PlaybackDuration / ticksPerSecond
+		}
+		if durationSecs < minPlaybackSeconds {
+			_ = s.repos.Watchdog.Delete(ctx, wd.Id)
+			continue
+		}
+		actId := wd.Id
+		if wd.ActivityId != nil {
+			actId = *wd.ActivityId
+		}
+		promotions = append(promotions, promotion{
+			sessionID: wd.Id, // Jellyfin session ID — watchdog PK
+			activity: models.JFPlaybackActivity{
+				Id:                   actId,
+				IsPaused:             wd.IsPaused,
+				UserId:               wd.UserId,
+				UserName:             wd.UserName,
+				Client:               wd.Client,
+				DeviceName:           wd.DeviceName,
+				DeviceId:             wd.DeviceId,
+				ApplicationVersion:   wd.ApplicationVersion,
+				NowPlayingItemId:     wd.NowPlayingItemId,
+				NowPlayingItemName:   wd.NowPlayingItemName,
+				EpisodeId:            wd.EpisodeId,
+				SeasonId:             wd.SeasonId,
+				SeriesName:           wd.SeriesName,
+				PlaybackDuration:     &durationSecs,
+				PlayMethod:           wd.PlayMethod,
+				ActivityDateInserted: wd.ActivityDateInserted,
+				MediaStreams:         wd.MediaStreams,
+				TranscodingInfo:      wd.TranscodingInfo,
+				PlayState:            wd.PlayState,
+				OriginalContainer:    wd.OriginalContainer,
+				RemoteEndPoint:       wd.RemoteEndPoint,
+				ServerId:             wd.ServerId,
+				Source:               "watchdog",
+			},
+		})
+	}
+	if len(promotions) > 0 {
+		acts := make([]models.JFPlaybackActivity, len(promotions))
+		for i, p := range promotions {
+			acts[i] = p.activity
+		}
+		if err := s.repos.Playback.Upsert(ctx, acts); err == nil {
+			for _, p := range promotions {
+				_ = s.repos.Watchdog.Delete(ctx, p.sessionID)
+			}
+			log.Printf("[monitor] promoted %d finished session(s) to jf_playback_activity", len(promotions))
+		}
+	}
+}
+
 // BroadcastSessions fetches live Jellyfin sessions and emits them to all WS clients.
+// Kept for backward-compatibility with callers; production uses SessionTick.
 func (s *Service) BroadcastSessions(ctx context.Context) {
 	if err := s.refreshClient(ctx); err != nil {
 		return
