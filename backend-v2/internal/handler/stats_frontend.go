@@ -382,7 +382,15 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30) - 1
+	daysParam := c.DefaultQuery("days", "30")
+	days, err := strconv.Atoi(daysParam)
+	if err != nil {
+		days = 30
+	}
+	allTime := days <= 0
+	if !allTime {
+		days = days - 1
+	}
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -393,28 +401,53 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 	var rows []Row
 
 	if userId != "" {
-		h.db.Raw(`
-			SELECT
-			  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
-			  COUNT(*)::int AS plays,
-			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-			  AND "UserId" = ?
-			GROUP BY ("ActivityDateInserted"::timestamptz)::date
-			ORDER BY date
-		`, days, userId).Scan(&rows)
+		if allTime {
+			h.db.Raw(`
+				SELECT
+				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "UserId" = ?
+				GROUP BY ("ActivityDateInserted"::timestamptz)::date
+				ORDER BY date
+			`, userId).Scan(&rows)
+		} else {
+			h.db.Raw(`
+				SELECT
+				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				  AND "UserId" = ?
+				GROUP BY ("ActivityDateInserted"::timestamptz)::date
+				ORDER BY date
+			`, days, userId).Scan(&rows)
+		}
 	} else {
-		h.db.Raw(`
-			SELECT
-			  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
-			  COUNT(*)::int AS plays,
-			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
-			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-			GROUP BY ("ActivityDateInserted"::timestamptz)::date
-			ORDER BY date
-		`, days).Scan(&rows)
+		if allTime {
+			h.db.Raw(`
+				SELECT
+				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				GROUP BY ("ActivityDateInserted"::timestamptz)::date
+				ORDER BY date
+			`).Scan(&rows)
+		} else {
+			h.db.Raw(`
+				SELECT
+				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				GROUP BY ("ActivityDateInserted"::timestamptz)::date
+				ORDER BY date
+			`, days).Scan(&rows)
+		}
 	}
 
 	if rows == nil {

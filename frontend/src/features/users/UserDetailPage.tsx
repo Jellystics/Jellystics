@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
-  Card, CardContent, Skeleton, CardMedia,
+  Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
@@ -44,6 +44,17 @@ export default function UserDetailPage() {
   const [globalStats, setGlobalStats] = useState<{ Plays?: number; total_playback_duration?: number } | null>(null)
   const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
   const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
+  const [watchDays, setWatchDays] = useState<number>(30)
+  const [chartVisible, setChartVisible] = useState(true)
+
+  const handleWatchDaysChange = (_: React.MouseEvent<HTMLElement>, v: number | null) => {
+    if (v === null) return
+    setChartVisible(false)
+    setTimeout(() => {
+      setWatchDays(v)
+      setChartVisible(true)
+    }, 180)
+  }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,7 +67,7 @@ export default function UserDetailPage() {
       api.get(`/stats/getUserActivity?userId=${id}`),
       api.get(`/stats/getUserActivityByDate?userId=${id}`),
       api.get(`/stats/getUserGenreStats?userId=${id}`),
-      api.get(`/stats/getWatchStatisticsOverTime?userId=${id}&days=30`),
+      api.get(`/stats/getWatchStatisticsOverTime?userId=${id}&days=0`),
       api.get(`/stats/getGenreUserStats?userid=${id}&size=10&page=1`),
       api.post(`/stats/getUserLastPlayed`, { userid: id }),
       api.post(`/stats/getGlobalUserStats`, { userid: id }),
@@ -96,6 +107,14 @@ export default function UserDetailPage() {
       cell: (i) => { const s = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}` : `${m}${t('time.minuteShort')}` },
     }),
   ]
+
+  const filteredWatchOverTime = useMemo(() => {
+    if (watchDays === 0) return watchOverTime
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - watchDays)
+    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    return watchOverTime.filter((d) => d.date >= cutoffStr)
+  }, [watchOverTime, watchDays])
 
   const activityFilterDefs = useMemo<FilterDef[]>(() => [
     { id: 'Client', label: t('activity.client'), type: 'select' },
@@ -171,25 +190,46 @@ export default function UserDetailPage() {
       <ChartCard
         title={t('users.watchOverTime')}
         loading={loading}
-        empty={watchOverTime.length === 0}
+        empty={filteredWatchOverTime.length === 0}
         height={200}
-        action={<MetricToggle value={watchMetric} onChange={setWatchMetric} />}
+        action={
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <ToggleButtonGroup
+              value={watchDays}
+              exclusive
+              size="small"
+              onChange={handleWatchDaysChange}
+              sx={{ '& .MuiToggleButton-root': { px: 1.5, py: 0.25, fontSize: 12, textTransform: 'none' } }}
+            >
+              <ToggleButton value={7}>7d</ToggleButton>
+              <ToggleButton value={30}>30d</ToggleButton>
+              <ToggleButton value={90}>90d</ToggleButton>
+              <ToggleButton value={0}>{t('common.all', 'All')}</ToggleButton>
+            </ToggleButtonGroup>
+            <MetricToggle value={watchMetric} onChange={setWatchMetric} />
+          </Box>
+        }
       >
-        <LineChart
-          xAxis={[{ data: watchOverTime.map((d) => d.date), scaleType: 'point' }]}
-          series={[{
-            data: watchOverTime.map((d) => (watchMetric === 'duration' ? d.duration : d.plays)),
-            area: true,
-            label: watchMetric === 'duration' ? t('stats.watchTime') : t('common.plays'),
-            valueFormatter: (v) => watchMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0),
-            color: theme.palette.primary.main,
-            showMark: false,
-          }]}
-          height={200}
-          sx={{ width: '100%' }}
-          grid={{ horizontal: true }}
-          slotProps={{ legend: { hidden: true } }}
-        />
+        <Fade in={chartVisible} timeout={180}>
+          <Box>
+            <LineChart
+              xAxis={[{ data: filteredWatchOverTime.map((d) => d.date), scaleType: 'point' }]}
+              series={[{
+                data: filteredWatchOverTime.map((d) => (watchMetric === 'duration' ? d.duration : d.plays)),
+                area: true,
+                label: watchMetric === 'duration' ? t('stats.watchTime') : t('common.plays'),
+                valueFormatter: (v) => watchMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0),
+                color: theme.palette.primary.main,
+                showMark: false,
+              }]}
+              height={200}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } }}
+              skipAnimation
+            />
+          </Box>
+        </Fade>
       </ChartCard>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mt: 3 }}>
