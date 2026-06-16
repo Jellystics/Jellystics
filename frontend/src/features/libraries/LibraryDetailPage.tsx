@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
@@ -1087,7 +1087,19 @@ export default function LibraryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const [tab, setTab] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // view ↔ tab index mappings
+  const REGULAR_VIEWS = ['items', 'stats', 'activity'] as const
+  const MUSIC_VIEWS   = ['albums', 'artists', 'tracks', 'stats', 'activity'] as const
+
+  const viewToTab = (view: string, music: boolean): number => {
+    const list = music ? MUSIC_VIEWS : REGULAR_VIEWS
+    const idx = list.indexOf(view as never)
+    return idx >= 0 ? idx : 0
+  }
+  const tabToView = (idx: number, music: boolean): string =>
+    (music ? MUSIC_VIEWS : REGULAR_VIEWS)[idx] ?? (music ? MUSIC_VIEWS[0] : REGULAR_VIEWS[0])
   const [items, setItems] = useState<LibraryItem[]>([])
   const [tracks, setTracks] = useState<Track[]>([])
   const [albums, setAlbums] = useState<Album[]>([])
@@ -1196,6 +1208,11 @@ export default function LibraryDetailPage() {
   const statsTabIndex = isMusicLibrary ? 3 : 1
   const activityTabIndex = isMusicLibrary ? 4 : 2
 
+  const tab = viewToTab(searchParams.get('view') ?? '', isMusicLibrary)
+  const setTab = (idx: number) => {
+    setSearchParams({ view: tabToView(idx, isMusicLibrary) }, { replace: true })
+  }
+
   return (
     <>
       <PageHeader title={stats?.Name ?? (id ?? '')} />
@@ -1218,7 +1235,7 @@ export default function LibraryDetailPage() {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         {isMusicLibrary ? (
-          <Tabs value={tab} onChange={(_, v) => { setTab(v as number); setSelectedArtist(null) }}>
+          <Tabs value={tab} onChange={(_, v) => { setTab(v as number); setSelectedArtist(null) }} variant="scrollable" scrollButtons="auto">
             <Tab label={t('library.albums', 'Albums')} />
             <Tab label={t('library.artists', 'Artistes')} />
             <Tab label={t('library.tracks', 'Titres')} />
@@ -1226,7 +1243,7 @@ export default function LibraryDetailPage() {
             <Tab label={t('library.activityHistory', "Historique d'activité")} />
           </Tabs>
         ) : (
-          <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>
+          <Tabs value={tab} onChange={(_, v) => setTab(v as number)} variant="scrollable" scrollButtons="auto">
             <Tab label={t('library.items')} />
             <Tab label={t('library.stats', 'Stats')} />
             <Tab label={t('library.activityHistory', "Historique d'activité")} />

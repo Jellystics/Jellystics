@@ -100,7 +100,7 @@ export default function UsersPage() {
     col.accessor('UserName', {
       header: t('users.user'),
       cell: (i) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={() => navigate(`/users/${i.row.original.UserId}`)}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={() => navigate(`/users/${i.row.original.UserId}?view=history`)}>
           <Avatar
             src={`/proxy/Users/Images/Primary/?id=${i.row.original.UserId}&fillWidth=56&quality=90`}
             sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12, fontWeight: 700 }}
@@ -157,7 +157,7 @@ export default function UsersPage() {
                     >
                       <CardActionArea
                         sx={{ height: '100%' }}
-                        onClick={() => navigate(`/users/${user.UserId}`)}
+                        onClick={() => navigate(`/users/${user.UserId}?view=history`)}
                       >
                         <CardContent
                           sx={{

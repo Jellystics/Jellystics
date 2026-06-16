@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import {
   Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
@@ -33,7 +33,12 @@ export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
   const theme = useTheme()
-  const [tab, setTab] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const USER_VIEWS = ['history', 'genres', 'lastplayed'] as const
+  const currentView = searchParams.get('view') ?? 'history'
+  const tab = Math.max(0, USER_VIEWS.indexOf(currentView as never))
+  const setTab = (idx: number) => setSearchParams({ view: USER_VIEWS[idx] }, { replace: true })
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [activity, setActivity] = useState<Activity[]>([])
   const [heatmapData, setHeatmapData] = useState<UserActivity[]>([])
@@ -43,6 +48,7 @@ export default function UserDetailPage() {
   const [lastPlayed, setLastPlayed] = useState<Activity[]>([])
   const [globalStats, setGlobalStats] = useState<{ Plays?: number; total_playback_duration?: number } | null>(null)
   const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
+
   const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
   const [watchDays, setWatchDays] = useState<number>(30)
   const [chartVisible, setChartVisible] = useState(true)
