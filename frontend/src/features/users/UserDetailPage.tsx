@@ -21,7 +21,7 @@ import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
 import type { UserStats, UserActivity } from '@/shared/types/user'
 import type { GenreStat } from '@/shared/types/library'
-import { Play24Regular, Clock24Regular, Star24Regular } from '@fluentui/react-icons'
+import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 
@@ -94,7 +94,28 @@ export default function UserDetailPage() {
   const columns: ColumnDef<Activity, any>[] = [
     col.accessor('NowPlayingItemName', {
       header: t('activity.item'),
-      cell: (i) => { const row = i.row.original; return row.SeriesName ? `${row.SeriesName} — ${i.getValue() as string}` : i.getValue() as string },
+      cell: (i) => {
+        const row = i.row.original
+        const label = row.SeriesName ? `${row.SeriesName} — ${i.getValue() as string}` : i.getValue() as string
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{
+              width: 45, height: 30, borderRadius: 0.75, overflow: 'hidden', flexShrink: 0,
+              bgcolor: 'rgba(255,255,255,0.06)', position: 'relative',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
+              <Box
+                component="img"
+                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=90&quality=80`}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </Box>
+            <Typography variant="body2" noWrap title={label}>{label}</Typography>
+          </Box>
+        )
+      },
     }),
     col.accessor('Client', { header: t('activity.client') }),
     col.accessor('PlayMethod', { header: t('activity.method'), cell: (i) => (i.getValue() as string | undefined) ?? '—' }),
