@@ -1,0 +1,10 @@
+DROP FUNCTION  IF EXISTS fs_last_user_activity(text);
+DROP PROCEDURE IF EXISTS jd_remove_orphaned_data();
+DROP PROCEDURE IF EXISTS ju_update_library_stats_data();
+DROP PROCEDURE IF EXISTS ji_insert_playback_plugin_data_to_activity_table();
+DROP VIEW      IF EXISTS js_library_metadata;
+DROP MATERIALIZED VIEW IF EXISTS js_library_items_with_playcount_playtime;
+DROP MATERIALIZED VIEW IF EXISTS js_library_stats_overview;
+DROP MATERIALIZED VIEW IF EXISTS js_latest_playback_activity;
+DROP VIEW      IF EXISTS jf_playback_activity_with_metadata;
+DROP VIEW      IF EXISTS jf_all_user_activity;
