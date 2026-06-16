@@ -183,7 +183,19 @@
     "importJellystatBackup": "Importer une sauvegarde Jellystat",
     "importJellystatBackupDesc": "Importez un fichier JSON Jellystat/Jellystics. Les bibliothèques, éléments, utilisateurs, historiques et métadonnées sont restaurés.",
     "jellystatImportSuccess": "{{count}} lignes restaurées avec succès",
-    "jellystatImportError": "Échec de l'import Jellystat"
+    "jellystatImportError": "Échec de l'import Jellystat",
+    "cronEnabled": "Activer la planification",
+    "cronExpression": "Expression cron",
+    "cronSaved": "Planification sauvegardée",
+    "cronHelp": "Format cron standard : minute heure jour mois jour_semaine (ex. \"0 * * * *\" = chaque heure)",
+    "cronHint": "Utilisez des expressions cron pour planifier les tâches (ex. \"0 * * * *\" = chaque heure, \"0 0 * * *\" = tous les jours à minuit)"
+  },
+  "firstRun": {
+    "title": "Bienvenue sur Jellystics !",
+    "description": "Jellyfin n'a pas encore été synchronisé. Lancez une synchronisation complète initiale pour importer vos bibliothèques, utilisateurs et historique de lecture.",
+    "hint": "Vous pouvez également lancer une synchronisation manuellement depuis Paramètres → Tâches.",
+    "dismiss": "Plus tard",
+    "runSync": "Lancer la synchronisation initiale"
   },
   "frame": {
     "language": "Langue",

@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Button, Typography, Chip,
   List, ListItem, ListItemText, ListItemSecondaryAction, Skeleton,
-  Alert, LinearProgress,
+  Alert, LinearProgress, TextField, InputAdornment, Tooltip, Switch, FormControlLabel,
 } from '@mui/material'
-import { ArrowUpload24Regular, Document24Regular } from '@fluentui/react-icons'
+import { ArrowUpload24Regular, Document24Regular, ArrowClockwise24Regular, CheckmarkCircle24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
 import { useSocket } from '@/shared/hooks/useSocket'
@@ -20,6 +20,17 @@ interface Task {
 interface ImportResult {
   count?: number
   error?: string
+}
+
+// Full sync is always active. The others require an explicit enable toggle.
+const ALWAYS_ENABLED_TASK = 'Full Jellyfin Sync'
+
+// Default cron expressions pre-filled in inputs
+const DEFAULT_CRON: Record<string, string> = {
+  'Full Jellyfin Sync': '0 0 * * *',
+  'Recently Added Sync': '0 * * * *',
+  'Backup': '0 3 * * *',
+  'Jellyfin Playback Reporting Plugin Sync': '0 4 * * *',
 }
 
 export default function TasksTab() {
@@ -38,12 +49,30 @@ export default function TasksTab() {
   const [playbackImportResult, setPlaybackImportResult] = useState<ImportResult | null>(null)
   const [jellystatImportResult, setJellystatImportResult] = useState<ImportResult | null>(null)
 
+  // cron expressions keyed by task name
+  const [cronInputs, setCronInputs] = useState<Record<string, string>>({})
+  const [cronEnabled, setCronEnabled] = useState<Record<string, boolean>>({})
+  const [cronSaving, setCronSaving] = useState<Record<string, boolean>>({})
+
   useEffect(() => {
     api
       .get('/api/getTasks')
       .then((r) => setTasks(r.data ?? []))
       .catch(() => {})
       .finally(() => setLoading(false))
+
+    // Load existing cron settings, falling back to defaults
+    api.get('/api/getTaskSettings').then((r) => {
+      const settings = r.data as Record<string, { cronExpression?: string; enabled?: boolean; Interval?: number }> ?? {}
+      const inputs: Record<string, string> = { ...DEFAULT_CRON }
+      const enabled: Record<string, boolean> = {}
+      for (const [name, cfg] of Object.entries(settings)) {
+        if (cfg.cronExpression) inputs[name] = cfg.cronExpression
+        if (cfg.enabled !== undefined) enabled[name] = cfg.enabled
+      }
+      setCronInputs(inputs)
+      setCronEnabled(enabled)
+    }).catch(() => { setCronInputs({ ...DEFAULT_CRON }) })
   }, [])
 
   useSocket('TaskLog', (msg) => {
@@ -52,6 +81,31 @@ export default function TasksTab() {
       if (logsRef.current) logsRef.current.scrollTop = logsRef.current.scrollHeight
     }, 50)
   })
+
+  const saveCron = async (taskName: string) => {
+    const expr = (cronInputs[taskName] ?? '').trim()
+    if (!expr) return
+    setCronSaving((prev) => ({ ...prev, [taskName]: true }))
+    try {
+      await api.post('/api/setTaskSettings', { taskname: taskName, cronExpression: expr })
+      enqueueSnackbar(t('settings.cronSaved'), { variant: 'success' })
+    } catch {
+      enqueueSnackbar(t('common.error'), { variant: 'error' })
+    } finally {
+      setCronSaving((prev) => ({ ...prev, [taskName]: false }))
+    }
+  }
+
+  const toggleCronEnabled = async (taskName: string, value: boolean) => {
+    setCronEnabled((prev) => ({ ...prev, [taskName]: value }))
+    try {
+      await api.post('/api/setTaskSettings', { taskname: taskName, enabled: value })
+    } catch {
+      // revert on error
+      setCronEnabled((prev) => ({ ...prev, [taskName]: !value }))
+      enqueueSnackbar(t('common.error'), { variant: 'error' })
+    }
+  }
 
   const importPlaybackReportingBackup = async () => {
     if (!playbackFile) return
@@ -118,29 +172,84 @@ export default function TasksTab() {
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.scheduledTasks')}</Typography>
           {loading ? (
-            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={52} sx={{ mb: 1, borderRadius: 1 }} />)
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={80} sx={{ mb: 1, borderRadius: 1 }} />)
           ) : (
             <List disablePadding>
-              {tasks.map((task) => (
-                <ListItem key={task.name} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-                  <ListItemText
-                    primary={task.displayName}
-                    secondary={task.lastRun ? `${t('settings.lastRun')}: ${task.lastRun}` : t('settings.neverRun')}
-                    slotProps={{ primary: { style: { fontSize: 14, fontWeight: 500 } }, secondary: { style: { fontSize: 12 } } }}
-                  />
-                  <ListItemSecondaryAction>
-                    {task.running ? (
-                      <Chip label={t('settings.running')} size="small" color="primary" />
-                    ) : (
-                      <Button size="small" variant="outlined" onClick={() => runTask(task.name)}>
-                        {t('settings.run')}
-                      </Button>
+              {tasks.map((task) => {
+                const isAlwaysOn = task.name === ALWAYS_ENABLED_TASK
+                const enabled = isAlwaysOn || !!cronEnabled[task.name]
+                return (
+                  <ListItem key={task.name} disablePadding sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 }, flexDirection: 'column', alignItems: 'stretch' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <ListItemText
+                        primary={task.displayName}
+                        secondary={task.lastRun ? `${t('settings.lastRun')}: ${task.lastRun}` : t('settings.neverRun')}
+                        slotProps={{ primary: { style: { fontSize: 14, fontWeight: 500 } }, secondary: { style: { fontSize: 12 } } }}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto', pl: 2 }}>
+                        {!isAlwaysOn && (
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                size="small"
+                                checked={!!cronEnabled[task.name]}
+                                onChange={(e) => toggleCronEnabled(task.name, e.target.checked)}
+                              />
+                            }
+                            label={<Typography variant="caption">{t('settings.cronEnabled')}</Typography>}
+                            labelPlacement="start"
+                            sx={{ mr: 0, ml: 0 }}
+                          />
+                        )}
+                        {task.running ? (
+                          <Chip label={t('settings.running')} size="small" color="primary" />
+                        ) : (
+                          <Button size="small" variant="outlined" onClick={() => runTask(task.name)}>
+                            {t('settings.run')}
+                          </Button>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {enabled && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.75 }}>
+                        <Tooltip title={t('settings.cronHelp')} placement="bottom-start">
+                          <TextField
+                            size="small"
+                            label={t('settings.cronExpression')}
+                            placeholder={DEFAULT_CRON[task.name] ?? '0 * * * *'}
+                            value={cronInputs[task.name] ?? ''}
+                            onChange={(e) => setCronInputs((prev) => ({ ...prev, [task.name]: e.target.value }))}
+                            sx={{ flex: 1, maxWidth: 280 }}
+                            inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <ArrowClockwise24Regular style={{ fontSize: 16, opacity: 0.5 }} />
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </Tooltip>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => saveCron(task.name)}
+                          disabled={!cronInputs[task.name]?.trim() || cronSaving[task.name]}
+                          startIcon={<CheckmarkCircle24Regular style={{ fontSize: 14 }} />}
+                        >
+                          {t('common.save')}
+                        </Button>
+                      </Box>
                     )}
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
+                  </ListItem>
+                )
+              })}
             </List>
           )}
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+            {t('settings.cronHint')}
+          </Typography>
         </CardContent>
       </Card>
 

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import SidebarContent from './Sidebar'
 import UserMenu from './UserMenu'
 import { useThemeMode } from '@/lib/ThemeModeContext'
+import FirstRunDialog from '@/shared/components/FirstRunDialog'
 
 const DRAWER_WIDTH = 240
 
@@ -34,6 +35,7 @@ export default function AppShell() {
 
   return (
     <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
+      <FirstRunDialog />
       {/* Fixed TopAppBar */}
       <AppBar
         position="fixed"

@@ -14,7 +14,6 @@ import api from '@/lib/axios'
 const schema = z.object({
   JellyfinUrl: z.string().url(),
   ApiKey: z.string().min(1),
-  SyncIntervalMinutes: z.number().min(1),
   KeepLogsForDays: z.number().min(1),
 })
 
@@ -45,7 +44,6 @@ export default function ConfigTab() {
       reset({
         JellyfinUrl: data.JF_HOST ?? '',
         ApiKey: '',
-        SyncIntervalMinutes: data.settings?.Tasks?.JellyfinSync?.Interval ?? 60,
         KeepLogsForDays: data.settings?.KeepLogsForDays ?? 30,
       })
     }).catch(() => {})
@@ -105,26 +103,6 @@ export default function ConfigTab() {
                     size="small"
                     error={!!errors.ApiKey}
                     helperText={errors.ApiKey?.message}
-                  />
-                </Box>
-              )}
-            />
-            <Controller
-              name="SyncIntervalMinutes"
-              control={control}
-              render={({ field }) => (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
-                    {t('settings.syncInterval')}
-                  </Typography>
-                  <TextField
-                    {...field}
-                    type="number"
-                    fullWidth
-                    size="small"
-                    error={!!errors.SyncIntervalMinutes}
-                    helperText={errors.SyncIntervalMinutes?.message}
-                    onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </Box>
               )}
