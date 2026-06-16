@@ -110,7 +110,9 @@
     "type": "Tipo",
     "size": "Tamaño",
     "neverPlayed": "Nunca visto",
-    "hoverToPreview": "Pasa el cursor sobre una fila"
+    "hoverToPreview": "Pasa el cursor sobre una fila",
+    "showGenres": "Géneros mostrados",
+    "allGenres": "Todos los géneros"
   },
   "users": {
     "user": "Usuario",

@@ -5,6 +5,7 @@ import {
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
   IconButton, Tooltip, Table, TableBody, TableCell, TableHead, TableRow,
   TableSortLabel, TablePagination, Paper, Pagination, ToggleButtonGroup, ToggleButton,
+  Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
 import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
@@ -369,6 +370,152 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
         />
       </Paper>
     </Box>
+  )
+}
+
+// ─── Genre Distribution ─────────────────────────────────────────────────────
+
+const PIE_LIMITS = [8, 12, 20, 9999] as const
+
+function GenreDistributionCard({ genres, loading, t }: {
+  genres: GenreStat[]
+  loading: boolean
+  t: (k: string, fb?: string) => string
+}) {
+  const [pieLimit, setPieLimit] = useState<number>(8)
+
+  const pieGenres = genres.slice(0, pieLimit)
+  const total = genres.reduce((s, g) => s + g.Count, 0)
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+          {t('library.genreDistribution')}
+        </Typography>
+
+        {loading ? (
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <Skeleton variant="circular" width={260} height={260} />
+                <Skeleton variant="rectangular" width={180} height={36} sx={{ borderRadius: 1 }} />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} variant="text" sx={{ mb: 0.75, height: 28 }} />
+              ))}
+            </Grid>
+          </Grid>
+        ) : genres.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+            {t('common.noData')}
+          </Typography>
+        ) : (
+          <Grid container spacing={3}>
+            {/* Left — Pie + dropdown */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <PieChart
+                  width={260}
+                  height={260}
+                  series={[{
+                    data: pieGenres.map((g, i) => ({
+                      id: i,
+                      value: g.Count,
+                      label: g.Genre,
+                      color: COLORS[i % COLORS.length],
+                    })),
+                    outerRadius: 110,
+                    paddingAngle: 2,
+                    cornerRadius: 3,
+                    highlightScope: { faded: 'global', highlighted: 'item' },
+                  }]}
+                  slotProps={{ legend: { hidden: true } }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 180 }}>
+                  <InputLabel>{t('library.showGenres', 'Genres affichés')}</InputLabel>
+                  <Select
+                    value={pieLimit}
+                    label={t('library.showGenres', 'Genres affichés')}
+                    onChange={(e) => setPieLimit(Number(e.target.value))}
+                  >
+                    {PIE_LIMITS.map((n) => (
+                      <MenuItem key={n} value={n}>
+                        {n >= 9999 ? t('library.allGenres', 'Tous les genres') : `Top ${n}`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Grid>
+
+            {/* Right — full genre list scrollable */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Box
+                sx={{
+                  height: 320,
+                  overflowY: 'auto',
+                  scrollbarWidth: 'thin',
+                  pr: 0.5,
+                }}
+              >
+                {genres.map((g, i) => {
+                  const pct = total > 0 ? (g.Count / total) * 100 : 0
+                  return (
+                    <Box
+                      key={g.Genre}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.25,
+                        py: 0.65,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        '&:last-child': { borderBottom: 0 },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 10, height: 10, borderRadius: '50%',
+                          bgcolor: COLORS[i % COLORS.length],
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }} noWrap>
+                        {g.Genre}
+                      </Typography>
+                      {/* Progress bar */}
+                      <Box sx={{ width: 60, flexShrink: 0, display: { xs: 'none', sm: 'block' } }}>
+                        <Box sx={{ height: 4, borderRadius: 2, bgcolor: 'action.hover', overflow: 'hidden' }}>
+                          <Box
+                            sx={{
+                              height: '100%',
+                              borderRadius: 2,
+                              width: `${pct}%`,
+                              bgcolor: COLORS[i % COLORS.length],
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ flexShrink: 0, minWidth: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {g.Count}
+                      </Typography>
+                    </Box>
+                  )
+                })}
+              </Box>
+            </Grid>
+          </Grid>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -882,7 +1029,7 @@ export default function LibraryDetailPage() {
     [tracks]
   )
 
-  const statsTabIndex = isMusicLibrary ? 3 : 2
+  const statsTabIndex = isMusicLibrary ? 3 : 1
 
   return (
     <>
@@ -915,7 +1062,6 @@ export default function LibraryDetailPage() {
         ) : (
           <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>
             <Tab label={t('library.items')} />
-            <Tab label={t('library.genres')} />
             <Tab label={t('library.stats', 'Stats')} />
           </Tabs>
         )}
@@ -1079,46 +1225,16 @@ export default function LibraryDetailPage() {
         </Box>
       )}
 
-      {/* ── REGULAR: Genres ── */}
-      {!isMusicLibrary && tab === 1 && (
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ChartCard title={t('library.genreDistribution')} loading={loading} empty={genres.length === 0} height={320}>
-              <PieChart
-                series={[{
-                  data: genres.map((g, i) => ({ id: i, value: g.Count, label: g.Genre, color: COLORS[i % COLORS.length] })),
-                  outerRadius: 120, paddingAngle: 2, cornerRadius: 3,
-                }]}
-                height={320}
-                sx={{ width: '100%' }}
-              />
-            </ChartCard>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('library.genreList')}</Typography>
-                {loading
-                  ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
-                  : (
-                    <List dense disablePadding>
-                      {genres.map((g) => (
-                        <ListItem key={g.Genre} disablePadding sx={{ py: 0.25 }}>
-                          <ListItemText primary={g.Genre} slotProps={{ primary: { style: { fontSize: 13 } } }} />
-                          <Chip label={g.Count} size="small" sx={{ fontSize: 11, height: 20 }} />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* ── Stats tab (tab 3 for music, tab 2 for regular) ── */}
+      {/* ── Stats tab (tab 3 for music, tab 1 for regular) ── */}
       {tab === statsTabIndex && (
         <Grid container spacing={2}>
+          {/* Genre Distribution (non-music only) */}
+          {!isMusicLibrary && (
+            <Grid size={{ xs: 12 }}>
+              <GenreDistributionCard genres={genres} loading={loading} t={t} />
+            </Grid>
+          )}
+
           {/* Top played tracks (music only) */}
           {isMusicLibrary && topTracks.length > 0 && (
             <Grid size={{ xs: 12 }}>

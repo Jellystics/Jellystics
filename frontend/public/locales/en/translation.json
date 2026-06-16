@@ -110,7 +110,9 @@
     "type": "Type",
     "size": "Size",
     "neverPlayed": "Never played",
-    "hoverToPreview": "Hover a row to preview"
+    "hoverToPreview": "Hover a row to preview",
+    "showGenres": "Genres shown",
+    "allGenres": "All genres"
   },
   "users": {
     "user": "User",
