@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLogo } from '@/lib/FaviconContext'
 import {
   Box, Stack, Typography, IconButton, Tooltip,
   ButtonBase, Fade, darken,
@@ -45,6 +46,7 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
   const location = useLocation()
   const theme = useTheme()
   const [showCollapse, setShowCollapse] = useState(false)
+  const { logoUrl } = useLogo()
 
   const activeColor = darken(theme.palette.primary.main, 0.45)
 
@@ -65,7 +67,7 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box component="img" src="/logo.svg" alt="Jellyfin" sx={{ width: 40, height: 40 }} />
+          <Box component="img" src={logoUrl} alt="logo" sx={{ width: 40, height: 40, objectFit: 'contain' }} />
           <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
             Jellystics
           </Typography>
