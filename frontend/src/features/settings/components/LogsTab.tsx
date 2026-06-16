@@ -42,7 +42,16 @@ export default function LogsTab() {
           level: String(row.Result ?? 'info').toLowerCase() === 'failed' ? 'error' as const
             : String(row.Result ?? 'info').toLowerCase() === 'running' ? 'warn' as const
             : 'info' as const,
-          message: String(row.Log ?? row.Result ?? ''),
+          message: (() => {
+            const raw = String(row.Log ?? row.Result ?? '')
+            try {
+              const parsed = JSON.parse(raw)
+              if (Array.isArray(parsed)) {
+                return parsed.map((e: { Message?: string }) => e.Message ?? '').filter(Boolean).join(' | ')
+              }
+            } catch { /* not JSON, use raw */ }
+            return raw
+          })(),
           timestamp: String(row.TimeRun ?? ''),
           task: String(row.Name ?? ''),
         })))

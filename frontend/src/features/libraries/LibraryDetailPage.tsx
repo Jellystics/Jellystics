@@ -35,9 +35,10 @@ interface Track {
   Id: string
   Name: string
   Artist: string | null
-  Album: string | null
+  AlbumName: string | null
   AlbumId: string | null
   IndexNumber: number | null
+  DiscNumber: number | null
   RunTimeTicks: number | null
   PlayCount: number
 }
@@ -45,14 +46,18 @@ interface Track {
 interface Album {
   Id: string
   Name: string
-  Artist: string | null
+  AlbumArtist: string | null
+  ArtistId: string | null
+  ImageTagsPrimary: string | null
   ProductionYear: number | null
   TrackCount: number
   PlayCount: number
 }
 
 interface Artist {
+  Id: string
   Name: string
+  ImageTagsPrimary: string | null
   AlbumCount: number
   TrackCount: number
   PlayCount: number
@@ -139,9 +144,9 @@ function AlbumGrid({ albums, libraryId, loading, navigate, t }: {
                   <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }} noWrap title={album.Name}>
                     {album.Name}
                   </Typography>
-                  {album.Artist && (
+                  {album.AlbumArtist && (
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mt: 0.25 }}>
-                      {album.Artist}
+                      {album.AlbumArtist}
                     </Typography>
                   )}
                   <Box sx={{ display: 'flex', gap: 0.75, mt: 0.5, flexWrap: 'wrap' }}>
@@ -204,7 +209,7 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
         </Typography>
       ),
     }),
-    colHelper.accessor('Album', {
+    colHelper.accessor('AlbumName', {
       header: t('library.album', 'Album'),
       cell: (info) => {
         const row = info.row.original
@@ -258,7 +263,7 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
       return (
         row.original.Name.toLowerCase().includes(v) ||
         (row.original.Artist ?? '').toLowerCase().includes(v) ||
-        (row.original.Album ?? '').toLowerCase().includes(v)
+        (row.original.AlbumName ?? '').toLowerCase().includes(v)
       )
     },
   })
@@ -392,7 +397,7 @@ export default function LibraryDetailPage() {
   const [playMethodStats, setPlayMethodStats] = useState<PlayMethodStat[]>([])
   const [lastPlayed, setLastPlayed] = useState<LastPlayedRow[]>([])
 
-  const isMusicLibrary = !loading && items.length > 0 && items.some((item) => item.Type === 'Audio')
+  const isMusicLibrary = !loading && (tracks.length > 0 || artists.length > 0 || albums.length > 0)
   const albumsSynced = albums.length > 0
 
   useEffect(() => {
@@ -447,11 +452,11 @@ export default function LibraryDetailPage() {
     return () => window.clearInterval(interval)
   }, [id, t])
 
-  const handleSelectArtist = async (artistName: string) => {
+  const handleSelectArtist = async (artistId: string, artistName: string) => {
     setSelectedArtist(artistName)
     setArtistLoading(true)
     try {
-      const res = await api.get(`/stats/getArtistAlbums?libraryId=${id}&artist=${encodeURIComponent(artistName)}`)
+      const res = await api.get(`/stats/getArtistAlbums?libraryId=${id}&artistId=${encodeURIComponent(artistId)}`)
       setArtistAlbums(res.data ?? [])
     } catch {
       setArtistAlbums([])
@@ -578,7 +583,7 @@ export default function LibraryDetailPage() {
                           '&:hover': { bgcolor: 'action.hover' },
                           gap: 1.5, alignItems: 'center',
                         }}
-                        onClick={() => handleSelectArtist(artist.Name)}
+                        onClick={() => handleSelectArtist(artist.Id, artist.Name)}
                       >
                         <Box
                           sx={{
@@ -803,7 +808,7 @@ export default function LibraryDetailPage() {
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>{track.Name}</Typography>
                           <Typography variant="caption" color="text.secondary" noWrap>
-                            {[track.Artist, track.Album].filter(Boolean).join(' — ')}
+                            {[track.Artist, track.AlbumName].filter(Boolean).join(' — ')}
                           </Typography>
                         </Box>
                         <Chip
