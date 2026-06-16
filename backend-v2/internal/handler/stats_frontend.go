@@ -807,7 +807,6 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		  "RemoteEndPoint"
 		FROM jf_playback_activity
 		ORDER BY "ActivityDateInserted"::timestamptz DESC
-		LIMIT 500
 	`).Scan(&rows)
 
 	if rows == nil {
@@ -1305,13 +1304,35 @@ func (h *StatsFrontendHandler) GetItemDetails(c *gin.Context) {
 	// Build stats
 	totalPlays := len(history)
 	totalWatchTime := 0
-	userMap := map[string]int{}
+	type userAggState struct {
+		UserName     string
+		PlayCount    int
+		WatchTime    int
+		LastWatched  *string
+	}
+	userMap := map[string]*userAggState{}
 	var lastWatched *string
 	isActive := false
 	for _, h2 := range history {
 		totalWatchTime += h2.PlaybackDuration
 		if h2.UserId != nil {
-			userMap[*h2.UserId]++
+			uid := *h2.UserId
+			if _, ok := userMap[uid]; !ok {
+				uname := uid
+				if h2.UserName != nil {
+					uname = *h2.UserName
+				}
+				userMap[uid] = &userAggState{UserName: uname}
+			}
+			st := userMap[uid]
+			if h2.UserName != nil {
+				st.UserName = *h2.UserName
+			}
+			st.PlayCount++
+			st.WatchTime += h2.PlaybackDuration
+			if st.LastWatched == nil && h2.ActivityDateInserted != nil {
+				st.LastWatched = h2.ActivityDateInserted
+			}
 		}
 		if lastWatched == nil && h2.ActivityDateInserted != nil {
 			lastWatched = h2.ActivityDateInserted
@@ -1322,22 +1343,23 @@ func (h *StatsFrontendHandler) GetItemDetails(c *gin.Context) {
 	}
 
 	type UserAgg struct {
-		UserId   string `json:"UserId"`
-		UserName string `json:"UserName"`
-		Plays    int    `json:"Plays"`
+		UserId        string  `json:"UserId"`
+		UserName      string  `json:"UserName"`
+		PlayCount     int     `json:"PlayCount"`
+		TotalWatchTime int    `json:"TotalWatchTime"`
+		LastWatched   *string `json:"LastWatched"`
 	}
 	var users []UserAgg
-	for uid, plays := range userMap {
-		uname := uid
-		for _, he := range history {
-			if he.UserId != nil && *he.UserId == uid && he.UserName != nil {
-				uname = *he.UserName
-				break
-			}
-		}
-		users = append(users, UserAgg{UserId: uid, UserName: uname, Plays: plays})
+	for uid, st := range userMap {
+		users = append(users, UserAgg{
+			UserId:         uid,
+			UserName:       st.UserName,
+			PlayCount:      st.PlayCount,
+			TotalWatchTime: st.WatchTime,
+			LastWatched:    st.LastWatched,
+		})
 	}
-	sort.Slice(users, func(i, j int) bool { return users[i].Plays > users[j].Plays })
+	sort.Slice(users, func(i, j int) bool { return users[i].PlayCount > users[j].PlayCount })
 
 	c.JSON(http.StatusOK, gin.H{
 		"item": item,

@@ -19,6 +19,7 @@ export interface Activity {
   ActivityDateInserted: string
   RemoteEndPoint?: string
   NowPlayingItemType?: string
+  ParentId?: string
 }
 
 export interface Session {
@@ -35,6 +36,7 @@ export interface Session {
     Type: string
     SeriesName?: string
     SeriesId?: string
+    AlbumId?: string
     IndexNumber?: number
     ParentIndexNumber?: number
     RunTimeTicks?: number

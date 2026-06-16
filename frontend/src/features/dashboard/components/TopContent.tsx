@@ -1,5 +1,7 @@
+import { useState, useMemo } from 'react'
 import {
   Card, CardContent, CardHeader, Typography, Chip, Skeleton, Box,
+  ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import { VideoClip24Regular, MusicNote224Regular, Library24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +9,8 @@ import { useNavigate } from 'react-router-dom'
 
 interface TopItem { Id: string; Name: string; PlayCount: number; Type: string }
 interface TopContentProps { items: TopItem[]; loading: boolean }
+
+type TypeFilter = 'all' | 'Movie' | 'Series' | 'Audio'
 
 function TypeFallback({ type }: { type: string }) {
   if (type === 'Audio') return <MusicNote224Regular style={{ fontSize: 18, opacity: 0.5 }} />
@@ -17,11 +21,32 @@ function TypeFallback({ type }: { type: string }) {
 export default function TopContent({ items, loading }: TopContentProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+
+  const filtered = useMemo(() => {
+    if (typeFilter === 'all') return items.slice(0, 5)
+    if (typeFilter === 'Series') return items.filter((it) => it.Type === 'Episode' || it.Type === 'Series').slice(0, 5)
+    return items.filter((it) => it.Type === typeFilter).slice(0, 5)
+  }, [items, typeFilter])
 
   return (
     <Card>
       <CardHeader
         title={t('dashboard.topContent')}
+        action={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={typeFilter}
+            onChange={(_, v) => { if (v) setTypeFilter(v) }}
+            sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1, fontSize: 11, textTransform: 'none', lineHeight: 1.6 } }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="Movie">Movies</ToggleButton>
+            <ToggleButton value="Series">Series</ToggleButton>
+            <ToggleButton value="Audio">Music</ToggleButton>
+          </ToggleButtonGroup>
+        }
         slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }}
       />
       <CardContent sx={{ pt: 0 }}>
@@ -35,10 +60,14 @@ export default function TopContent({ items, loading }: TopContentProps) {
               </Box>
             </Box>
           ))
+        ) : filtered.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+            {t('common.noData', 'No data')}
+          </Typography>
         ) : (
-          items.map((item, i) => (
+          filtered.map((item, i) => (
             <Box
-              key={item.Id}
+              key={`${typeFilter}-${item.Id}`}
               onClick={() => navigate(`/items/${item.Id}`)}
               sx={{
                 display: 'flex',

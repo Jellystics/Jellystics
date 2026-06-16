@@ -105,9 +105,13 @@ export default function ActivityPage() {
               <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
               <Box
                 component="img"
-                src={`/proxy/Items/Images/Primary/?id=${row.ItemId}&fillWidth=90&quality=80`}
+                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ParentId ?? row.ItemId)}&fillWidth=90&quality=80`}
                 onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.style.display = 'none'
+                  if (row.ParentId && e.currentTarget.src.includes(encodeURIComponent(row.ParentId))) {
+                    e.currentTarget.src = `/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=90&quality=80`
+                  } else {
+                    e.currentTarget.style.display = 'none'
+                  }
                 }}
                 sx={{
                   position: 'absolute',

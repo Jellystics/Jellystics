@@ -108,7 +108,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
             const playMethod = session.PlayState?.PlayMethod ?? item.MediaType
             const methodChip = getPlayMethodChip(playMethod)
             const epLabel = episodeLabel(item)
-            const posterItemId = item.SeriesId || item.Id
+            const posterItemId = item.SeriesId || item.AlbumId || item.Id
             const ti = session.TranscodingInfo
 
             const transcodingTooltip = ti

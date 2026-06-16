@@ -92,7 +92,7 @@ export function useDashboard(days = 30): DashboardData {
     const results = await Promise.allSettled([
       api.get('/stats/getGlobalStats'),
       api.get('/sessions/current'),
-      api.get(`/stats/getMostPlayedItems?type=all&limit=5&days=${days}`),
+      api.get(`/stats/getMostPlayedItems?type=all&limit=20&days=${days}`),
       api.get(`/stats/getMostActiveUsers?limit=5&days=${days}`),
       api.get('/stats/getViewsByLibraryType'),
       api.post('/stats/getMostViewedLibraries', { days }),

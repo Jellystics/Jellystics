@@ -857,8 +857,12 @@ func (h *AdminApiHandler) GetLibraryHistory(c *gin.Context) {
 	}
 	params := parseHistoryParams(c)
 
-	// Join to jf_library_items to filter by ParentId (libraryid).
-	extraJoin := `INNER JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId" AND i."ParentId" = ?`
+	// Join to both jf_library_items and jf_music_tracks to support regular and music libraries.
+	extraJoin := `INNER JOIN (
+		SELECT "Id", "ParentId" AS "LibraryId" FROM jf_library_items WHERE archived = false
+		UNION ALL
+		SELECT "Id", "LibraryId" FROM jf_music_tracks WHERE archived = false
+	) _lib_items ON _lib_items."Id" = a."NowPlayingItemId" AND _lib_items."LibraryId" = ?`
 	result, err := h.runHistoryQuery(params, extraJoin, "", []interface{}{body.LibraryId})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

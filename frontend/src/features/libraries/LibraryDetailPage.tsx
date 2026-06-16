@@ -987,21 +987,30 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
       cell: (info) => {
         const row = info.row.original
         const label = row.SeriesName ? `${row.SeriesName} — ${row.NowPlayingItemName}` : row.NowPlayingItemName
+        // For music tracks, ItemId has no artwork — use ParentId (AlbumId) as fallback
+        const imgId = row.ParentId ?? row.ItemId
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box
               sx={{
-                width: 40, height: 27, borderRadius: 0.5, overflow: 'hidden', flexShrink: 0,
+                width: 40, height: 40, borderRadius: 0.5, overflow: 'hidden', flexShrink: 0,
                 bgcolor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
               }}
             >
               <VideoClip24Regular style={{ fontSize: 14, opacity: 0.4, position: 'absolute' }} />
               <Box
                 component="img"
-                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=60&quality=80`}
+                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(imgId)}&fillWidth=80&quality=80`}
                 alt={row.NowPlayingItemName}
                 loading="lazy"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                onError={(e) => {
+                  // If ParentId image also fails, try ItemId directly
+                  if (row.ParentId && e.currentTarget.src.includes(encodeURIComponent(row.ParentId))) {
+                    e.currentTarget.src = `/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=80&quality=80`
+                  } else {
+                    e.currentTarget.style.display = 'none'
+                  }
+                }}
                 sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </Box>
@@ -1442,7 +1451,7 @@ export default function LibraryDetailPage() {
 
       {/* ── Activity tab ── */}
       {tab === activityTabIndex && (
-        <LibraryActivityTab data={activityHistory} loading={loading} onRefresh={load} t={t} />
+        <LibraryActivityTab data={activityHistory} loading={loading} onRefresh={() => load(false)} t={t} />
       )}
 
       {/* ── Stats tab (tab 3 for music, tab 1 for regular) ── */}
