@@ -5,6 +5,10 @@ export interface Library {
   ItemCount: number
   EpisodeCount?: number
   SeasonCount?: number
+  TotalSize?: number
+  TotalPlayCount?: number
+  TotalWatchTime?: number
+  LastActivity?: string
 }
 
 export interface LibraryItem {

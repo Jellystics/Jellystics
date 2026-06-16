@@ -18,9 +18,11 @@ export default function PageHeader({ title, actions, onRefresh, loading }: PageH
       </Typography>
       {onRefresh && (
         <Tooltip title={t('common.refresh')}>
-          <IconButton onClick={onRefresh} disabled={loading} sx={{ ml: 1 }}>
-            <ArrowSync24Regular />
-          </IconButton>
+          <span>
+            <IconButton onClick={onRefresh} disabled={loading} sx={{ ml: 1 }}>
+              <ArrowSync24Regular />
+            </IconButton>
+          </span>
         </Tooltip>
       )}
       <Box sx={{ flexGrow: 1 }} />

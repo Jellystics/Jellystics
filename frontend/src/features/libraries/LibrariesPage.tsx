@@ -6,9 +6,19 @@ import {
 } from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { format, parseISO } from 'date-fns'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { Library } from '@/shared/types/library'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { getDateLocale } from '@/lib/dateLocale'
+
+function formatSize(bytes?: number): string | null {
+  if (!bytes) return null
+  const gb = bytes / 1024 / 1024 / 1024
+  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} GB`
+  return `${Math.round(bytes / 1024 / 1024)} MB`
+}
 
 // Cache des item IDs utilisés pour les fonds de carte (5 min TTL)
 const SAMPLE_TTL = 5 * 60 * 1000
@@ -104,6 +114,47 @@ function LibraryCard({ lib, sampleItemId, onClick }: { lib: Library; sampleItemI
               background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0.05) 100%)',
             }}
           />
+
+          {/* Hover stats overlay */}
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              bgcolor: 'rgba(0,0,0,0.78)',
+              backdropFilter: 'blur(2px)',
+              opacity: 0,
+              transition: 'opacity 250ms ease',
+              '.MuiCard-root:hover &': { opacity: 1 },
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              px: 2.5,
+              gap: 1.25,
+            }}
+          >
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+              {[
+                { label: 'Total Plays', value: lib.TotalPlayCount != null ? lib.TotalPlayCount.toLocaleString() : '—' },
+                { label: 'Watch Time', value: lib.TotalWatchTime ? formatWatchTime(lib.TotalWatchTime) : '—' },
+                { label: 'Size', value: formatSize(lib.TotalSize) ?? '—' },
+                {
+                  label: 'Last Activity',
+                  value: lib.LastActivity
+                    ? (() => { try { return format(parseISO(lib.LastActivity), 'dd/MM/yyyy', { locale: getDateLocale() }) } catch { return lib.LastActivity } })()
+                    : '—',
+                },
+              ].map(({ label, value }) => (
+                <Box key={label}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.45)', display: 'block', lineHeight: 1.3 }}>
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, lineHeight: 1.4 }}>
+                    {value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
 
           {/* Type chip — top right */}
           <Chip

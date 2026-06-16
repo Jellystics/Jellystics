@@ -943,25 +943,59 @@ func (h *StatsFrontendHandler) GetUserActivityByDate(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetLibraries(c *gin.Context) {
 	type Row struct {
-		Id             string `json:"Id"`
-		Name           string `json:"Name"`
-		CollectionType string `json:"CollectionType"`
-		ItemCount      int    `json:"ItemCount"`
-		EpisodeCount   int    `json:"EpisodeCount"`
+		Id             string  `json:"Id"`
+		Name           string  `json:"Name"`
+		CollectionType string  `json:"CollectionType"`
+		ItemCount      int     `json:"ItemCount"`
+		EpisodeCount   int     `json:"EpisodeCount"`
+		SeasonCount    int     `json:"SeasonCount"`
+		TotalSize      int64   `json:"TotalSize"`
+		TotalPlayCount int     `json:"TotalPlayCount"`
+		TotalWatchTime int     `json:"TotalWatchTime"`
+		LastActivity   *string `json:"LastActivity"`
 	}
 	var rows []Row
 	h.db.Raw(`
+		WITH item_stats AS (
+		  SELECT
+		    i."ParentId" AS "LibraryId",
+		    COUNT(*) FILTER (WHERE i."Type" NOT IN ('Season', 'Folder'))::int AS "ItemCount",
+		    COUNT(*) FILTER (WHERE i."Type" = 'Episode')::int AS "EpisodeCount",
+		    COUNT(*) FILTER (WHERE i."Type" = 'Season')::int AS "SeasonCount",
+		    COALESCE(SUM(ii."Size") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder')), 0)::bigint AS "TotalSize"
+		  FROM jf_library_items i
+		  LEFT JOIN jf_item_info ii ON ii."Id" = i."Id"
+		  WHERE i.archived = false
+		  GROUP BY i."ParentId"
+		),
+		play_stats AS (
+		  SELECT
+		    COALESCE(i."ParentId", mt."LibraryId") AS "LibraryId",
+		    COUNT(a."Id")::int AS "TotalPlayCount",
+		    FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime",
+		    MAX(a."ActivityDateInserted") AS "LastActivity"
+		  FROM jf_playback_activity a
+		  LEFT JOIN jf_library_items i
+		    ON (a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id") AND i.archived = false
+		  LEFT JOIN jf_music_tracks mt
+		    ON a."NowPlayingItemId" = mt."Id" AND mt.archived = false
+		  GROUP BY COALESCE(i."ParentId", mt."LibraryId")
+		)
 		SELECT
 		  l."Id",
 		  l."Name",
 		  COALESCE(l."CollectionType", l."Type", 'unknown') AS "CollectionType",
-		  COUNT(i."Id") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder'))::int AS "ItemCount",
-		  COUNT(i."Id") FILTER (WHERE i."Type" = 'Episode')::int AS "EpisodeCount"
+		  COALESCE(ist."ItemCount", 0)      AS "ItemCount",
+		  COALESCE(ist."EpisodeCount", 0)   AS "EpisodeCount",
+		  COALESCE(ist."SeasonCount", 0)    AS "SeasonCount",
+		  COALESCE(ist."TotalSize", 0)      AS "TotalSize",
+		  COALESCE(pst."TotalPlayCount", 0) AS "TotalPlayCount",
+		  COALESCE(pst."TotalWatchTime", 0) AS "TotalWatchTime",
+		  pst."LastActivity"
 		FROM jf_libraries l
-		LEFT JOIN jf_library_items i
-		  ON i."ParentId" = l."Id" AND i.archived = false
+		LEFT JOIN item_stats ist ON ist."LibraryId" = l."Id"
+		LEFT JOIN play_stats pst ON pst."LibraryId" = l."Id"
 		WHERE l.archived = false
-		GROUP BY l."Id", l."Name", l."CollectionType", l."Type"
 		ORDER BY l."Name"
 	`).Scan(&rows)
 
