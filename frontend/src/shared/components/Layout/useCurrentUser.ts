@@ -12,7 +12,7 @@ export function useCurrentUser() {
   const token = localStorage.getItem('jellystics-token') ?? ''
 
   const payload = token ? parseJwtPayload(token) : null
-  const userId = (payload?.user as { id?: string } | undefined)?.id ?? ''
+  const userId = (payload?.userId as string | undefined) ?? ''
 
   const avatarUrl = userId
     ? `/proxy/Users/Images/Primary/?id=${userId}&fillWidth=100&quality=90`
