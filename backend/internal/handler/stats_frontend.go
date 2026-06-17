@@ -1842,17 +1842,27 @@ func (h *StatsFrontendHandler) GetAlbumTracks(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetActivityTimeline(c *gin.Context) {
+	now := time.Now()
+	year, _ := strconv.Atoi(c.DefaultQuery("year", strconv.Itoa(now.Year())))
+	month, _ := strconv.Atoi(c.DefaultQuery("month", strconv.Itoa(int(now.Month()))))
+	if year == 0 {
+		year = now.Year()
+	}
+	if month < 1 || month > 12 {
+		month = int(now.Month())
+	}
+
 	type Row struct {
-		Id           *string `json:"Id"`
-		UserId       *string `json:"UserId"`
-		UserName     *string `json:"UserName"`
-		ItemId       *string `json:"ItemId"`
-		ItemName     *string `json:"ItemName"`
-		StartTime    *string `json:"StartTime"`
-		EndTime      *string `json:"EndTime"`
-		Duration     int     `json:"Duration"`
-		Client       *string `json:"Client"`
-		PlayMethod   *string `json:"PlayMethod"`
+		Id         *string `json:"Id"`
+		UserId     *string `json:"UserId"`
+		UserName   *string `json:"UserName"`
+		ItemId     *string `json:"ItemId"`
+		ItemName   *string `json:"ItemName"`
+		StartTime  *string `json:"StartTime"`
+		EndTime    *string `json:"EndTime"`
+		Duration   int     `json:"Duration"`
+		Client     *string `json:"Client"`
+		PlayMethod *string `json:"PlayMethod"`
 	}
 	var rows []Row
 	h.db.Raw(`
@@ -1868,16 +1878,16 @@ func (h *StatsFrontendHandler) GetActivityTimeline(c *gin.Context) {
 		  a."Client",
 		  a."PlayMethod"
 		FROM jf_playback_activity a
-		ORDER BY "ActivityDateInserted"::timestamptz DESC
-		LIMIT 500
-	`).Scan(&rows)
+		WHERE a."ActivityDateInserted"::timestamptz >= make_date(?, ?, 1)::timestamptz
+		  AND a."ActivityDateInserted"::timestamptz  < make_date(?, ?, 1)::timestamptz + INTERVAL '1 month'
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC
+	`, year, month, year, month).Scan(&rows)
 
 	if rows == nil {
 		rows = []Row{}
 	}
 
 	live := h.getLiveActivity(c.Request.Context())
-	now := time.Now()
 	var liveRows []Row
 	for i := range live {
 		ls := live[i]
