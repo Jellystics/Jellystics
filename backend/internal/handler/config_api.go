@@ -10,10 +10,34 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Jellystics/Jellystics/internal/database/models"
 	"github.com/Jellystics/Jellystics/internal/repository"
 	"github.com/Jellystics/Jellystics/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
+
+// writeLog inserts a single completed log entry into jf_logging.
+func (h *ConfigApiHandler) writeLog(ctx context.Context, name, result, message string) {
+	id := uuid.New().String()
+	now := time.Now().Local().Format(time.RFC3339)
+	dur := int64(0)
+	color := "lawngreen"
+	if result == "failed" {
+		color = "red"
+	}
+	logMsg := fmt.Sprintf(`[{"color":%q,"Message":%q}]`, color, message)
+	_ = h.repos.Log.Insert(ctx, &models.JFLogging{
+		Id:            id,
+		Name:          ptrStr(name),
+		Type:          ptrStr("Task"),
+		ExecutionType: ptrStr("Manual"),
+		Duration:      &dur,
+		TimeRun:       &now,
+		Log:           ptrStr(logMsg),
+		Result:        ptrStr(result),
+	})
+}
 
 // currentAppVersion is the version string embedded at build time.
 // Override with -ldflags "-X 'github.com/Jellystics/Jellystics/internal/handler.currentAppVersion=x.y.z'"
@@ -164,7 +188,7 @@ func (h *ConfigApiHandler) CreateKey(c *gin.Context) {
 		_ = json.Unmarshal(cfg.ApiKeys, &keys)
 	}
 
-	newKey := map[string]string{"name": body.Name, "key": key}
+	newKey := map[string]string{"name": body.Name, "key": key, "createdAt": time.Now().Local().Format(time.RFC3339)}
 	keys = append(keys, newKey)
 
 	keyData, _ := json.Marshal(keys)
@@ -174,6 +198,7 @@ func (h *ConfigApiHandler) CreateKey(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.writeLog(c.Request.Context(), "Create API Key", "success", fmt.Sprintf("API key %q created", body.Name))
 	c.JSON(http.StatusOK, newKey)
 }
 
@@ -215,7 +240,22 @@ func (h *ConfigApiHandler) DeleteKey(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	deletedName := body.Key[:min(8, len(body.Key))] + "..."
+	for _, k := range keys {
+		if k["key"] == body.Key {
+			deletedName = k["name"]
+			break
+		}
+	}
+	h.writeLog(c.Request.Context(), "Delete API Key", "success", fmt.Sprintf("API key %q deleted", deletedName))
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

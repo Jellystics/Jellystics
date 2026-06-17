@@ -1,44 +1,44 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Box, Card, CardContent, Button, Typography, List, ListItem,
-  ListItemText, ListItemSecondaryAction, IconButton, TextField,
-  Dialog, DialogTitle, DialogContent, DialogActions, Skeleton,
+  Box, Card, CardContent, Button, Typography, IconButton,
+  Menu, MenuItem, ListItemIcon, ListItemText,
+  TextField, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
-import { Delete24Regular, Add24Regular, Copy24Regular } from '@fluentui/react-icons'
+import { Delete24Regular, Add24Regular, Copy24Regular, MoreVertical24Regular } from '@fluentui/react-icons'
+import { createColumnHelper } from '@tanstack/react-table'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
+import { getDateLocale } from '@/lib/dateLocale'
 
 interface ApiKey {
   name: string
   key: string
+  createdAt?: string
 }
 
 const schema = z.object({ name: z.string().min(1) })
 type FormData = z.infer<typeof schema>
 
+const col = createColumnHelper<ApiKey>()
+
 function normalizeApiKeys(value: unknown): ApiKey[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is ApiKey =>
-      typeof item === 'object' &&
-      item !== null &&
+      typeof item === 'object' && item !== null &&
       typeof (item as ApiKey).name === 'string' &&
       typeof (item as ApiKey).key === 'string'
     )
   }
-
   if (typeof value === 'object' && value !== null && Array.isArray((value as { keys?: unknown }).keys)) {
     return normalizeApiKeys((value as { keys: unknown }).keys)
   }
-
-  if (typeof value === 'object' && value !== null && Array.isArray((value as { api_keys?: unknown }).api_keys)) {
-    return normalizeApiKeys((value as { api_keys: unknown }).api_keys)
-  }
-
   return []
 }
 
@@ -49,6 +49,7 @@ export default function ApiKeysTab() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; key: ApiKey } | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
@@ -81,8 +82,47 @@ export default function ApiKeysTab() {
     }
   }
 
+  const columns = useMemo(() => [
+    col.accessor('name', {
+      header: t('settings.keyName'),
+      cell: (i) => <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 13 }}>{i.getValue()}</Typography>,
+    }),
+    col.accessor('createdAt', {
+      header: t('activity.date'),
+      cell: (i) => {
+        const v = i.getValue()
+        if (!v) return '—'
+        try { return format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return v }
+      },
+    }),
+    col.accessor('key', {
+      header: t('settings.apiKey'),
+      enableGlobalFilter: false,
+      cell: (i) => (
+        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+          {i.getValue().slice(0, 12)}••••••••
+        </Typography>
+      ),
+    }),
+    col.display({
+      id: 'actions',
+      header: () => <Box sx={{ textAlign: 'center' }}>{t('common.actions')}</Box>,
+      cell: (i) => (
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <IconButton size="small" onClick={(e) => setMenuAnchor({ el: e.currentTarget, key: i.row.original })}>
+            <MoreVertical24Regular style={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+      ),
+    }),
+  ], [t])
+
+  const filterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'name', label: t('settings.keyName'), type: 'select' },
+  ], [t])
+
   return (
-    <Box sx={{ maxWidth: 640 }}>
+    <Box>
       <Card>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -92,37 +132,38 @@ export default function ApiKeysTab() {
             </Button>
           </Box>
 
-          {loading ? (
-            Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={52} sx={{ mb: 1, borderRadius: 1 }} />)
-          ) : keys.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">{t('settings.noApiKeys')}</Typography>
-          ) : (
-            <List disablePadding>
-              {keys.map((k) => (
-                <ListItem key={k.key} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-                  <ListItemText
-                    primary={k.name}
-                    secondary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                          {k.key.slice(0, 12)}••••••••
-                        </Typography>
-                        <IconButton size="small" onClick={() => { navigator.clipboard.writeText(k.key); enqueueSnackbar(t('common.copied'), { variant: 'success' }) }}>
-                          <Copy24Regular style={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Box>
-                    }
-                    slotProps={{ primary: { style: { fontSize: 13, fontWeight: 500 } } }}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(k.key)}>
-                      <Delete24Regular style={{ fontSize: 18 }} />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
+          <DataTable
+            data={keys}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder={`${t('settings.keyName')}, ${t('activity.date')}`}
+            onRefresh={load}
+            filterDefs={filterDefs}
+          />
+
+          <Menu
+            anchorEl={menuAnchor?.el}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <MenuItem onClick={() => {
+              if (menuAnchor) navigator.clipboard.writeText(menuAnchor.key.key)
+              enqueueSnackbar(t('common.copied'), { variant: 'success' })
+              setMenuAnchor(null)
+            }}>
+              <ListItemIcon><Copy24Regular style={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('settings.copyKey')}</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => { setDeleteTarget(menuAnchor?.key.key ?? null); setMenuAnchor(null) }}
+              sx={{ color: 'error.main', '& .MuiListItemIcon-root': { color: 'error.main' } }}
+            >
+              <ListItemIcon><Delete24Regular style={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('common.delete')}</ListItemText>
+            </MenuItem>
+          </Menu>
         </CardContent>
       </Card>
 

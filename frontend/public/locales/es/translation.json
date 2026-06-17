@@ -211,6 +211,7 @@
     "deleteApiKey": "Eliminar clave API",
     "deleteApiKeyConfirm": "¿Eliminar esta clave API? Dejará de funcionar inmediatamente.",
     "keyName": "Nombre de la clave",
+    "copyKey": "Copiar clave",
     "noApiKeys": "Sin claves API",
     "importBackup": "Importar copia de seguridad",
     "importBackupDesc": "Importa una copia JSON de Jellystat/Jellystics o un TSV exportado desde el plugin Jellyfin Playback Reporting",

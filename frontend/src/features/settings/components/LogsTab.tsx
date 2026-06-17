@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Box, Chip, Typography, Alert,
+  Box, Card, CardContent, Chip, Typography, Alert,
 } from '@mui/material'
 import { createColumnHelper } from '@tanstack/react-table'
 import { format, parseISO } from 'date-fns'
@@ -60,7 +60,7 @@ export default function LogsTab() {
 
   useEffect(() => { load() }, [load])
 
-  const columns = [
+  const columns = useMemo(() => [
     col.accessor('level', {
       header: t('settings.logLevel'),
       cell: (i) => (
@@ -90,7 +90,7 @@ export default function LogsTab() {
         </Typography>
       ),
     }),
-  ]
+  ], [t])
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     { id: 'level', label: t('settings.logLevel'), type: 'select' },
@@ -100,15 +100,19 @@ export default function LogsTab() {
   return (
     <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-      <DataTable
-        data={logs}
-        columns={columns}
-        loading={loading}
-        searchPlaceholder={t('settings.searchLogs')}
-        filterDefs={filterDefs}
-        onRefresh={load}
-      />
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>{t('settings.logs')}</Typography>
+          <DataTable
+            data={logs}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder={t('settings.searchLogs')}
+            filterDefs={filterDefs}
+            onRefresh={load}
+          />
+        </CardContent>
+      </Card>
     </Box>
   )
 }
