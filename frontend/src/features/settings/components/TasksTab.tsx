@@ -324,7 +324,6 @@ export default function TasksTab() {
             style={{ display: 'none' }}
             onChange={(e) => {
               setJsonFile(e.target.files?.[0] ?? null)
-              setJsonImportResult(null)
               e.target.value = ''
             }}
           />
