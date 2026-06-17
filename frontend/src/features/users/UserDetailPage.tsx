@@ -24,8 +24,7 @@ import type { GenreStat } from '@/shared/types/library'
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
-
-const CHART_COLORS = ['#a78bfa', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#8b5cf6', '#c4b5fd', '#ede9fe', '#a78bfa', '#7c3aed']
+import { useChartColors } from '@/lib/chartColors'
 
 const col = createColumnHelper<Activity>()
 
@@ -33,6 +32,7 @@ export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
   const theme = useTheme()
+  const CHART_COLORS = useChartColors()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -49,6 +49,11 @@ export default function UserDetailPage() {
   const [lastPlayed, setLastPlayed] = useState<Activity[]>([])
   const [globalStats, setGlobalStats] = useState<{ Plays?: number; total_playback_duration?: number } | null>(null)
   const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
+
+  const [byHour, setByHour] = useState<{ hour: number; plays: number; duration: number }[]>([])
+  const [byDay, setByDay] = useState<{ day: number; plays: number; duration: number }[]>([])
+  const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
+  const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
 
   const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
   const [watchDays, setWatchDays] = useState<number>(30)
@@ -78,8 +83,10 @@ export default function UserDetailPage() {
       api.get(`/stats/getGenreUserStats?userid=${id}&size=10&page=1`),
       api.post(`/stats/getUserLastPlayed`, { userid: id }),
       api.post(`/stats/getGlobalUserStats`, { userid: id }),
+      api.get(`/stats/getPopularHourOfDay?days=0&userId=${id}`),
+      api.get(`/stats/getPopularDayOfWeek?days=0&userId=${id}`),
     ])
-      .then(([statsRes, activityRes, heatmapRes, genreRes, overTimeRes, genreBarRes, lastPlayedRes, globalStatsRes]) => {
+      .then(([statsRes, activityRes, heatmapRes, genreRes, overTimeRes, genreBarRes, lastPlayedRes, globalStatsRes, hourRes, dayRes]) => {
         setUserStats(statsRes.data)
         setActivity(activityRes.data ?? [])
         setHeatmapData(heatmapRes.data ?? [])
@@ -90,6 +97,8 @@ export default function UserDetailPage() {
         setGenreBarData(barResults)
         setLastPlayed((lastPlayedRes.data ?? []).slice(0, 12))
         setGlobalStats(globalStatsRes.data ?? null)
+        setByHour(hourRes.data ?? [])
+        setByDay(dayRes.data ?? [])
       })
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
@@ -268,6 +277,65 @@ export default function UserDetailPage() {
           </Box>
         </Fade>
       </ChartCard>
+
+      <Grid container spacing={2} sx={{ mt: 3 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard
+            title={t('stats.playsByHour')}
+            loading={loading}
+            empty={!loading && byHour.length === 0}
+            height={200}
+            action={<MetricToggle value={hourMetric} onChange={setHourMetric} />}
+          >
+            <BarChart
+              xAxis={[{ data: Array.from({ length: 24 }, (_, h) => `${h}h`), scaleType: 'band' }]}
+              series={[{
+                data: Array.from({ length: 24 }, (_, h) => {
+                  const found = byHour.find((d) => d.hour === h)
+                  return hourMetric === 'duration' ? (found?.duration ?? 0) : (found?.plays ?? 0)
+                }),
+                color: CHART_COLORS[0],
+                valueFormatter: (v) => hourMetric === 'duration' ? `${v ?? 0} min` : String(v ?? 0),
+              }]}
+              height={200}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } as any }}
+            />
+          </ChartCard>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard
+            title={t('stats.playsByDayOfWeek')}
+            loading={loading}
+            empty={!loading && byDay.length === 0}
+            height={200}
+            action={<MetricToggle value={dayMetric} onChange={setDayMetric} />}
+          >
+            <BarChart
+              xAxis={[{
+                data: [
+                  t('days.short.sun'), t('days.short.mon'), t('days.short.tue'), t('days.short.wed'),
+                  t('days.short.thu'), t('days.short.fri'), t('days.short.sat'),
+                ],
+                scaleType: 'band',
+              }]}
+              series={[{
+                data: Array.from({ length: 7 }, (_, d) => {
+                  const found = byDay.find((r) => r.day === d)
+                  return dayMetric === 'duration' ? (found?.duration ?? 0) : (found?.plays ?? 0)
+                }),
+                color: CHART_COLORS[0],
+                valueFormatter: (v) => dayMetric === 'duration' ? `${v ?? 0} min` : String(v ?? 0),
+              }]}
+              height={200}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } as any }}
+            />
+          </ChartCard>
+        </Grid>
+      </Grid>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mt: 3 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>

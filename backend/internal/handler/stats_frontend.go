@@ -542,6 +542,7 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
 	daysArg := days - 1
+	userId := c.Query("userId")
 
 	type Row struct {
 		Hour     int `json:"hour"`
@@ -549,7 +550,30 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 		Duration int `json:"duration"`
 	}
 	var rows []Row
-	if allTime {
+	if userId != "" {
+		if allTime {
+			h.db.Raw(`
+				SELECT
+				  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "UserId" = ?
+				GROUP BY hour ORDER BY hour
+			`, userId).Scan(&rows)
+		} else {
+			h.db.Raw(`
+				SELECT
+				  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "UserId" = ?
+				  AND "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				GROUP BY hour ORDER BY hour
+			`, userId, daysArg).Scan(&rows)
+		}
+	} else if allTime {
 		h.db.Raw(`
 			SELECT
 			  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
@@ -574,19 +598,21 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 		rows = []Row{}
 	}
 
-	live := h.getLiveActivity(c.Request.Context())
-	for _, ls := range live {
-		found := false
-		for i := range rows {
-			if rows[i].Hour == ls.hour {
-				rows[i].Plays++
-				rows[i].Duration += ls.PlaybackDuration
-				found = true
-				break
+	if userId == "" {
+		live := h.getLiveActivity(c.Request.Context())
+		for _, ls := range live {
+			found := false
+			for i := range rows {
+				if rows[i].Hour == ls.hour {
+					rows[i].Plays++
+					rows[i].Duration += ls.PlaybackDuration
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			rows = append(rows, Row{Hour: ls.hour, Plays: 1, Duration: ls.PlaybackDuration})
+			if !found {
+				rows = append(rows, Row{Hour: ls.hour, Plays: 1, Duration: ls.PlaybackDuration})
+			}
 		}
 	}
 
@@ -601,6 +627,7 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
 	daysArg := days - 1
+	userId := c.Query("userId")
 
 	type Row struct {
 		Day      int `json:"day"`
@@ -608,7 +635,30 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 		Duration int `json:"duration"`
 	}
 	var rows []Row
-	if allTime {
+	if userId != "" {
+		if allTime {
+			h.db.Raw(`
+				SELECT
+				  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "UserId" = ?
+				GROUP BY day ORDER BY day
+			`, userId).Scan(&rows)
+		} else {
+			h.db.Raw(`
+				SELECT
+				  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
+				  COUNT(*)::int AS plays,
+				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+				FROM jf_playback_activity
+				WHERE "UserId" = ?
+				  AND "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				GROUP BY day ORDER BY day
+			`, userId, daysArg).Scan(&rows)
+		}
+	} else if allTime {
 		h.db.Raw(`
 			SELECT
 			  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
@@ -633,19 +683,21 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 		rows = []Row{}
 	}
 
-	live := h.getLiveActivity(c.Request.Context())
-	for _, ls := range live {
-		found := false
-		for i := range rows {
-			if rows[i].Day == ls.day {
-				rows[i].Plays++
-				rows[i].Duration += ls.PlaybackDuration
-				found = true
-				break
+	if userId == "" {
+		live := h.getLiveActivity(c.Request.Context())
+		for _, ls := range live {
+			found := false
+			for i := range rows {
+				if rows[i].Day == ls.day {
+					rows[i].Plays++
+					rows[i].Duration += ls.PlaybackDuration
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			rows = append(rows, Row{Day: ls.day, Plays: 1, Duration: ls.PlaybackDuration})
+			if !found {
+				rows = append(rows, Row{Day: ls.day, Plays: 1, Duration: ls.PlaybackDuration})
+			}
 		}
 	}
 
@@ -895,8 +947,10 @@ type activityRow struct {
 }
 
 func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
-	var rows []activityRow
-	h.db.Raw(`
+	dateFrom := c.Query("dateFrom") // YYYY-MM-DD
+	dateTo := c.Query("dateTo")     // YYYY-MM-DD
+
+	const baseSelect = `
 		SELECT
 		  "Id", "UserId", "UserName",
 		  "NowPlayingItemId" AS "ItemId",
@@ -909,12 +963,35 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		  ("PlaybackDuration" * 10000000)::bigint AS "PlayDuration",
 		  "ActivityDateInserted",
 		  "RemoteEndPoint"
-		FROM jf_playback_activity
-		ORDER BY "ActivityDateInserted"::timestamptz DESC
-	`).Scan(&rows)
+		FROM jf_playback_activity`
+
+	var rows []activityRow
+	switch {
+	case dateFrom != "" && dateTo != "":
+		h.db.Raw(baseSelect+`
+		WHERE "ActivityDateInserted"::date >= ?::date
+		  AND "ActivityDateInserted"::date <= ?::date
+		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateFrom, dateTo).Scan(&rows)
+	case dateFrom != "":
+		h.db.Raw(baseSelect+`
+		WHERE "ActivityDateInserted"::date >= ?::date
+		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateFrom).Scan(&rows)
+	case dateTo != "":
+		h.db.Raw(baseSelect+`
+		WHERE "ActivityDateInserted"::date <= ?::date
+		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateTo).Scan(&rows)
+	default:
+		h.db.Raw(baseSelect + `
+		ORDER BY "ActivityDateInserted"::timestamptz DESC`).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []activityRow{}
+	}
+
+	if dateFrom != "" || dateTo != "" {
+		c.JSON(http.StatusOK, rows)
+		return
 	}
 
 	live := h.getLiveActivity(c.Request.Context())

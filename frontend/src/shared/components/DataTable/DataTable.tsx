@@ -54,6 +54,8 @@ export interface FilterDef {
   type: 'select' | 'range' | 'daterange'
   unit?: string
   transform?: (raw: number) => number
+  /** If true, this filter is handled server-side — client filtering is skipped and onServerFilterChange is called on Apply/Clear */
+  serverSide?: boolean
 }
 
 type SelectFilter = string[]
@@ -71,6 +73,8 @@ interface DataTableProps<T> {
   onRefresh?: () => void
   initialColumnVisibility?: Record<string, boolean>
   filterDefs?: FilterDef[]
+  /** Called when a server-side filter is applied or cleared; receives only the active server-side filter values */
+  onServerFilterChange?: (serverFilters: Record<string, SelectFilter | RangeFilter | DateRangeFilter>) => void
 }
 
 export default function DataTable<T>({
@@ -82,6 +86,7 @@ export default function DataTable<T>({
   onRefresh,
   initialColumnVisibility,
   filterDefs,
+  onServerFilterChange,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -123,6 +128,7 @@ export default function DataTable<T>({
 
     return data.filter((row) =>
       filterDefs.every((def) => {
+        if (def.serverSide) return true  // handled by API
         const f = activeFilters[def.id]
         if (!f) return true
 
@@ -182,19 +188,30 @@ export default function DataTable<T>({
 
   const skeletonRows = useMemo(() => Array.from({ length: 10 }), [])
 
-  const clearFilter = (defId: string, selectValue?: string) => {
-    setActiveFilters((prev) => {
-      const current = prev[defId]
-      if (!current) return prev
-      if (selectValue !== undefined) {
-        const newVal = (current as SelectFilter).filter((v) => v !== selectValue)
-        if (!newVal.length) { const n = { ...prev }; delete n[defId]; return n }
-        return { ...prev, [defId]: newVal }
+  const notifyServerFilters = (filters: FilterState) => {
+    if (!onServerFilterChange || !filterDefs) return
+    const serverFilters: Record<string, SelectFilter | RangeFilter | DateRangeFilter> = {}
+    filterDefs.forEach((def) => {
+      if (def.serverSide && filters[def.id]) {
+        serverFilters[def.id] = filters[def.id] as SelectFilter | RangeFilter | DateRangeFilter
       }
-      const n = { ...prev }
-      delete n[defId]
-      return n
     })
+    onServerFilterChange(serverFilters)
+  }
+
+  const clearFilter = (defId: string, selectValue?: string) => {
+    const current = activeFilters[defId]
+    if (!current) return
+    let newFilters: FilterState
+    if (selectValue !== undefined) {
+      const newVal = (current as SelectFilter).filter((v) => v !== selectValue)
+      if (!newVal.length) { const n = { ...activeFilters }; delete n[defId]; newFilters = n }
+      else newFilters = { ...activeFilters, [defId]: newVal }
+    } else {
+      const n = { ...activeFilters }; delete n[defId]; newFilters = n
+    }
+    setActiveFilters(newFilters)
+    notifyServerFilters(newFilters)
   }
 
   return (
@@ -445,7 +462,7 @@ export default function DataTable<T>({
                 fullWidth
                 variant="contained"
                 size="small"
-                onClick={() => { setActiveFilters(pendingFilters); setFilterAnchor(null) }}
+                onClick={() => { setActiveFilters(pendingFilters); notifyServerFilters(pendingFilters); setFilterAnchor(null) }}
               >
                 {t('common.apply', 'Appliquer')}
               </Button>
@@ -499,7 +516,7 @@ export default function DataTable<T>({
 
             return []
           })}
-          <Button size="small" onClick={() => setActiveFilters({})} sx={{ fontSize: 12 }}>
+          <Button size="small" onClick={() => { setActiveFilters({}); notifyServerFilters({}) }} sx={{ fontSize: 12 }}>
             {t('common.clearAll', 'Tout effacer')}
           </Button>
         </Box>

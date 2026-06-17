@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Alert, Box, Chip } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { createColumnHelper } from '@tanstack/react-table'
@@ -21,10 +21,17 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const dateFilterRef = useRef<{ from?: string; to?: string }>({})
+
   const load = useCallback((showLoading = true) => {
     if (showLoading) setLoading(true)
+    const { from, to } = dateFilterRef.current
+    const params = new URLSearchParams()
+    if (from) params.set('dateFrom', from)
+    if (to) params.set('dateTo', to)
+    const query = params.toString() ? `?${params.toString()}` : ''
     api
-      .get('/stats/getAllUserActivity')
+      .get(`/stats/getAllUserActivity${query}`)
       .then((r) => setData(r.data ?? []))
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
@@ -191,7 +198,7 @@ export default function ActivityPage() {
       unit: 'min',
       transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
     },
-    { id: 'ActivityDateInserted', label: t('activity.date'), type: 'daterange' },
+    { id: 'ActivityDateInserted', label: t('activity.date'), type: 'daterange', serverSide: true },
   ], [t])
 
   return (
@@ -205,7 +212,12 @@ export default function ActivityPage() {
         searchPlaceholder={t('activity.search')}
         initialColumnVisibility={{ ApplicationVersion: false }}
         filterDefs={filterDefs}
-        onRefresh={load}
+        onRefresh={() => load(true)}
+        onServerFilterChange={(serverFilters) => {
+          const dr = serverFilters['ActivityDateInserted'] as [string | undefined, string | undefined] | undefined
+          dateFilterRef.current = { from: dr?.[0], to: dr?.[1] }
+          load(true)
+        }}
       />
     </>
   )
