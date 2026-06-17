@@ -41,13 +41,12 @@ export default function TasksTab() {
   const [loading, setLoading] = useState(true)
   const logsRef = useRef<HTMLDivElement>(null)
   const playbackFileInputRef = useRef<HTMLInputElement>(null)
-  const jellystatFileInputRef = useRef<HTMLInputElement>(null)
+  const jsonFileInputRef = useRef<HTMLInputElement>(null)
   const [playbackFile, setPlaybackFile] = useState<File | null>(null)
-  const [jellystatFile, setJellystatFile] = useState<File | null>(null)
+  const [jsonFile, setJsonFile] = useState<File | null>(null)
   const [playbackImporting, setPlaybackImporting] = useState(false)
-  const [jellystatImporting, setJellystatImporting] = useState(false)
+  const [jsonImporting, setJsonImporting] = useState(false)
   const [playbackImportResult, setPlaybackImportResult] = useState<ImportResult | null>(null)
-  const [jellystatImportResult, setJellystatImportResult] = useState<ImportResult | null>(null)
 
   // cron expressions keyed by task name
   const [cronInputs, setCronInputs] = useState<Record<string, string>>({})
@@ -130,30 +129,25 @@ export default function TasksTab() {
     }
   }
 
-  const importJellystatBackup = async () => {
-    if (!jellystatFile) return
-    setJellystatImporting(true)
-    setJellystatImportResult(null)
+  const importJsonBackup = async () => {
+    if (!jsonFile) return
+    setJsonImporting(true)
     try {
       const form = new FormData()
-      form.append('file', jellystatFile)
+      form.append('file', jsonFile)
       const uploaded = await api.post('/backup/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       const fileName = uploaded.data.fileName as string
-      const restoredResponse = await api.get(`/backup/restore/${encodeURIComponent(fileName)}`)
-      const restored = (restoredResponse.data.restored ?? {}) as Record<string, number>
-      const count = Object.values(restored).reduce((sum, value) => sum + Number(value || 0), 0)
-
-      setJellystatImportResult({ count })
-      enqueueSnackbar(t('settings.jellystatImportSuccess', { count }), { variant: 'success' })
-      setJellystatFile(null)
+      const res = await api.get(`/backup/restore/${encodeURIComponent(fileName)}`)
+      const restored = (res.data.restored ?? {}) as Record<string, number>
+      enqueueSnackbar(t('settings.jellystatImportSuccess', { count: Object.values(restored).reduce((s, v) => s + Number(v || 0), 0) }), { variant: 'success' })
+      setJsonFile(null)
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('settings.jellystatImportError')
-      setJellystatImportResult({ error: msg })
-      enqueueSnackbar(t('settings.jellystatImportError'), { variant: 'error' })
+      enqueueSnackbar(msg, { variant: 'error' })
     } finally {
-      setJellystatImporting(false)
+      setJsonImporting(false)
     }
   }
 
@@ -317,20 +311,20 @@ export default function TasksTab() {
         </CardContent>
       </Card>
 
-      {/* Jellystat import */}
+      {/* JSON backup import (Jellystics / Jellystat) */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.importJellystatBackup')}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.importJellystatBackupDesc')}</Typography>
 
           <input
-            ref={jellystatFileInputRef}
+            ref={jsonFileInputRef}
             type="file"
             accept=".json,application/json"
             style={{ display: 'none' }}
             onChange={(e) => {
-              setJellystatFile(e.target.files?.[0] ?? null)
-              setJellystatImportResult(null)
+              setJsonFile(e.target.files?.[0] ?? null)
+              setJsonImportResult(null)
               e.target.value = ''
             }}
           />
@@ -340,15 +334,15 @@ export default function TasksTab() {
               variant="outlined"
               size="small"
               startIcon={<Document24Regular style={{ fontSize: 16 }} />}
-              onClick={() => jellystatFileInputRef.current?.click()}
-              disabled={jellystatImporting}
+              onClick={() => jsonFileInputRef.current?.click()}
+              disabled={jsonImporting}
             >
               {t('settings.importBackupSelect')}
             </Button>
 
-            {jellystatFile && (
+            {jsonFile && (
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }} noWrap>
-                {jellystatFile.name} ({(jellystatFile.size / 1024 / 1024).toFixed(1)} MB)
+                {jsonFile.name} ({(jsonFile.size / 1024 / 1024).toFixed(1)} MB)
               </Typography>
             )}
 
@@ -356,26 +350,15 @@ export default function TasksTab() {
               variant="contained"
               size="small"
               startIcon={<ArrowUpload24Regular style={{ fontSize: 16 }} />}
-              onClick={importJellystatBackup}
-              disabled={!jellystatFile || jellystatImporting}
+              onClick={importJsonBackup}
+              disabled={!jsonFile || jsonImporting}
               sx={{ ml: 'auto' }}
             >
               {t('settings.importBackupRun')}
             </Button>
           </Box>
 
-          {jellystatImporting && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
-
-          {jellystatImportResult && !jellystatImporting && (
-            <Alert
-              severity={jellystatImportResult.error ? 'error' : 'success'}
-              sx={{ mt: 2, borderRadius: 2 }}
-            >
-              {jellystatImportResult.error
-                ? jellystatImportResult.error
-                : t('settings.jellystatImportSuccess', { count: jellystatImportResult.count })}
-            </Alert>
-          )}
+          {jsonImporting && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
         </CardContent>
       </Card>
 

@@ -565,11 +565,11 @@ func (h *AdminApiHandler) purgeLibraryItems(libraryId string, withActivity bool,
 
 	// Delete episodes.
 	if len(allEpisodeIds) > 0 {
-		db.Exec(`DELETE FROM jf_library_episodes WHERE "Id" = ANY(?)`, allEpisodeIds)
+		db.Exec(`DELETE FROM jf_library_episodes WHERE "Id" IN ?`, allEpisodeIds)
 	}
 	// Delete seasons.
 	if len(allSeasonIds) > 0 {
-		db.Exec(`DELETE FROM jf_library_seasons WHERE "Id" = ANY(?)`, allSeasonIds)
+		db.Exec(`DELETE FROM jf_library_seasons WHERE "Id" IN ?`, allSeasonIds)
 	}
 	// Delete library items.
 	itemsQuery := `DELETE FROM jf_library_items WHERE "ParentId" = ?`
@@ -589,12 +589,10 @@ func (h *AdminApiHandler) deletePlaybackForItem(db *gorm.DB, itemId string, epis
 	args := []interface{}{itemId}
 
 	if len(episodeIds) > 0 {
-		parts = append(parts, `"EpisodeId" = ANY(?)`)
-		args = append(args, episodeIds)
+		db.Exec(`DELETE FROM jf_playback_activity WHERE "EpisodeId" IN ?`, episodeIds)
 	}
 	if len(seasonIds) > 0 {
-		parts = append(parts, `"SeasonId" = ANY(?)`)
-		args = append(args, seasonIds)
+		db.Exec(`DELETE FROM jf_playback_activity WHERE "SeasonId" IN ?`, seasonIds)
 	}
 
 	query := `DELETE FROM jf_playback_activity WHERE ` + strings.Join(parts, " OR ")
@@ -941,7 +939,7 @@ func (h *AdminApiHandler) DeletePlaybackActivity(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "a non-empty list of ids is required"})
 		return
 	}
-	if err := h.db.Exec(`DELETE FROM jf_playback_activity WHERE "Id" = ANY(?)`, body.Ids).Error; err != nil {
+	if err := h.db.Exec(`DELETE FROM jf_playback_activity WHERE "Id" IN ?`, body.Ids).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -991,7 +989,7 @@ func (h *AdminApiHandler) GetActivityTimeLine(c *gin.Context) {
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
 		LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
 		WHERE a."UserId" = ?
-			AND i."ParentId" = ANY(?)
+			AND i."ParentId" IN ?
 		GROUP BY DATE(a."ActivityDateInserted"::timestamptz), i."ParentId", l."Name"
 		ORDER BY date ASC
 	`, body.UserId, body.Libraries).Scan(&rows).Error

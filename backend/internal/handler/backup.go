@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,19 +15,70 @@ import (
 
 	"github.com/Jellystics/Jellystics/internal/database/models"
 	"github.com/Jellystics/Jellystics/internal/repository"
+	"github.com/Jellystics/Jellystics/internal/ws"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const backupDir = "./data/backups"
+const importDir = "./data/imports"
 
 // BackupHandler manages database backup files.
 type BackupHandler struct {
 	repos *repository.Container
+	hub   *ws.Hub
 }
 
-func NewBackupHandler(repos *repository.Container) *BackupHandler {
+func NewBackupHandler(repos *repository.Container, hub *ws.Hub) *BackupHandler {
 	_ = os.MkdirAll(backupDir, 0755)
-	return &BackupHandler{repos: repos}
+	return &BackupHandler{repos: repos, hub: hub}
+}
+
+func (h *BackupHandler) emitLog(msg string) {
+	log.Printf("[restore] %s", msg)
+	if h.hub != nil {
+		h.hub.Emit("TaskLog", msg)
+	}
+}
+
+func ptrStr(s string) *string { return &s }
+func ptrInt(i int64) *int64   { return &i }
+
+// startLogEntry inserts a "running" entry into jf_logging and returns logID + startTime for finishLogEntry.
+func (h *BackupHandler) startLogEntry(ctx context.Context, name string) (logID string, startTime string) {
+	logID = uuid.New().String()
+	startTime = time.Now().UTC().Format(time.RFC3339)
+	_ = h.repos.Log.Insert(ctx, &models.JFLogging{
+		Id:            logID,
+		Name:          ptrStr(name),
+		Type:          ptrStr("Task"),
+		ExecutionType: ptrStr("Manual"),
+		Duration:      ptrInt(0),
+		TimeRun:       ptrStr(startTime),
+		Log:           ptrStr(`[{}]`),
+		Result:        ptrStr("running"),
+	})
+	return
+}
+
+// finishLogEntry upserts the final result into jf_logging.
+func (h *BackupHandler) finishLogEntry(ctx context.Context, name, logID, startTime string, elapsed time.Duration, err error) {
+	result := "success"
+	msg := fmt.Sprintf(`[{"color":"lawngreen","Message":"Task completed in %dms"}]`, elapsed.Milliseconds())
+	if err != nil {
+		result = "failed"
+		msg = fmt.Sprintf(`[{"color":"red","Message":"Task failed after %dms: %s"}]`, elapsed.Milliseconds(), err.Error())
+	}
+	_ = h.repos.Log.Upsert(ctx, &models.JFLogging{
+		Id:            logID,
+		Name:          ptrStr(name),
+		Type:          ptrStr("Task"),
+		ExecutionType: ptrStr("Manual"),
+		Duration:      ptrInt(int64(elapsed.Seconds())),
+		TimeRun:       ptrStr(startTime),
+		Log:           ptrStr(msg),
+		Result:        ptrStr(result),
+	})
 }
 
 // GET /backup/files
@@ -67,7 +119,10 @@ func (h *BackupHandler) List(c *gin.Context) {
 // GET /backup/beginBackup
 func (h *BackupHandler) Create(c *gin.Context) {
 	ctx := c.Request.Context()
+	logID, startTime := h.startLogEntry(ctx, "Backup")
+	start := time.Now()
 	name, err := createBackupFile(ctx, h.repos)
+	h.finishLogEntry(ctx, "Backup", logID, startTime, time.Since(start), err)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -175,9 +230,14 @@ func createBackupFile(ctx context.Context, repos *repository.Container) (string,
 	}
 	defer f.Close()
 
+	envelope := map[string]any{
+		"source": "Jellystics",
+		"data":   backupData,
+	}
+
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(backupData); err != nil {
+	if err := enc.Encode(envelope); err != nil {
 		return "", fmt.Errorf("failed to write backup: %w", err)
 	}
 
@@ -234,34 +294,123 @@ func (h *BackupHandler) Restore(c *gin.Context) {
 		return
 	}
 	path := filepath.Join(backupDir, filename)
-
+	isImport := false
 	data, err := os.ReadFile(path)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "backup file not found"})
-		return
-	}
-
-	// Old-style backup format: [ {"tableName": [rows...]}, ... ]
-	var tables []map[string]json.RawMessage
-	if err := json.Unmarshal(data, &tables); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid backup format: " + err.Error()})
-		return
+		// Try import directory (uploaded-for-restore files)
+		importPath := filepath.Join(importDir, filename)
+		data, err = os.ReadFile(importPath)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "backup file not found"})
+			return
+		}
+		path = importPath
+		isImport = true
 	}
 
 	ctx := c.Request.Context()
+	logID, startTime := h.startLogEntry(ctx, "Import JSON Backup")
+	restoreStart := time.Now()
 	restored := map[string]int{}
+
+	// Detect format:
+	//   New Jellystics:  {"source":"Jellystics","data":[{"jf_table":[rows...]},…]}
+	//   Old Jellystics:  [{"jf_table":[rows...]},…]
+	//   Jellystat:       [{"tableName":"jf_table","rows":[rows...]},…]
+	var tables []map[string]json.RawMessage
+
+	var envelope struct {
+		Source string          `json:"source"`
+		Data   json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &envelope); err == nil && envelope.Source == "Jellystics" {
+		// New Jellystics envelope
+		if err := json.Unmarshal(envelope.Data, &tables); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid Jellystics backup data: " + err.Error()})
+			return
+		}
+	} else {
+		// Try plain array (old Jellystics or Jellystat)
+		var rawArray []json.RawMessage
+		if err := json.Unmarshal(data, &rawArray); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid backup format: " + err.Error()})
+			return
+		}
+		// Detect Jellystat format: [{"tableName":"...","rows":[...]}]
+		isJellystat := false
+		if len(rawArray) > 0 {
+			var probe map[string]json.RawMessage
+			if json.Unmarshal(rawArray[0], &probe) == nil {
+				_, isJellystat = probe["tableName"]
+			}
+		}
+		if isJellystat {
+			type jellystatEntry struct {
+				TableName string          `json:"tableName"`
+				Rows      json.RawMessage `json:"rows"`
+				Data      json.RawMessage `json:"data"`
+			}
+			for _, raw := range rawArray {
+				var entry jellystatEntry
+				if err := json.Unmarshal(raw, &entry); err != nil || entry.TableName == "" {
+					continue
+				}
+				rows := entry.Rows
+				if rows == nil {
+					rows = entry.Data
+				}
+				tables = append(tables, map[string]json.RawMessage{entry.TableName: rows})
+			}
+		} else {
+			// Old Jellystics: [{"jf_table": [...]}]
+			for _, raw := range rawArray {
+				var entry map[string]json.RawMessage
+				if err := json.Unmarshal(raw, &entry); err != nil {
+					continue
+				}
+				tables = append(tables, entry)
+			}
+		}
+	}
+
+	h.emitLog("Starting restore...")
 	for _, tableEntry := range tables {
 		for tableName, rawRows := range tableEntry {
 			count, err := restoreTableData(ctx, h.repos, tableName, rawRows)
 			if err != nil {
+				h.emitLog(fmt.Sprintf("ERROR restoring %s: %s", tableName, err.Error()))
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": fmt.Sprintf("failed to restore table %s: %s", tableName, err.Error()),
 				})
 				return
 			}
 			restored[tableName] = count
+			h.emitLog(fmt.Sprintf("Restored %s: %d rows", tableName, count))
 		}
 	}
+
+	// Run post-restore tasks in background to avoid blocking the HTTP response.
+	pluginDataCount := restored["jf_playback_reporting_plugin_data"]
+	total := 0
+	for _, n := range restored {
+		total += n
+	}
+	h.emitLog(fmt.Sprintf("Successfully restored %d rows", total))
+
+	go func() {
+		bgCtx := context.Background()
+		if pluginDataCount > 0 {
+			h.emitLog("Merging plugin data into playback activity...")
+			_ = h.repos.PluginData.MergeIntoPlaybackActivity(bgCtx)
+		}
+		h.emitLog("Refreshing stats views...")
+		_ = h.repos.Stats.RefreshViews(bgCtx)
+		if isImport {
+			_ = os.Remove(path)
+		}
+		h.finishLogEntry(bgCtx, "Import JSON Backup", logID, startTime, time.Since(restoreStart), nil)
+		h.emitLog("Restore complete.")
+	}()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Restore completed successfully", "restored": restored})
 }
@@ -354,6 +503,18 @@ func restoreTableData(ctx context.Context, repos *repository.Container, tableNam
 		}
 		if len(rows) > 0 {
 			if err := repos.ItemInfo.Upsert(ctx, rows); err != nil {
+				return 0, err
+			}
+		}
+		return len(rows), nil
+
+	case "jf_playback_reporting_plugin_data":
+		var rows []models.JFPluginData
+		if err := unmarshalBackupRows(rawRows, &rows); err != nil {
+			return 0, err
+		}
+		if len(rows) > 0 {
+			if err := repos.PluginData.Upsert(ctx, rows); err != nil {
 				return 0, err
 			}
 		}
@@ -472,7 +633,11 @@ func (h *BackupHandler) Upload(c *gin.Context) {
 	}
 	defer src.Close()
 
-	destPath := filepath.Join(backupDir, filename)
+	if err := os.MkdirAll(importDir, 0o755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create import directory"})
+		return
+	}
+	destPath := filepath.Join(importDir, filename)
 	dst, err := os.Create(destPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})

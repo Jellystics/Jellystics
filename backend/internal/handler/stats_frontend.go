@@ -135,7 +135,7 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 	}
 	var libRows []LibRow
 	if len(ids) > 0 {
-		h.db.Raw(`SELECT "Id", "ParentId", "Type", "Genres" FROM jf_library_items WHERE "Id" = ANY(?)`, ids).Scan(&libRows)
+		h.db.Raw(`SELECT "Id", "ParentId", "Type", "Genres" FROM jf_library_items WHERE "Id" IN ?`, ids).Scan(&libRows)
 	}
 
 	now := time.Now()
