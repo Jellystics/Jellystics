@@ -6,7 +6,6 @@ import ConfigTab from './components/ConfigTab'
 import TasksTab from './components/TasksTab'
 import BackupTab from './components/BackupTab'
 import WebhooksTab from './components/WebhooksTab'
-import SecurityTab from './components/SecurityTab'
 import LogsTab from './components/LogsTab'
 import ApiKeysTab from './components/ApiKeysTab'
 
@@ -15,7 +14,6 @@ const TABS = [
   { key: 'settings.tasks',    view: 'tasks' },
   { key: 'settings.backup',   view: 'backup' },
   { key: 'settings.webhooks', view: 'webhooks' },
-  { key: 'settings.security', view: 'security' },
   { key: 'settings.logs',     view: 'logs' },
   { key: 'settings.apiKeys',  view: 'apikeys' },
 ]
@@ -56,9 +54,8 @@ export default function SettingsPage() {
         {activeTab === 1 && <TasksTab />}
         {activeTab === 2 && <BackupTab />}
         {activeTab === 3 && <WebhooksTab />}
-        {activeTab === 4 && <SecurityTab />}
-        {activeTab === 5 && <LogsTab />}
-        {activeTab === 6 && <ApiKeysTab />}
+        {activeTab === 4 && <LogsTab />}
+        {activeTab === 5 && <ApiKeysTab />}
       </Box>
     </>
   )

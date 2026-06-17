@@ -146,35 +146,6 @@ func (c *Client) AuthenticateUser(ctx context.Context, username, password string
 	return &auth, nil
 }
 
-// UpdatePassword changes a user's password using their own token.
-// It first authenticates with currentPw to obtain a user token, then changes the password.
-func (c *Client) UpdatePassword(ctx context.Context, username, currentPw, newPw string) error {
-	// Authenticate to get user token
-	auth, err := c.AuthenticateUser(ctx, username, currentPw)
-	if err != nil {
-		return fmt.Errorf("invalid current password")
-	}
-
-	body := fmt.Sprintf(`{"CurrentPw":%q,"NewPw":%q,"ResetPassword":false}`, currentPw, newPw)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		fmt.Sprintf("%s/Users/%s/Password", c.baseURL, auth.User.Id),
-		strings.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Emby-Token", auth.AccessToken)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("password update failed: status %d", resp.StatusCode)
-	}
-	return nil
-}
 
 // ItemsParams controls GetItems / GetAllItems behaviour.
 type ItemsParams struct {

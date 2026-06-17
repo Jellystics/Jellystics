@@ -41,7 +41,6 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 	userH      := handler.NewUserHandler(repos)
 	backupH    := handler.NewBackupHandler(repos, hub)
 	logsH      := handler.NewLogsHandler(repos)
-	securityH  := handler.NewSecurityHandler(repos)
 	adminH     := handler.NewAdminApiHandler(repos, db)
 
 	// ── Socket.IO (public) ────────────────────────────────────────────────────
@@ -197,7 +196,6 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 		api.POST("/runTask/:name", tasksH.Run)
 		api.GET("/stopTask", configH.StopTask)
 		// Security
-		api.POST("/updatePassword", securityH.UpdatePassword)
 		// Admin library/item queries
 		api.GET("/getLibraries", adminH.GetLibraries)
 		api.POST("/getLibrary", adminH.GetLibrary)
