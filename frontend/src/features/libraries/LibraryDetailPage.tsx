@@ -438,9 +438,9 @@ function GenreDistributionCard({ genres, loading, t }: {
                     outerRadius: 110,
                     paddingAngle: 2,
                     cornerRadius: 3,
-                    highlightScope: { faded: 'global', highlighted: 'item' },
+                    highlightScope: { fade: 'global', highlight: 'item' },
                   }]}
-                  slotProps={{ legend: { hidden: true } }}
+                  slotProps={{ legend: { hidden: true } as any }}
                 />
 
                 <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -1273,7 +1273,7 @@ export default function LibraryDetailPage() {
       {/* ── MUSIC: Albums ── */}
       {isMusicLibrary && tab === 0 && (
         albumsSynced
-          ? <AlbumGrid albums={albums} libraryId={id!} loading={loading} navigate={navigate} t={t} />
+          ? <AlbumGrid albums={albums} libraryId={id!} loading={loading} navigate={navigate} t={(k, fb) => t(k, { defaultValue: fb })} />
           : !loading && (
             <Alert severity="info">
               {t('library.syncRequired', 'Lancez une synchronisation complète pour afficher les albums et les artistes.')}
@@ -1299,7 +1299,7 @@ export default function LibraryDetailPage() {
                 </Tooltip>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>{selectedArtist}</Typography>
               </Box>
-              <AlbumGrid albums={artistAlbums} libraryId={id!} loading={artistLoading} navigate={navigate} t={t} />
+              <AlbumGrid albums={artistAlbums} libraryId={id!} loading={artistLoading} navigate={navigate} t={(k, fb) => t(k, { defaultValue: fb })} />
             </>
           ) : (
             <Card>
@@ -1372,7 +1372,7 @@ export default function LibraryDetailPage() {
       {/* ── MUSIC: Titres ── */}
       {isMusicLibrary && tab === 2 && (
         albumsSynced
-          ? <TracksTable tracks={tracks} loading={loading} navigate={navigate} libraryId={id!} t={t} />
+          ? <TracksTable tracks={tracks} loading={loading} navigate={navigate} libraryId={id!} t={(k, fb) => t(k, { defaultValue: fb })} />
           : !loading && (
             <Alert severity="info">
               {t('library.syncRequired', 'Lancez une synchronisation complète pour afficher les titres.')}
@@ -1442,16 +1442,16 @@ export default function LibraryDetailPage() {
           </Box>
 
           {viewMode === 'grid' ? (
-            <ItemsGridView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} cols={gridCols} />
+            <ItemsGridView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={(k, fb) => t(k, { defaultValue: fb })} cols={gridCols} />
           ) : (
-            <ItemsTableView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={t} />
+            <ItemsTableView items={filteredItems} loading={loading} navigate={navigate} libraryId={id!} t={(k, fb) => t(k, { defaultValue: fb })} />
           )}
         </Box>
       )}
 
       {/* ── Activity tab ── */}
       {tab === activityTabIndex && (
-        <LibraryActivityTab data={activityHistory} loading={loading} onRefresh={() => load(false)} t={t} />
+        <LibraryActivityTab data={activityHistory} loading={loading} onRefresh={() => load(false)} t={(k, fb) => t(k, { defaultValue: fb })} />
       )}
 
       {/* ── Stats tab (tab 3 for music, tab 1 for regular) ── */}
@@ -1460,7 +1460,7 @@ export default function LibraryDetailPage() {
           {/* Genre Distribution (non-music only) */}
           {!isMusicLibrary && (
             <Grid size={{ xs: 12 }}>
-              <GenreDistributionCard genres={genres} loading={loading} t={t} />
+              <GenreDistributionCard genres={genres} loading={loading} t={(k, fb) => t(k, { defaultValue: fb })} />
             </Grid>
           )}
 
@@ -1521,7 +1521,7 @@ export default function LibraryDetailPage() {
                 height={220}
                 sx={{ width: '100%' }}
                 grid={{ horizontal: true }}
-                slotProps={{ legend: { hidden: true } }}
+                slotProps={{ legend: { hidden: true } as any }}
               />
             </ChartCard>
           </Grid>
@@ -1537,7 +1537,7 @@ export default function LibraryDetailPage() {
                   height={280}
                   sx={{ width: '100%' }}
                   grid={{ vertical: true }}
-                  slotProps={{ legend: { hidden: true } }}
+                  slotProps={{ legend: { hidden: true } as any }}
                 />
               </ChartCard>
             </Grid>

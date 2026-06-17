@@ -244,7 +244,7 @@ function ColorInput({ label, value, onChange }: { label: string; value: string; 
           size="small"
           value={hexText}
           onChange={(e) => handleText(e.target.value)}
-          inputProps={{ maxLength: 7, spellCheck: false, style: { fontFamily: 'monospace', fontSize: 13 } }}
+          slotProps={{ htmlInput: { maxLength: 7, spellCheck: false, style: { fontFamily: 'monospace', fontSize: 13 } } }}
           placeholder="#000000"
           sx={{ flex: 1 }}
           error={hexText.length > 0 && !/^#?[0-9a-fA-F]{0,6}$/.test(hexText)}

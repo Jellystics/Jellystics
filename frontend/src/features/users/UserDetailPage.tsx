@@ -258,7 +258,7 @@ export default function UserDetailPage() {
               height={200}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
               skipAnimation
             />
           </Box>
@@ -319,7 +319,7 @@ export default function UserDetailPage() {
               margin={{ left: 120 }}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </>

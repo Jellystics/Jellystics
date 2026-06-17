@@ -187,7 +187,7 @@ export default function StatisticsPage() {
               height={240}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -211,7 +211,7 @@ export default function StatisticsPage() {
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -232,7 +232,7 @@ export default function StatisticsPage() {
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -300,7 +300,7 @@ export default function StatisticsPage() {
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>

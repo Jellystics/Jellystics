@@ -313,7 +313,7 @@ export default function DashboardPage() {
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -334,7 +334,7 @@ export default function DashboardPage() {
               height={220}
               sx={{ width: '100%' }}
               grid={{ horizontal: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -371,7 +371,7 @@ export default function DashboardPage() {
               series={[{ data: pieData, innerRadius: 40, paddingAngle: 2, cornerRadius: 3 }]}
               height={260}
               sx={{ width: '100%' }}
-              slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'right' } } }}
+              slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'end' } } }}
             />
           </ChartCard>
         </Grid>
@@ -391,7 +391,7 @@ export default function DashboardPage() {
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
               margin={{ left: 110, right: 16, top: 8, bottom: 36 }}
             />
           </ChartCard>
@@ -413,7 +413,7 @@ export default function DashboardPage() {
               }]}
               height={260}
               sx={{ width: '100%' }}
-              slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'right' } } }}
+              slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'end' } } }}
             />
           </ChartCard>
         </Grid>
@@ -437,7 +437,7 @@ export default function DashboardPage() {
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { hidden: true } as any }}
               margin={{ left: 160, right: 16, top: 8, bottom: 36 }}
             />
           </ChartCard>
@@ -460,7 +460,7 @@ export default function DashboardPage() {
               yAxis={[{ label: 'min' }]}
               height={300}
               sx={{ width: '100%' }}
-              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'right' } } }}
+              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'end' } } }}
               margin={{ left: 50, right: 20, top: 40, bottom: 40 }}
             />
           </ChartCard>
@@ -483,7 +483,7 @@ export default function DashboardPage() {
               yAxis={[{ label: t('common.plays', 'Plays') }]}
               height={320}
               sx={{ width: '100%' }}
-              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'right' } } }}
+              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'end' } } }}
               margin={{ left: 50, right: 20, top: 40, bottom: 40 }}
             />
           </ChartCard>

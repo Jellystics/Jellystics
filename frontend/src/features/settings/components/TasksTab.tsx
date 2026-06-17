@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Button, Typography, Chip,
-  List, ListItem, ListItemText, ListItemSecondaryAction, Skeleton,
+  List, ListItem, ListItemText, Skeleton,
   Alert, LinearProgress, TextField, InputAdornment, Tooltip, Switch, FormControlLabel,
 } from '@mui/material'
 import { ArrowUpload24Regular, Document24Regular, ArrowClockwise24Regular, CheckmarkCircle24Regular } from '@fluentui/react-icons'
@@ -221,13 +221,15 @@ export default function TasksTab() {
                             value={cronInputs[task.name] ?? ''}
                             onChange={(e) => setCronInputs((prev) => ({ ...prev, [task.name]: e.target.value }))}
                             sx={{ flex: 1, maxWidth: 280 }}
-                            inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <ArrowClockwise24Regular style={{ fontSize: 16, opacity: 0.5 }} />
-                                </InputAdornment>
-                              ),
+                            slotProps={{
+                              htmlInput: { style: { fontFamily: 'monospace', fontSize: 13 } },
+                              input: {
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <ArrowClockwise24Regular style={{ fontSize: 16, opacity: 0.5 }} />
+                                  </InputAdornment>
+                                ),
+                              },
                             }}
                           />
                         </Tooltip>

@@ -76,7 +76,7 @@ export default function ActivityChart() {
           xAxis={[{ id: 'x', scaleType: 'point', data: labels, height: 28 }]}
           yAxis={[
             { id: 'plays', width: 40 },
-            { id: 'duration', width: 40 },
+            { id: 'duration', width: 40, position: 'right' },
           ]}
           series={[
             {
@@ -100,7 +100,6 @@ export default function ActivityChart() {
               valueFormatter: (v) => formatWatchTime(v ?? 0),
             },
           ]}
-          rightAxis="duration"
           height={260}
           sx={{
             width: '100%',
@@ -113,7 +112,7 @@ export default function ActivityChart() {
             },
           }}
           grid={{ horizontal: true }}
-          slotProps={{ legend: { position: { vertical: 'top', horizontal: 'right' }, padding: { top: -4 } } }}
+          slotProps={{ legend: { position: { vertical: 'top', horizontal: 'end' } } }}
           margin={{ right: 48, left: 40, top: 28, bottom: 28 }}
         />
       ) : (
@@ -130,7 +129,7 @@ export default function ActivityChart() {
           height={220}
           sx={{ width: '100%' }}
           grid={{ horizontal: true }}
-          slotProps={{ legend: { hidden: true } }}
+          slotProps={{ legend: { hidden: true } as any }}
         />
       )}
     </ChartCard>

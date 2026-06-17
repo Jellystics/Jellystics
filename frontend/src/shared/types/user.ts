@@ -17,6 +17,7 @@ export interface UserStats {
   FirstSeen?: string
   MostUsedClient?: string
   MostUsedDevice?: string
+  FavoriteGenre?: string
 }
 
 export interface UserActivity {

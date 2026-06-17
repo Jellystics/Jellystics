@@ -34,6 +34,7 @@ export interface Session {
     Id: string
     Name: string
     Type: string
+    MediaType?: string
     SeriesName?: string
     SeriesId?: string
     AlbumId?: string
