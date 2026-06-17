@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  Box, Card, CardContent, Button, Typography, List, ListItem,
-  ListItemText, ListItemSecondaryAction, IconButton, Skeleton,
+  Box, Card, CardContent, Button, Typography, TextField, IconButton, Menu, MenuItem, ListItemIcon, ListItemText,
 } from '@mui/material'
-import { Delete24Regular, ArrowDownload24Regular } from '@fluentui/react-icons'
+import { Delete24Regular, ArrowDownload24Regular, MoreVertical24Regular } from '@fluentui/react-icons'
+import { createColumnHelper } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
 import { format, parseISO } from 'date-fns'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
+import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import { getDateLocale } from '@/lib/dateLocale'
 
@@ -17,13 +18,18 @@ interface BackupFile {
   createdAt: string
 }
 
+const col = createColumnHelper<BackupFile>()
+
 export default function BackupTab() {
   const { t } = useTranslation()
   const { enqueueSnackbar } = useSnackbar()
   const [backups, setBackups] = useState<BackupFile[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [keepDays, setKeepDays] = useState<number>(30)
+  const [keepDaysSaving, setKeepDaysSaving] = useState(false)
 
   const loadBackups = () => {
     api.get('/backup/files').then((r) => {
@@ -35,9 +41,16 @@ export default function BackupTab() {
     }).catch(() => {}).finally(() => setLoading(false))
   }
 
-  useEffect(() => { loadBackups() }, [])
+  useEffect(() => {
+    loadBackups()
+    api.get('/api/getconfig').then((r) => {
+      setKeepDays(r.data?.settings?.KeepLogsForDays ?? 30)
+    }).catch(() => {})
+  }, [])
 
   const createBackup = async () => {
+    if (creatingRef.current) return
+    creatingRef.current = true
     setCreating(true)
     try {
       await api.get('/backup/beginBackup')
@@ -46,6 +59,7 @@ export default function BackupTab() {
     } catch {
       enqueueSnackbar(t('common.error'), { variant: 'error' })
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -62,9 +76,55 @@ export default function BackupTab() {
     }
   }
 
+  const saveKeepDays = async () => {
+    setKeepDaysSaving(true)
+    try {
+      await api.post('/api/setconfig', { KeepLogsForDays: keepDays })
+      enqueueSnackbar(t('common.saved'), { variant: 'success' })
+    } catch {
+      enqueueSnackbar(t('common.error'), { variant: 'error' })
+    } finally {
+      setKeepDaysSaving(false)
+    }
+  }
+
+  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; name: string } | null>(null)
+
+  const columns = useMemo(() => [
+    col.accessor('name', {
+      header: t('settings.backupName'),
+      enableGlobalFilter: false,
+      cell: (i) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12 }}>{i.getValue()}</Typography>
+      ),
+    }),
+    col.accessor('createdAt', {
+      header: t('activity.date'),
+      cell: (i) => {
+        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return i.getValue() }
+      },
+    }),
+    col.accessor('size', {
+      header: t('settings.backupSize'),
+      enableGlobalFilter: false,
+      cell: (i) => `${(i.getValue() / 1024).toFixed(1)} ${t('units.kilobytes')}`,
+    }),
+    col.display({
+      id: 'actions',
+      header: () => <Box sx={{ textAlign: 'center' }}>{t('common.actions')}</Box>,
+      cell: (i) => (
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <IconButton size="small" onClick={(e) => setMenuAnchor({ el: e.currentTarget, name: i.row.original.name })}>
+            <MoreVertical24Regular style={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+      ),
+    }),
+  ], [t])
+
   return (
-    <Box sx={{ maxWidth: 640 }}>
-      <Card>
+    <Box>
+      <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('settings.backupFiles')}</Typography>
@@ -72,32 +132,57 @@ export default function BackupTab() {
               {creating ? t('settings.creating') : t('settings.createBackup')}
             </Button>
           </Box>
+          <DataTable
+            data={backups}
+            columns={columns}
+            loading={loading}
+            searchPlaceholder={t('activity.date')}
+            onRefresh={loadBackups}
+          />
+          <Menu
+            anchorEl={menuAnchor?.el}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <MenuItem onClick={() => {
+              const a = document.createElement('a')
+              a.href = `/backup/files/${encodeURIComponent(menuAnchor?.name ?? '')}`
+              a.download = menuAnchor?.name ?? ''
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              setMenuAnchor(null)
+            }}>
+              <ListItemIcon><ArrowDownload24Regular style={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('common.download')}</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => { setDeleteTarget(menuAnchor?.name ?? null); setMenuAnchor(null) }} sx={{ color: 'error.main', '& .MuiListItemIcon-root': { color: 'error.main' } }}>
+              <ListItemIcon><Delete24Regular style={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('common.delete')}</ListItemText>
+            </MenuItem>
+          </Menu>
+        </CardContent>
+      </Card>
 
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={52} sx={{ mb: 1, borderRadius: 1 }} />)
-          ) : backups.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">{t('settings.noBackups')}</Typography>
-          ) : (
-            <List disablePadding>
-              {backups.map((b) => (
-                <ListItem key={b.name} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
-                  <ListItemText
-                    primary={b.name}
-                    secondary={`${format(parseISO(b.createdAt), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() })} · ${(b.size / 1024).toFixed(1)} ${t('units.kilobytes')}`}
-                    slotProps={{ primary: { style: { fontSize: 13 } }, secondary: { style: { fontSize: 11 } } }}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton size="small" href={`/backup/files/${encodeURIComponent(b.name)}`} download>
-                      <ArrowDownload24Regular style={{ fontSize: 18 }} />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(b.name)}>
-                      <Delete24Regular style={{ fontSize: 18 }} />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>{t('settings.keepLogsForDays')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('settings.keepLogsForDaysDesc')}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <TextField
+              type="number"
+              size="small"
+              value={keepDays}
+              onChange={(e) => setKeepDays(Math.max(1, Number(e.target.value)))}
+              sx={{ width: 120 }}
+              slotProps={{ htmlInput: { min: 1 } }}
+            />
+            <Button variant="contained" size="small" onClick={saveKeepDays} disabled={keepDaysSaving}>
+              {t('common.save')}
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 

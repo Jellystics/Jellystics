@@ -26,7 +26,6 @@ import { useLogo } from '@/lib/FaviconContext'
 const schema = z.object({
   JellyfinUrl: z.string().url(),
   ApiKey: z.string().min(1),
-  KeepLogsForDays: z.number().min(1),
 })
 
 type FormData = z.infer<typeof schema>
@@ -384,7 +383,6 @@ export default function ConfigTab() {
       reset({
         JellyfinUrl: data.JF_HOST ?? '',
         ApiKey: '',
-        KeepLogsForDays: data.settings?.KeepLogsForDays ?? 30,
       })
     }).catch(() => {})
   }, [reset])
@@ -443,26 +441,6 @@ export default function ConfigTab() {
                     size="small"
                     error={!!errors.ApiKey}
                     helperText={errors.ApiKey?.message}
-                  />
-                </Box>
-              )}
-            />
-            <Controller
-              name="KeepLogsForDays"
-              control={control}
-              render={({ field }) => (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
-                    {t('settings.keepLogsForDays')}
-                  </Typography>
-                  <TextField
-                    {...field}
-                    type="number"
-                    fullWidth
-                    size="small"
-                    error={!!errors.KeepLogsForDays}
-                    helperText={errors.KeepLogsForDays?.message}
-                    onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </Box>
               )}

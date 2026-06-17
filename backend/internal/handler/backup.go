@@ -221,7 +221,7 @@ func createBackupFile(ctx context.Context, repos *repository.Container) (string,
 	backupData = append(backupData, map[string]any{"jf_item_info": []any{}})
 
 	// Build file name matching old backend format: "backup_YYYY-MM-DD HH-mm-ss.json"
-	name := fmt.Sprintf("backup_%s.json", time.Now().UTC().Format("2006-01-02 15-04-05"))
+	name := fmt.Sprintf("backup_%s.json", time.Now().Local().Format("2006-01-02 15-04-05"))
 	path := filepath.Join(backupDir, name)
 
 	f, err := os.Create(path)

@@ -75,8 +75,9 @@ func (h *ConfigApiHandler) GetConfig(c *gin.Context) {
 // POST /api/setconfig
 func (h *ConfigApiHandler) SetConfig(c *gin.Context) {
 	var body struct {
-		JFHost   string `json:"JF_HOST"`
-		JFApiKey string `json:"JF_API_KEY"`
+		JFHost          string `json:"JF_HOST"`
+		JFApiKey        string `json:"JF_API_KEY"`
+		KeepLogsForDays *int   `json:"KeepLogsForDays"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -94,6 +95,19 @@ func (h *ConfigApiHandler) SetConfig(c *gin.Context) {
 	}
 	if body.JFApiKey != "" {
 		cfg.JFApiKey = &body.JFApiKey
+	}
+	if body.KeepLogsForDays != nil {
+		var settings map[string]interface{}
+		if len(cfg.Settings) > 0 {
+			_ = json.Unmarshal(cfg.Settings, &settings)
+		}
+		if settings == nil {
+			settings = map[string]interface{}{}
+		}
+		settings["KeepLogsForDays"] = *body.KeepLogsForDays
+		if b, err := json.Marshal(settings); err == nil {
+			cfg.Settings = b
+		}
 	}
 
 	if err := h.repos.Config.Save(c.Request.Context(), cfg); err != nil {
