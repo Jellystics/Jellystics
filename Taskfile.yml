@@ -49,14 +49,20 @@ tasks:
   backend:
     desc: Start Go backend in dev mode
     dir: backend
+    vars:
+      VERSION:
+        sh: git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "dev"
     cmds:
-      - go run ./cmd/server
+      - go run -ldflags "-X 'github.com/Jellystics/Jellystics/internal/handler.currentAppVersion={{.VERSION}}'" ./cmd/server
 
   backend:build:
     desc: Build Go backend binary
     dir: backend
+    vars:
+      VERSION:
+        sh: git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "dev"
     cmds:
-      - go build -o ../dist/jellystics ./cmd/server
+      - go build -ldflags "-X 'github.com/Jellystics/Jellystics/internal/handler.currentAppVersion={{.VERSION}}'" -o ../dist/jellystics ./cmd/server
 
   backend:test:
     desc: Run Go unit tests
