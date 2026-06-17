@@ -183,6 +183,7 @@ export default function ActivityPage() {
       unit: 'min',
       transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
     },
+    { id: 'ActivityDateInserted', label: t('activity.date'), type: 'daterange' },
   ], [t])
 
   return (

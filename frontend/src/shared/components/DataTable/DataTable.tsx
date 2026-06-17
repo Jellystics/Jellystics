@@ -51,14 +51,15 @@ import { useDebounce } from '@/shared/hooks/useDebounce'
 export interface FilterDef {
   id: string
   label: string
-  type: 'select' | 'range'
+  type: 'select' | 'range' | 'daterange'
   unit?: string
   transform?: (raw: number) => number
 }
 
 type SelectFilter = string[]
 type RangeFilter = [number | undefined, number | undefined]
-type FilterState = Record<string, SelectFilter | RangeFilter>
+type DateRangeFilter = [string | undefined, string | undefined]
+type FilterState = Record<string, SelectFilter | RangeFilter | DateRangeFilter>
 
 interface DataTableProps<T> {
   data: T[]
@@ -115,8 +116,8 @@ export default function DataTable<T>({
       const f = activeFilters[def.id]
       if (!f) return false
       if (def.type === 'select') return (f as SelectFilter).length > 0
-      const [min, max] = f as RangeFilter
-      return min !== undefined || max !== undefined
+      const [a, b] = f as RangeFilter | DateRangeFilter
+      return a !== undefined || b !== undefined
     })
     if (!hasActive) return data
 
@@ -141,6 +142,14 @@ export default function DataTable<T>({
           if (max !== undefined && val > max) return false
         }
 
+        if (def.type === 'daterange') {
+          const [from, to] = f as DateRangeFilter
+          if (from === undefined && to === undefined) return true
+          const rawDate = String((row as Record<string, unknown>)[def.id] ?? '').substring(0, 10)
+          if (from !== undefined && rawDate < from) return false
+          if (to !== undefined && rawDate > to) return false
+        }
+
         return true
       })
     )
@@ -152,8 +161,8 @@ export default function DataTable<T>({
       const f = activeFilters[def.id]
       if (!f) return false
       if (def.type === 'select') return (f as SelectFilter).length > 0
-      const [min, max] = f as RangeFilter
-      return min !== undefined || max !== undefined
+      const [a, b] = f as RangeFilter | DateRangeFilter
+      return a !== undefined || b !== undefined
     }).length
   }, [activeFilters, filterDefs])
 
@@ -378,6 +387,45 @@ export default function DataTable<T>({
                         />
                       </Box>
                     )}
+
+                    {def.type === 'daterange' && (
+                      <Stack spacing={1}>
+                        <TextField
+                          size="small"
+                          type="date"
+                          label={t('timeRange.from')}
+                          value={(pendingFilters[def.id] as DateRangeFilter)?.[0] ?? ''}
+                          onChange={(e) =>
+                            setPendingFilters((prev) => ({
+                              ...prev,
+                              [def.id]: [
+                                e.target.value !== '' ? e.target.value : undefined,
+                                (prev[def.id] as DateRangeFilter)?.[1],
+                              ],
+                            }))
+                          }
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          fullWidth
+                        />
+                        <TextField
+                          size="small"
+                          type="date"
+                          label={t('timeRange.to')}
+                          value={(pendingFilters[def.id] as DateRangeFilter)?.[1] ?? ''}
+                          onChange={(e) =>
+                            setPendingFilters((prev) => ({
+                              ...prev,
+                              [def.id]: [
+                                (prev[def.id] as DateRangeFilter)?.[0],
+                                e.target.value !== '' ? e.target.value : undefined,
+                              ],
+                            }))
+                          }
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          fullWidth
+                        />
+                      </Stack>
+                    )}
                   </Box>
                 ))}
               </Stack>
@@ -434,6 +482,18 @@ export default function DataTable<T>({
                   : min !== undefined
                     ? `${def.label}: ≥${min}${def.unit ? ` ${def.unit}` : ''}`
                     : `${def.label}: ≤${max}${def.unit ? ` ${def.unit}` : ''}`
+              return [<Chip key={def.id} label={label} size="small" onDelete={() => clearFilter(def.id)} />]
+            }
+
+            if (def.type === 'daterange') {
+              const [from, to] = f as DateRangeFilter
+              if (from === undefined && to === undefined) return []
+              const label =
+                from !== undefined && to !== undefined
+                  ? `${def.label}: ${from} – ${to}`
+                  : from !== undefined
+                    ? `${def.label}: ≥ ${from}`
+                    : `${def.label}: ≤ ${to}`
               return [<Chip key={def.id} label={label} size="small" onDelete={() => clearFilter(def.id)} />]
             }
 
