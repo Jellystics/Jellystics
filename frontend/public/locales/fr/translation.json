@@ -7,7 +7,18 @@
     "users": "Utilisateurs",
     "statistics": "Statistiques",
     "settings": "Paramètres",
+    "about": "À propos",
     "logout": "Déconnexion"
+  },
+  "about": {
+    "description": "Suivi des statistiques et de l'activité Jellyfin",
+    "version": "Version",
+    "installed": "Installée",
+    "latest": "Dernière disponible",
+    "update": "Télécharger la mise à jour",
+    "links": "Liens",
+    "github": "Dépôt GitHub",
+    "openIssue": "Ouvrir un ticket"
   },
   "auth": {
     "username": "Nom d'utilisateur",

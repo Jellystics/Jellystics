@@ -776,9 +776,9 @@ func (h *ConfigApiHandler) SetActivityMonitorSettings(c *gin.Context) {
 
 // ─── CheckForUpdates ──────────────────────────────────────────────────────────
 
-// githubRelease is the shape of the GitHub releases/latest API response we care about.
-type githubRelease struct {
-	TagName string `json:"tag_name"`
+// githubTag is the shape of a GitHub tags API entry.
+type githubTag struct {
+	Name string `json:"name"`
 }
 
 // GET /api/CheckForUpdates
@@ -794,7 +794,7 @@ func (h *ConfigApiHandler) CheckForUpdates(c *gin.Context) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequestWithContext(c.Request.Context(),
 		http.MethodGet,
-		"https://api.github.com/repos/Jellystics/Jellystics/releases/latest",
+		"https://api.github.com/repos/Jellystics/Jellystics/tags?per_page=1",
 		nil,
 	)
 	if err != nil {
@@ -806,7 +806,7 @@ func (h *ConfigApiHandler) CheckForUpdates(c *gin.Context) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		result["message"] = fmt.Sprintf("Failed to fetch releases: %s", err.Error())
+		result["message"] = fmt.Sprintf("Failed to fetch tags: %s", err.Error())
 		c.JSON(http.StatusOK, result)
 		return
 	}
@@ -814,30 +814,39 @@ func (h *ConfigApiHandler) CheckForUpdates(c *gin.Context) {
 
 	body, _ := io.ReadAll(resp.Body)
 
-	var release githubRelease
-	if err := json.Unmarshal(body, &release); err != nil || release.TagName == "" {
-		result["message"] = "Failed to parse GitHub release"
+	var tags []githubTag
+	if err := json.Unmarshal(body, &tags); err != nil || len(tags) == 0 {
+		result["message"] = "Failed to fetch latest version"
 		c.JSON(http.StatusOK, result)
 		return
 	}
 
-	// Strip leading 'v' if present (e.g. "v1.2.3" -> "1.2.3")
-	latest := release.TagName
-	if len(latest) > 0 && (latest[0] == 'v' || latest[0] == 'V') {
-		latest = latest[1:]
-	}
+	latest := tags[0].Name
 
 	result["latest_version"] = latest
 
-	cmp := compareSimpleVersion(current, latest)
-	switch {
-	case cmp < 0:
-		result["update_available"] = true
-		result["message"] = fmt.Sprintf("Jellystics has an update %s", latest)
-	case cmp > 0:
-		result["message"] = "Jellystics is using a beta version"
-	default:
-		result["message"] = "Jellystics is up to date"
+	currentClean := current
+	latestClean := latest
+	if len(latestClean) > 0 && (latestClean[0] == 'v' || latestClean[0] == 'V') {
+		latestClean = latestClean[1:]
+	}
+	if len(currentClean) > 0 && (currentClean[0] == 'v' || currentClean[0] == 'V') {
+		currentClean = currentClean[1:]
+	}
+
+	if current == "0.0.0" || current == "dev" {
+		result["message"] = "Development build"
+	} else {
+		cmp := compareSimpleVersion(currentClean, latestClean)
+		switch {
+		case cmp < 0:
+			result["update_available"] = true
+			result["message"] = fmt.Sprintf("Update available: %s", latest)
+		case cmp > 0:
+			result["message"] = "Running a pre-release version"
+		default:
+			result["message"] = "Jellystics is up to date"
+		}
 	}
 
 	c.JSON(http.StatusOK, result)

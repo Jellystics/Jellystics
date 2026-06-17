@@ -7,7 +7,18 @@
     "users": "Users",
     "statistics": "Statistics",
     "settings": "Settings",
+    "about": "About",
     "logout": "Logout"
+  },
+  "about": {
+    "description": "Jellyfin statistics and activity tracker",
+    "version": "Version",
+    "installed": "Installed",
+    "latest": "Latest available",
+    "update": "Download update",
+    "links": "Links",
+    "github": "GitHub repository",
+    "openIssue": "Open an issue"
   },
   "auth": {
     "username": "Username",

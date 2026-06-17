@@ -15,6 +15,7 @@ import UsersPage from '@/features/users/UsersPage'
 import UserDetailPage from '@/features/users/UserDetailPage'
 import StatisticsPage from '@/features/statistics/StatisticsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
+import AboutPage from '@/features/about/AboutPage'
 
 export const router = createBrowserRouter([
   {
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
           { path: 'users/:id', element: <UserDetailPage /> },
           { path: 'statistics', element: <StatisticsPage /> },
           { path: 'settings', element: <SettingsPage /> },
+          { path: 'about', element: <AboutPage /> },
         ],
       },
     ],

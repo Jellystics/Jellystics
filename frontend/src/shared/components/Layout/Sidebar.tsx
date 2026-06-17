@@ -15,6 +15,7 @@ import {
   People20Regular, People20Filled,
   DataPie20Regular, DataPie20Filled,
   Settings20Regular, Settings20Filled,
+  Info20Regular, Info20Filled,
   ChevronLeft24Regular,
 } from '@fluentui/react-icons'
 
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { key: 'users', path: '/users', icon: <People20Regular />, iconActive: <People20Filled />, labelKey: 'nav.users' },
   { key: 'statistics', path: '/statistics', icon: <DataPie20Regular />, iconActive: <DataPie20Filled />, labelKey: 'nav.statistics' },
   { key: 'settings', path: '/settings', icon: <Settings20Regular />, iconActive: <Settings20Filled />, labelKey: 'nav.settings' },
+  { key: 'about', path: '/about', icon: <Info20Regular />, iconActive: <Info20Filled />, labelKey: 'nav.about' },
 ]
 
 interface SidebarContentProps {
