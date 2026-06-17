@@ -18,7 +18,7 @@ COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
 COPY backend/ ./
-COPY --from=frontend-builder /app/frontend/dist ./internal/assets/web/
+COPY --from=frontend-builder /app/dist ./internal/assets/web/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /jellystics ./cmd/server
 
