@@ -359,15 +359,15 @@ export default function UserDetailPage() {
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                     />
                     <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                      <Typography variant="caption" fontWeight={700} noWrap display="block" title={item.NowPlayingItemName}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }} noWrap title={item.NowPlayingItemName}>
                         {item.SeriesName ? `${item.SeriesName}` : item.NowPlayingItemName}
                       </Typography>
                       {item.SeriesName && (
-                        <Typography variant="caption" color="text.secondary" noWrap display="block">
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                           {item.NowPlayingItemName}
                         </Typography>
                       )}
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         {(() => { try { return format(parseISO(item.ActivityDateInserted), 'dd/MM/yy', { locale: getDateLocale() }) } catch { return '—' } })()}
                         {' · '}{durationLabel}
                       </Typography>

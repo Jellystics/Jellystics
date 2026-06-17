@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
-import DataTable from '@/shared/components/DataTable/DataTable'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
@@ -92,7 +92,7 @@ export default function UsersPage() {
     }),
   ]
 
-  const filterDefs = []
+  const filterDefs: FilterDef[] = []
 
   return (
     <>
