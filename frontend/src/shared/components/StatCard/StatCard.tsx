@@ -22,7 +22,6 @@ export default function StatCard({ label, value, icon, loading, subtitle, color 
         boxShadow: 'none',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: 3,
         display: 'flex',
         alignItems: 'center',
         gap: 2,

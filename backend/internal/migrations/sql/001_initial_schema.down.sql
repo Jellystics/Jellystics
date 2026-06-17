@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS webhooks;
+DROP TABLE IF EXISTS jf_logging;
+DROP TABLE IF EXISTS jf_playback_reporting_plugin_data;
+DROP TABLE IF EXISTS jf_activity_watchdog;
+DROP TABLE IF EXISTS jf_playback_activity;
+DROP TABLE IF EXISTS jf_item_info;
+DROP TABLE IF EXISTS jf_music_tracks;
+DROP TABLE IF EXISTS jf_music_artists;
+DROP TABLE IF EXISTS jf_library_episodes;
+DROP TABLE IF EXISTS jf_library_seasons;
+DROP TABLE IF EXISTS jf_library_items;
+DROP TABLE IF EXISTS jf_libraries;
+DROP TABLE IF EXISTS jf_users;
+DROP TABLE IF EXISTS app_config;

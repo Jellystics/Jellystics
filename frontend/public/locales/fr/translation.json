@@ -43,6 +43,11 @@
     "liveSessions": "Sessions actives",
     "noActiveSessions": "Aucune session active",
     "activityLast7Days": "Activité (7 derniers jours)",
+    "activityLast30Days": "Activité (30 derniers jours)",
+    "activityLastNDays": "Activité ({{days}} derniers jours)",
+    "activity": "Activité",
+    "combinedView": "Vue combinée",
+    "singleView": "Vue simple",
     "topContent": "Contenus populaires",
     "topUsers": "Utilisateurs actifs"
   },
@@ -55,11 +60,26 @@
     "totalUsers": "Total utilisateurs",
     "libraries": "Bibliothèques",
     "totalItems": "Total éléments",
+    "playsOverTime": "Lectures dans le temps",
     "playsOverTime30d": "Lectures sur 30 jours",
     "playsByHour": "Lectures par heure",
     "playsByDayOfWeek": "Lectures par jour",
     "playbackMethod": "Méthodes de lecture",
-    "topClients": "Clients populaires"
+    "topClients": "Clients populaires",
+    "viewsByMediaType": "Répartition par type de média",
+    "mostViewedLibraries": "Bibliothèques les plus vues",
+    "mediaType": {
+      "movie": "Films",
+      "series": "Séries",
+      "audio": "Musique",
+      "other": "Autre"
+    },
+    "mostActiveUsers": "Utilisateurs les plus actifs",
+    "topItems": "Contenus les plus vus",
+    "recentPlays": "Lectures (24h)",
+    "genreDetail": "Détail par genre",
+    "playbacksByLibrary": "Lectures par bibliothèque",
+    "allPlaybacks": "Toutes les lectures"
   },
   "activity": {
     "user": "Utilisateur",
@@ -70,7 +90,11 @@
     "date": "Date",
     "duration": "Durée",
     "ip": "Adresse IP",
-    "search": "Rechercher une activité..."
+    "search": "Rechercher une activité...",
+    "transcodes": "Transcodages",
+    "directPlays": "Lectures directes",
+    "version": "Version",
+    "mediaType": "Type"
   },
   "library": {
     "itemName": "Nom",
@@ -82,16 +106,44 @@
     "items": "Éléments",
     "genres": "Genres",
     "genreDistribution": "Répartition par genre",
-    "genreList": "Liste des genres"
+    "genreList": "Liste des genres",
+    "stats": "Stats",
+    "activityOverTime": "Activité dans le temps",
+    "topItems": "Éléments les plus regardés",
+    "playMethod": "Méthode de lecture",
+    "title": "Titre",
+    "type": "Type",
+    "size": "Taille",
+    "neverPlayed": "Jamais lu",
+    "hoverToPreview": "Survolez une ligne",
+    "showGenres": "Genres affichés",
+    "allGenres": "Tous les genres",
+    "activityHistory": "Historique d'activité",
+    "seasons": "saisons",
+    "tracks": "titres",
+    "trackTitle": "Titre",
+    "artist": "Artiste",
+    "album": "Album",
+    "albums": "Albums",
+    "artists": "Artistes",
+    "duration": "Durée",
+    "syncRequired": "Lancez une synchronisation complète pour afficher cette section.",
+    "topTracks": "Titres les plus écoutés"
   },
   "users": {
     "user": "Utilisateur",
     "lastSeen": "Dernière activité",
+    "firstSeen": "Premier visionnage",
     "favoriteGenre": "Genre favori",
+    "uniqueItems": "Contenus uniques",
+    "favoriteClient": "Client favori",
+    "favoriteDevice": "Appareil favori",
     "search": "Rechercher un utilisateur...",
     "activityHeatmap": "Carte d'activité",
     "watchHistory": "Historique",
-    "watchOverTime": "Visionnage sur 30 jours"
+    "watchOverTime": "Visionnage sur 30 jours",
+    "leaderboard": "Top utilisateurs",
+    "lastPlayed": "Derniers regardés"
   },
   "settings": {
     "config": "Configuration",
@@ -145,7 +197,42 @@
     "deleteApiKey": "Supprimer la clé API",
     "deleteApiKeyConfirm": "Supprimer cette clé API ? Elle cessera de fonctionner immédiatement.",
     "keyName": "Nom de la clé",
-    "noApiKeys": "Aucune clé API"
+    "noApiKeys": "Aucune clé API",
+    "importBackup": "Importer une sauvegarde",
+    "importBackupDesc": "Importez un backup JSON Jellystat/Jellystics ou un TSV exporté depuis le plugin Jellyfin Playback Reporting",
+    "importBackupSelect": "Choisir un fichier",
+    "importBackupRun": "Importer",
+    "importBackupSuccess": "{{count}} entrées importées avec succès",
+    "importBackupError": "Échec de l'importation",
+    "importBackupNoFile": "Aucun fichier sélectionné",
+    "importPlaybackReportingBackup": "Importer Jellyfin Playback Reporting Plugin",
+    "importPlaybackReportingBackupDesc": "Importez un fichier TSV ou TXT exporté depuis le plugin Jellyfin Playback Reporting.",
+    "importJellystatBackup": "Importer une sauvegarde Jellystat",
+    "importJellystatBackupDesc": "Importez un fichier JSON Jellystat/Jellystics. Les bibliothèques, éléments, utilisateurs, historiques et métadonnées sont restaurés.",
+    "jellystatImportSuccess": "{{count}} lignes restaurées avec succès",
+    "jellystatImportError": "Échec de l'import Jellystat",
+    "cronEnabled": "Activer la planification",
+    "cronExpression": "Expression cron",
+    "cronSaved": "Planification sauvegardée",
+    "cronHelp": "Format cron standard : minute heure jour mois jour_semaine (ex. \"0 * * * *\" = chaque heure)",
+    "cronHint": "Utilisez des expressions cron pour planifier les tâches (ex. \"0 * * * *\" = chaque heure, \"0 0 * * *\" = tous les jours à minuit)",
+    "addPalette": "Ajouter une palette",
+    "paletteName": "Nom de la palette",
+    "paletteLight": "Couleur claire",
+    "paletteDark": "Couleur sombre",
+    "paletteAdded": "Palette ajoutée",
+    "paletteDeleted": "Palette supprimée",
+    "siteIcon": "Icône du site",
+    "uploadIcon": "Importer une icône",
+    "iconSaved": "Icône mise à jour",
+    "iconHint": "PNG, JPG ou SVG — recommandé 256×256 px ou carré"
+  },
+  "firstRun": {
+    "title": "Bienvenue sur Jellystics !",
+    "description": "Jellyfin n'a pas encore été synchronisé. Lancez une synchronisation complète initiale pour importer vos bibliothèques, utilisateurs et historique de lecture.",
+    "hint": "Vous pouvez également lancer une synchronisation manuellement depuis Paramètres → Tâches.",
+    "dismiss": "Plus tard",
+    "runSync": "Lancer la synchronisation initiale"
   },
   "frame": {
     "language": "Langue",
@@ -171,6 +258,98 @@
     "all": "Tous",
     "less": "Moins",
     "more": "Plus",
-    "columns": "Colonnes"
+    "back": "Retour",
+    "rowsPerPage": "Lignes/page",
+    "columns": "Colonnes",
+    "user": "Utilisateur",
+    "administrator": "Administrateur",
+    "refresh": "Actualiser",
+    "active": "actif",
+    "disabled": "désactivé",
+    "url": "URL",
+    "filters": "Filtres",
+    "clearAll": "Tout effacer",
+    "clear": "Effacer",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "selected": "sélectionnés",
+    "preview": "Aperçu"
+  },
+  "theme": {
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre"
+  },
+  "logLevel": {
+    "info": "Info",
+    "warn": "Avertissement",
+    "error": "Erreur"
+  },
+  "validation": {
+    "required": "Requis",
+    "min8Chars": "Min 8 caractères",
+    "passwordsMismatch": "Les mots de passe ne correspondent pas"
+  },
+  "colors": {
+    "violet": "Violet (défaut)",
+    "jellyfin": "Jellyfin",
+    "blue": "Bleu",
+    "indigo": "Indigo",
+    "cyan": "Cyan",
+    "teal": "Sarcelle",
+    "green": "Vert",
+    "emerald": "Émeraude",
+    "amber": "Ambre",
+    "orange": "Orange",
+    "red": "Rouge",
+    "pink": "Rose",
+    "rose": "Rose vif",
+    "slate": "Gris ardoise"
+  },
+  "error": {
+    "loadDashboard": "Impossible de charger les données du tableau de bord"
+  },
+  "units": {
+    "kilobytes": "Ko",
+    "megabytes": "Mo",
+    "gigabytes": "Go"
+  },
+  "time": {
+    "hourShort": "h",
+    "minuteShort": "min"
+  },
+  "item": {
+    "backToLibrary": "Retour à la bibliothèque",
+    "mediaFallback": "Média",
+    "lastWatched": "Dernière lecture",
+    "notFound": "Média introuvable.",
+    "whoWatched": "Qui a regardé ?",
+    "watchHistory": "Historique des lectures",
+    "searchHistory": "Rechercher dans l'historique..."
+  },
+  "status": {
+    "playing": "En cours",
+    "finished": "Terminé",
+    "nowPlaying": "Lecture en cours"
+  },
+  "days": {
+    "short": {
+      "sun": "Dim",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam"
+    }
+  },
+  "placeholder": {
+    "jellyfinUrl": "http://192.168.1.x:8096"
+  },
+  "timeRange": {
+    "custom": "Personnalisé",
+    "customRange": "Plage personnalisée",
+    "from": "Du",
+    "to": "Au",
+    "apply": "Appliquer"
   }
 }

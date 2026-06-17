@@ -12,11 +12,15 @@ export interface UserStats {
   UserName: string
   TotalPlays: number
   TotalWatchTime: number
+  UniqueItems: number
   LastSeen?: string
-  FavoriteGenre?: string
+  FirstSeen?: string
+  MostUsedClient?: string
+  MostUsedDevice?: string
 }
 
 export interface UserActivity {
   date: string
   count: number
+  duration: number
 }

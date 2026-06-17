@@ -9,6 +9,8 @@ import ActivityPage from '@/features/activity/ActivityPage'
 import TimelinePage from '@/features/activity/TimelinePage'
 import LibrariesPage from '@/features/libraries/LibrariesPage'
 import LibraryDetailPage from '@/features/libraries/LibraryDetailPage'
+import ItemDetailPage from '@/features/libraries/ItemDetailPage'
+import AlbumDetailPage from '@/features/libraries/AlbumDetailPage'
 import UsersPage from '@/features/users/UsersPage'
 import UserDetailPage from '@/features/users/UserDetailPage'
 import StatisticsPage from '@/features/statistics/StatisticsPage'
@@ -34,6 +36,9 @@ export const router = createBrowserRouter([
           { path: 'activity/timeline', element: <TimelinePage /> },
           { path: 'libraries', element: <LibrariesPage /> },
           { path: 'libraries/:id', element: <LibraryDetailPage /> },
+          { path: 'libraries/:libraryId/items/:itemId', element: <ItemDetailPage /> },
+          { path: 'libraries/:libraryId/albums/:albumId', element: <AlbumDetailPage /> },
+          { path: 'items/:itemId', element: <ItemDetailPage /> },
           { path: 'users', element: <UsersPage /> },
           { path: 'users/:id', element: <UserDetailPage /> },
           { path: 'statistics', element: <StatisticsPage /> },

@@ -1,24 +1,19 @@
+import type { ReactNode } from 'react'
 import {
   Card, CardContent, CardHeader, List, ListItem, ListItemText,
   ListItemAvatar, Avatar, Chip, Skeleton, Box, Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 
 interface TopUser { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
-interface TopUsersProps { users: TopUser[]; loading: boolean }
+interface TopUsersProps { users: TopUser[]; loading: boolean; action?: ReactNode }
 
-function formatWatchTime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
-
-export default function TopUsers({ users, loading }: TopUsersProps) {
+export default function TopUsers({ users, loading, action }: TopUsersProps) {
   const { t } = useTranslation()
   return (
     <Card>
-      <CardHeader title={t('dashboard.topUsers')} titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }} />
+      <CardHeader title={t('dashboard.topUsers')} action={action} slotProps={{ title: { variant: 'subtitle1', sx: { fontWeight: 600 } } }} />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
@@ -33,7 +28,10 @@ export default function TopUsers({ users, loading }: TopUsersProps) {
               <ListItem key={user.UserId} disablePadding sx={{ py: 0.5 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, mr: 1 }}>{i + 1}</Typography>
                 <ListItemAvatar sx={{ minWidth: 44 }}>
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}>
+                  <Avatar
+                    src={`/proxy/Users/Images/Primary/?id=${user.UserId}&fillWidth=64&quality=90`}
+                    sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}
+                  >
                     {user.UserName.charAt(0).toUpperCase()}
                   </Avatar>
                 </ListItemAvatar>

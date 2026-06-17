@@ -19,6 +19,7 @@ export interface Activity {
   ActivityDateInserted: string
   RemoteEndPoint?: string
   NowPlayingItemType?: string
+  ParentId?: string
 }
 
 export interface Session {
@@ -34,10 +35,30 @@ export interface Session {
     Name: string
     Type: string
     SeriesName?: string
+    SeriesId?: string
+    AlbumId?: string
+    IndexNumber?: number
+    ParentIndexNumber?: number
+    RunTimeTicks?: number
+    ProductionYear?: number
+    Album?: string
+    AlbumArtist?: string
   }
   PlayState?: {
     IsPaused: boolean
     PositionTicks?: number
+    PlayMethod?: string
+  }
+  TranscodingInfo?: {
+    IsVideoDirect: boolean
+    IsAudioDirect: boolean
+    Bitrate?: number
+    VideoCodec?: string
+    AudioCodec?: string
+    Width?: number
+    Height?: number
+    VideoDecoderIsHardware?: boolean
+    VideoEncoderIsHardware?: boolean
   }
   RemoteEndPoint?: string
   LastActivityDate: string

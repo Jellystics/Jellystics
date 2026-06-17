@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
@@ -6,7 +6,13 @@ import GlobalStyles from '@mui/material/GlobalStyles'
 import { SnackbarProvider } from 'notistack'
 import { useTheme, useMediaQuery } from '@mui/material'
 import { grey } from '@mui/material/colors'
-import { buildTheme, getAccentColor } from '@/lib/theme'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { buildTheme, getThemeMode, setThemeMode } from '@/lib/theme'
+import { ThemeModeContext, type ThemeMode } from '@/lib/ThemeModeContext'
+import { PaletteProvider } from '@/lib/PaletteContext'
+import { FaviconProvider } from '@/lib/FaviconContext'
+import { applyStoredFavicon } from '@/lib/favicon'
 import { router } from '@/lib/router'
 import '@/lib/i18n'
 import socket from '@/lib/socket'
@@ -52,25 +58,33 @@ function SocketNotifier() {
 function ScrollbarStyles() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isDark = theme.palette.mode === 'dark'
+
   return (
     <GlobalStyles
       styles={{
         html: { scrollbarWidth: isMobile ? 'initial' : 'thin' },
         body: { overflowY: isMobile ? 'initial' : 'hidden' },
         ...(isMobile ? {} : {
-          '*::-webkit-scrollbar': { width: 8, height: 8 },
+          '*': { scrollbarColor: `${isDark ? grey[600] : grey[400]} transparent`, scrollbarWidth: 'thin' },
+          '*::-webkit-scrollbar': { width: 10, height: 10 },
           '*::-webkit-scrollbar-button': { width: 0, height: 0 },
-          '*::-webkit-scrollbar-corner': { background: '0 0' },
-          '*::-webkit-scrollbar-thumb': { borderRadius: 4, backgroundColor: 'transparent' },
-          '*::-webkit-scrollbar-track': { borderRadius: 4 },
+          '*::-webkit-scrollbar-corner': { background: 'transparent' },
+          '*::-webkit-scrollbar-track': { background: 'transparent', borderRadius: 5 },
           '*::-webkit-scrollbar-track:hover': {
-            backgroundColor: grey[800],
+            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+          },
+          '*::-webkit-scrollbar-thumb': {
+            borderRadius: 5,
+            backgroundColor: 'transparent',
+            border: '3px solid transparent',
+            backgroundClip: 'padding-box',
+          },
+          '*:hover::-webkit-scrollbar-thumb': {
+            backgroundColor: isDark ? grey[600] : grey[400],
           },
           '*::-webkit-scrollbar-thumb:hover': {
             backgroundColor: `${theme.palette.primary.main}!important`,
-          },
-          '*:hover::-webkit-scrollbar-thumb': {
-            backgroundColor: grey[600],
           },
           '.notistack-MuiContent': { borderRadius: '12px' },
         }),
@@ -79,21 +93,48 @@ function ScrollbarStyles() {
   )
 }
 
-export default function App() {
-  const theme = buildTheme(getAccentColor())
+function ThemedApp() {
+  const [mode, setMode] = useState<ThemeMode>(getThemeMode)
+
+  const toggleMode = () => {
+    setMode((prev) => {
+      const next: ThemeMode = prev === 'dark' ? 'light' : 'dark'
+      setThemeMode(next)
+      return next
+    })
+  }
+
+  const theme = buildTheme(mode)
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <ScrollbarStyles />
-      <SnackbarProvider
-        maxSnack={5}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        autoHideDuration={5000}
-      >
-        <SocketNotifier />
-        <RouterProvider router={router} />
-      </SnackbarProvider>
-    </ThemeProvider>
+    <ThemeModeContext.Provider value={{ mode, toggleMode }}>
+      <ThemeProvider theme={theme}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <CssBaseline />
+        <ScrollbarStyles />
+        <SnackbarProvider
+          maxSnack={5}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          autoHideDuration={5000}
+        >
+          <SocketNotifier />
+          <RouterProvider router={router} />
+        </SnackbarProvider>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </ThemeModeContext.Provider>
+  )
+}
+
+// Apply any saved custom favicon immediately on load
+applyStoredFavicon()
+
+export default function App() {
+  return (
+    <FaviconProvider>
+      <PaletteProvider>
+        <ThemedApp />
+      </PaletteProvider>
+    </FaviconProvider>
   )
 }

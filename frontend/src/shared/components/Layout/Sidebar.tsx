@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLogo } from '@/lib/FaviconContext'
 import {
   Box, Stack, Typography, IconButton, Tooltip,
   ButtonBase, Fade, darken,
@@ -45,8 +46,9 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
   const location = useLocation()
   const theme = useTheme()
   const [showCollapse, setShowCollapse] = useState(false)
+  const { logoUrl } = useLogo()
 
-  const activeColor = darken(theme.palette.primary.main, 0.55)
+  const activeColor = darken(theme.palette.primary.main, 0.45)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -61,13 +63,12 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
           px: 2,
           justifyContent: 'space-between',
           flexShrink: 0,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box component="img" src="/logo.svg" alt="Jellyfin" sx={{ width: 28, height: 28 }} />
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+          <Box component="img" src={logoUrl} alt="logo" sx={{ width: 40, height: 40, objectFit: 'contain' }} />
+          <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
             Jellystics
           </Typography>
         </Box>
@@ -84,11 +85,17 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
         spacing={0}
         sx={{ px: 1, pt: 1, pb: 1, flexGrow: 1, overflow: 'auto' }}
       >
-        {navItems.map((item) => {
-          const isActive =
-            item.path === '/'
-              ? location.pathname === '/'
-              : location.pathname.startsWith(item.path)
+        {(() => {
+          const activeItem = navItems
+            .filter((item) =>
+              item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+            )
+            .sort((a, b) => b.path.length - a.path.length)[0]
+
+          return navItems.map((item) => {
+          const isActive = activeItem?.key === item.key
 
           return (
             <Tooltip key={item.key} title="" placement="right">
@@ -104,12 +111,12 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
                   px: '4px',
                   pl: '14px',
                   mb: '2px',
-                  color: isActive ? 'primary.main' : 'text.secondary',
+                  color: isActive ? '#ffffff' : 'text.secondary',
                   bgcolor: isActive ? activeColor : 'transparent',
                   transition: 'background-color 200ms cubic-bezier(0.4,0,0.2,1)',
                   '&:hover': {
                     bgcolor: isActive ? activeColor : 'action.hover',
-                    color: isActive ? 'primary.main' : 'text.primary',
+                    color: isActive ? '#ffffff' : 'text.primary',
                   },
                 }}
               >
@@ -126,7 +133,8 @@ export default function SidebarContent({ onClose }: SidebarContentProps) {
               </ButtonBase>
             </Tooltip>
           )
-        })}
+        })
+        })()}
       </Stack>
     </Box>
   )

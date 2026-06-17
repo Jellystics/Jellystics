@@ -4,13 +4,14 @@ interface ChartCardProps {
   title: string
   children: React.ReactNode
   loading?: boolean
+  empty?: boolean
   height?: number
   action?: React.ReactNode
 }
 
-export default function ChartCard({ title, children, loading, height = 280, action }: ChartCardProps) {
+export default function ChartCard({ title, children, loading, empty, height = 280, action }: ChartCardProps) {
   return (
-    <Paper sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
+    <Paper sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
       <Box
         sx={{
           px: 3,
@@ -28,10 +29,10 @@ export default function ChartCard({ title, children, loading, height = 280, acti
       </Box>
       <Divider sx={{ mt: 1.5, mb: 0 }} />
       <Box sx={{ px: 3, py: 2.5 }}>
-        {loading ? (
+        {loading || empty ? (
           <Skeleton variant="rectangular" width="100%" height={height} sx={{ borderRadius: 2 }} />
         ) : (
-          <Box sx={{ height }}>{children}</Box>
+          <Box sx={{ height, minWidth: 0, minHeight: height, width: '100%' }}>{children}</Box>
         )}
       </Box>
     </Paper>

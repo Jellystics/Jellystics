@@ -11,10 +11,9 @@ import api from '@/lib/axios'
 
 const pwSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8, 'Min 8 characters'),
+  newPassword: z.string().min(8),
   confirmPassword: z.string(),
 }).refine((d) => d.newPassword === d.confirmPassword, {
-  message: 'Passwords do not match',
   path: ['confirmPassword'],
 })
 
@@ -33,9 +32,9 @@ export default function SecurityTab() {
 
   const onSubmit = async (data: PwFormData) => {
     try {
-      await api.post('/auth/updatePassword', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
+      await api.post('/api/updatePassword', {
+        current_password: data.currentPassword,
+        new_password: data.newPassword,
       })
       enqueueSnackbar(t('settings.passwordChanged'), { variant: 'success' })
       reset()
@@ -65,7 +64,7 @@ export default function SecurityTab() {
               label={t('settings.newPassword')}
               type="password" fullWidth size="small"
               error={!!errors.newPassword}
-              helperText={errors.newPassword?.message}
+              helperText={errors.newPassword?.type === 'too_small' ? t('validation.min8Chars') : errors.newPassword?.message}
               sx={{ mb: 2 }}
             />
             <TextField
@@ -73,7 +72,7 @@ export default function SecurityTab() {
               label={t('auth.confirmPassword')}
               type="password" fullWidth size="small"
               error={!!errors.confirmPassword}
-              helperText={errors.confirmPassword?.message}
+              helperText={errors.confirmPassword?.type === 'custom' ? t('validation.passwordsMismatch') : errors.confirmPassword?.message}
               sx={{ mb: 3 }}
             />
             <Button type="submit" variant="contained" disabled={isSubmitting}>

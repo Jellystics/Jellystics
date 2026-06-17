@@ -37,13 +37,19 @@ export default function WebhooksTab() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const load = () => {
-    api.get('/webhooks/getWebhooks').then((r) => setWebhooks(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/webhooks/').then((r) => setWebhooks(r.data ?? [])).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
   const onAdd = async (data: FormData) => {
     try {
-      await api.post('/webhooks/addWebhook', data)
+      await api.post('/webhooks/', {
+        name: data.name,
+        url: data.url,
+        enabled: true,
+        trigger_type: 'event',
+        event_type: 'playback_started',
+      })
       enqueueSnackbar(t('settings.webhookAdded'), { variant: 'success' })
       setDialogOpen(false)
       reset()
@@ -55,7 +61,7 @@ export default function WebhooksTab() {
 
   const onDelete = async (id: number) => {
     try {
-      await api.delete(`/webhooks/deleteWebhook/${id}`)
+      await api.delete(`/webhooks/${id}`)
       enqueueSnackbar(t('settings.webhookDeleted'), { variant: 'success' })
       setWebhooks((prev) => prev.filter((w) => w.id !== id))
     } catch {
@@ -85,7 +91,7 @@ export default function WebhooksTab() {
               {webhooks.map((w) => (
                 <ListItem key={w.id} disablePadding sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 0 } }}>
                   <ListItemText
-                    primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{w.name}<Chip label={w.enabled ? 'active' : 'disabled'} size="small" color={w.enabled ? 'success' : 'default'} sx={{ height: 18, fontSize: 10 }} /></Box>}
+                    primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{w.name}<Chip label={w.enabled ? t('common.active') : t('common.disabled')} size="small" color={w.enabled ? 'success' : 'default'} sx={{ height: 18, fontSize: 10 }} /></Box>}
                     secondary={w.url}
                     slotProps={{ primary: { style: { fontSize: 13, fontWeight: 500 } }, secondary: { style: { fontSize: 11 } } }}
                   />
@@ -106,7 +112,7 @@ export default function WebhooksTab() {
         <DialogContent>
           <Box component="form" id="webhook-form" onSubmit={handleSubmit(onAdd)} noValidate sx={{ pt: 1 }}>
             <TextField {...register('name')} label={t('settings.webhookName')} fullWidth size="small" error={!!errors.name} helperText={errors.name?.message} sx={{ mb: 2 }} autoFocus />
-            <TextField {...register('url')} label="URL" fullWidth size="small" error={!!errors.url} helperText={errors.url?.message} placeholder="https://..." />
+            <TextField {...register('url')} label={t('common.url')} fullWidth size="small" error={!!errors.url} helperText={errors.url?.message} placeholder="https://..." />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

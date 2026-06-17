@@ -7,21 +7,25 @@ export interface WatchStatOverTime {
 export interface HourStat {
   hour: number
   plays: number
+  duration: number
 }
 
 export interface DayStat {
-  day: string
+  day: number
   plays: number
+  duration: number
 }
 
 export interface PlayMethodStat {
   method: string
   count: number
+  duration: number
 }
 
 export interface ClientStat {
   client: string
   count: number
+  duration: number
 }
 
 export interface GlobalStats {

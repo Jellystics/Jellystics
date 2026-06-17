@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Box, Chip, Select, MenuItem, FormControl, InputLabel,
-  Typography, Alert,
+  Box, Chip, Typography, Alert,
 } from '@mui/material'
 import { createColumnHelper } from '@tanstack/react-table'
 import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import DataTable from '@/shared/components/DataTable/DataTable'
+import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
+import { getDateLocale } from '@/lib/dateLocale'
 
 interface LogEntry {
   id: number
@@ -29,18 +29,36 @@ export default function LogsTab() {
   const { t } = useTranslation()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [level, setLevel] = useState<string>('all')
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    api
-      .get('/logging/getLogs')
-      .then((r) => setLogs(r.data ?? []))
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get('/logs/getLogs')
+      .then((r) => {
+        setLogs((r.data ?? []).map((row: Record<string, unknown>, i: number) => ({
+          id: i,
+          level: String(row.Result ?? 'info').toLowerCase() === 'failed' ? 'error' as const
+            : String(row.Result ?? 'info').toLowerCase() === 'running' ? 'warn' as const
+            : 'info' as const,
+          message: (() => {
+            const raw = String(row.Log ?? row.Result ?? '')
+            try {
+              const parsed = JSON.parse(raw)
+              if (Array.isArray(parsed)) {
+                return parsed.map((e: { Message?: string }) => e.Message ?? '').filter(Boolean).join(' | ')
+              }
+            } catch { /* not JSON */ }
+            return raw
+          })(),
+          timestamp: String(row.TimeRun ?? ''),
+          task: String(row.Name ?? ''),
+        })))
+      })
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
   }, [t])
 
-  const filtered = level === 'all' ? logs : logs.filter((l) => l.level === level)
+  useEffect(() => { load() }, [load])
 
   const columns = [
     col.accessor('level', {
@@ -57,7 +75,7 @@ export default function LogsTab() {
     col.accessor('timestamp', {
       header: t('activity.date'),
       cell: (i) => {
-        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm:ss') } catch { return i.getValue() }
+        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm:ss', { locale: getDateLocale() }) } catch { return i.getValue() }
       },
     }),
     col.accessor('task', {
@@ -74,25 +92,22 @@ export default function LogsTab() {
     }),
   ]
 
+  const filterDefs = useMemo<FilterDef[]>(() => [
+    { id: 'level', label: t('settings.logLevel'), type: 'select' },
+    { id: 'task', label: t('settings.task'), type: 'select' },
+  ], [t])
+
   return (
     <Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <FormControl size="small" sx={{ mb: 2, minWidth: 140 }}>
-        <InputLabel>{t('settings.logLevel')}</InputLabel>
-        <Select value={level} label={t('settings.logLevel')} onChange={(e) => setLevel(e.target.value)}>
-          <MenuItem value="all">{t('common.all')}</MenuItem>
-          <MenuItem value="info">Info</MenuItem>
-          <MenuItem value="warn">Warn</MenuItem>
-          <MenuItem value="error">Error</MenuItem>
-        </Select>
-      </FormControl>
-
       <DataTable
-        data={filtered}
+        data={logs}
         columns={columns}
         loading={loading}
         searchPlaceholder={t('settings.searchLogs')}
+        filterDefs={filterDefs}
+        onRefresh={load}
       />
     </Box>
   )

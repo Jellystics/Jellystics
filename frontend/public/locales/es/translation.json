@@ -43,6 +43,11 @@
     "liveSessions": "Sesiones activas",
     "noActiveSessions": "Sin sesiones activas",
     "activityLast7Days": "Actividad (últimos 7 días)",
+    "activityLast30Days": "Actividad (últimos 30 días)",
+    "activityLastNDays": "Actividad (últimos {{days}} días)",
+    "activity": "Actividad",
+    "combinedView": "Vista combinada",
+    "singleView": "Vista simple",
     "topContent": "Contenido popular",
     "topUsers": "Usuarios activos"
   },
@@ -55,11 +60,26 @@
     "totalUsers": "Total usuarios",
     "libraries": "Bibliotecas",
     "totalItems": "Total elementos",
+    "playsOverTime": "Reproducciones en el tiempo",
     "playsOverTime30d": "Reproducciones en 30 días",
     "playsByHour": "Reproducciones por hora",
     "playsByDayOfWeek": "Reproducciones por día",
     "playbackMethod": "Métodos de reproducción",
-    "topClients": "Clientes populares"
+    "topClients": "Clientes populares",
+    "viewsByMediaType": "Reproducciones por tipo de media",
+    "mostViewedLibraries": "Bibliotecas más vistas",
+    "mediaType": {
+      "movie": "Películas",
+      "series": "Series",
+      "audio": "Música",
+      "other": "Otro"
+    },
+    "mostActiveUsers": "Usuarios más activos",
+    "topItems": "Contenidos más vistos",
+    "recentPlays": "Reproducciones (24h)",
+    "genreDetail": "Detalle por género",
+    "playbacksByLibrary": "Reproducciones por biblioteca",
+    "allPlaybacks": "Todas las reproducciones"
   },
   "activity": {
     "user": "Usuario",
@@ -70,7 +90,11 @@
     "date": "Fecha",
     "duration": "Duración",
     "ip": "Dirección IP",
-    "search": "Buscar actividad..."
+    "search": "Buscar actividad...",
+    "transcodes": "Transcodificaciones",
+    "directPlays": "Reproducciones directas",
+    "version": "Versión",
+    "mediaType": "Tipo"
   },
   "library": {
     "itemName": "Nombre",
@@ -82,16 +106,44 @@
     "items": "Elementos",
     "genres": "Géneros",
     "genreDistribution": "Distribución por género",
-    "genreList": "Lista de géneros"
+    "genreList": "Lista de géneros",
+    "stats": "Estadísticas",
+    "activityOverTime": "Actividad en el tiempo",
+    "topItems": "Elementos más vistos",
+    "playMethod": "Método de reproducción",
+    "title": "Título",
+    "type": "Tipo",
+    "size": "Tamaño",
+    "neverPlayed": "Nunca visto",
+    "hoverToPreview": "Pasa el cursor sobre una fila",
+    "showGenres": "Géneros mostrados",
+    "allGenres": "Todos los géneros",
+    "activityHistory": "Historial de actividad",
+    "seasons": "temporadas",
+    "tracks": "pistas",
+    "trackTitle": "Título",
+    "artist": "Artista",
+    "album": "Álbum",
+    "albums": "Álbumes",
+    "artists": "Artistas",
+    "duration": "Duración",
+    "syncRequired": "Ejecuta una sincronización completa para mostrar esta sección.",
+    "topTracks": "Pistas más reproducidas"
   },
   "users": {
     "user": "Usuario",
     "lastSeen": "Última actividad",
+    "firstSeen": "Primera reproducción",
     "favoriteGenre": "Género favorito",
+    "uniqueItems": "Contenidos únicos",
+    "favoriteClient": "Cliente favorito",
+    "favoriteDevice": "Dispositivo favorito",
     "search": "Buscar usuario...",
     "activityHeatmap": "Mapa de actividad",
     "watchHistory": "Historial",
-    "watchOverTime": "Visionado en 30 días"
+    "watchOverTime": "Visionado en 30 días",
+    "leaderboard": "Top usuarios",
+    "lastPlayed": "Visto recientemente"
   },
   "settings": {
     "config": "Configuración",
@@ -120,7 +172,7 @@
     "backupCreated": "Copia de seguridad creada",
     "backupDeleted": "Copia de seguridad eliminada",
     "deleteBackup": "Eliminar copia de seguridad",
-    "deleteBackupConfirm": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
+    "deleteBackupConfirm": "¿Eliminar « {{name}} »? Esta acción no se puede deshacer.",
     "noBackups": "Sin copias de seguridad",
     "addWebhook": "Añadir webhook",
     "webhookAdded": "Webhook añadido",
@@ -145,7 +197,42 @@
     "deleteApiKey": "Eliminar clave API",
     "deleteApiKeyConfirm": "¿Eliminar esta clave API? Dejará de funcionar inmediatamente.",
     "keyName": "Nombre de la clave",
-    "noApiKeys": "Sin claves API"
+    "noApiKeys": "Sin claves API",
+    "importBackup": "Importar copia de seguridad",
+    "importBackupDesc": "Importa una copia JSON de Jellystat/Jellystics o un TSV exportado desde el plugin Jellyfin Playback Reporting",
+    "importBackupSelect": "Seleccionar archivo",
+    "importBackupRun": "Importar",
+    "importBackupSuccess": "{{count}} registros importados correctamente",
+    "importBackupError": "Error al importar",
+    "importBackupNoFile": "Ningún archivo seleccionado",
+    "importPlaybackReportingBackup": "Importar Jellyfin Playback Reporting Plugin",
+    "importPlaybackReportingBackupDesc": "Importa un archivo TSV o TXT exportado desde el plugin Jellyfin Playback Reporting.",
+    "importJellystatBackup": "Importar copia de seguridad Jellystat",
+    "importJellystatBackupDesc": "Importa una copia JSON de Jellystat/Jellystics. Se restauran bibliotecas, elementos, usuarios, historial y metadatos.",
+    "jellystatImportSuccess": "{{count}} filas restauradas correctamente",
+    "jellystatImportError": "Error al importar Jellystat",
+    "cronEnabled": "Activar programación",
+    "cronExpression": "Expresión cron",
+    "cronSaved": "Programación guardada",
+    "cronHelp": "Formato cron estándar: minuto hora día mes día_semana (ej. \"0 * * * *\" = cada hora)",
+    "cronHint": "Usa expresiones cron para programar tareas (ej. \"0 * * * *\" = cada hora, \"0 0 * * *\" = diario a medianoche)",
+    "addPalette": "Añadir paleta",
+    "paletteName": "Nombre de la paleta",
+    "paletteLight": "Color claro",
+    "paletteDark": "Color oscuro",
+    "paletteAdded": "Paleta añadida",
+    "paletteDeleted": "Paleta eliminada",
+    "siteIcon": "Icono del sitio",
+    "uploadIcon": "Subir icono",
+    "iconSaved": "Icono actualizado",
+    "iconHint": "PNG, JPG o SVG — recomendado 256×256 px o cuadrado"
+  },
+  "firstRun": {
+    "title": "¡Bienvenido a Jellystics!",
+    "description": "Jellyfin aún no se ha sincronizado. Ejecuta una sincronización completa inicial para importar tus bibliotecas, usuarios e historial de reproducción.",
+    "hint": "También puedes ejecutar la sincronización manualmente desde Configuración → Tareas.",
+    "dismiss": "Ahora no",
+    "runSync": "Ejecutar sincronización inicial"
   },
   "frame": {
     "language": "Idioma",
@@ -171,6 +258,98 @@
     "all": "Todos",
     "less": "Menos",
     "more": "Más",
-    "columns": "Columnas"
+    "back": "Volver",
+    "rowsPerPage": "Filas por página",
+    "columns": "Columnas",
+    "user": "Usuario",
+    "administrator": "Administrador",
+    "refresh": "Actualizar",
+    "active": "activo",
+    "disabled": "desactivado",
+    "url": "URL",
+    "filters": "Filtros",
+    "clearAll": "Borrar todo",
+    "clear": "Borrar",
+    "apply": "Aplicar",
+    "reset": "Restablecer",
+    "selected": "seleccionados",
+    "preview": "Vista previa"
+  },
+  "theme": {
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro"
+  },
+  "logLevel": {
+    "info": "Info",
+    "warn": "Advertencia",
+    "error": "Error"
+  },
+  "validation": {
+    "required": "Requerido",
+    "min8Chars": "Mín 8 caracteres",
+    "passwordsMismatch": "Las contraseñas no coinciden"
+  },
+  "colors": {
+    "violet": "Violeta (predeterminado)",
+    "jellyfin": "Jellyfin",
+    "blue": "Azul",
+    "indigo": "Índigo",
+    "cyan": "Cian",
+    "teal": "Verde azulado",
+    "green": "Verde",
+    "emerald": "Esmeralda",
+    "amber": "Ámbar",
+    "orange": "Naranja",
+    "red": "Rojo",
+    "pink": "Rosa",
+    "rose": "Rosa vivo",
+    "slate": "Gris pizarra"
+  },
+  "error": {
+    "loadDashboard": "Error al cargar los datos del panel"
+  },
+  "units": {
+    "kilobytes": "KB",
+    "megabytes": "MB",
+    "gigabytes": "GB"
+  },
+  "time": {
+    "hourShort": "h",
+    "minuteShort": "min"
+  },
+  "item": {
+    "backToLibrary": "Volver a la biblioteca",
+    "mediaFallback": "Medio",
+    "lastWatched": "Última reproducción",
+    "notFound": "Medio no encontrado.",
+    "whoWatched": "¿Quién lo vio?",
+    "watchHistory": "Historial de reproducciones",
+    "searchHistory": "Buscar en el historial..."
+  },
+  "status": {
+    "playing": "Reproduciendo",
+    "finished": "Terminado",
+    "nowPlaying": "Reproduciendo ahora"
+  },
+  "days": {
+    "short": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
+  },
+  "placeholder": {
+    "jellyfinUrl": "http://192.168.1.x:8096"
+  },
+  "timeRange": {
+    "custom": "Personalizado",
+    "customRange": "Rango personalizado",
+    "from": "Desde",
+    "to": "Hasta",
+    "apply": "Aplicar"
   }
 }

@@ -2,20 +2,25 @@ import { useState, useEffect } from 'react'
 import socket from '@/lib/socket'
 import {
   Box, AppBar, Toolbar, IconButton, Drawer, Container,
-  useTheme, useMediaQuery, Collapse,
+  useTheme, useMediaQuery, Collapse, Tooltip,
 } from '@mui/material'
-import { Navigation24Regular } from '@fluentui/react-icons'
+import { Navigation24Regular, WeatherMoon24Regular, WeatherSunny24Regular } from '@fluentui/react-icons'
 import { Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import SidebarContent from './Sidebar'
 import UserMenu from './UserMenu'
+import { useThemeMode } from '@/lib/ThemeModeContext'
+import FirstRunDialog from '@/shared/components/FirstRunDialog'
 
 const DRAWER_WIDTH = 240
 
 export default function AppShell() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [open, setOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { mode, toggleMode } = useThemeMode()
 
   useEffect(() => {
     socket.connect()
@@ -30,6 +35,7 @@ export default function AppShell() {
 
   return (
     <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
+      <FirstRunDialog />
       {/* Fixed TopAppBar */}
       <AppBar
         position="fixed"
@@ -37,8 +43,6 @@ export default function AppShell() {
         sx={(t) => ({
           bgcolor: appBarBg,
           color: 'text.primary',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
           transition: t.transitions.create(['margin', 'width'], {
             easing: t.transitions.easing.sharp,
             duration: t.transitions.duration.leavingScreen,
@@ -66,6 +70,13 @@ export default function AppShell() {
             </IconButton>
           </Collapse>
           <Box sx={{ flexGrow: 1 }} />
+          <Tooltip title={mode === 'dark' ? t('theme.lightMode') : t('theme.darkMode')} enterDelay={500}>
+            <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
+              {mode === 'dark'
+                ? <WeatherSunny24Regular style={{ fontSize: 20 }} />
+                : <WeatherMoon24Regular style={{ fontSize: 20 }} />}
+            </IconButton>
+          </Tooltip>
           <UserMenu />
         </Toolbar>
       </AppBar>
@@ -134,24 +145,16 @@ export default function AppShell() {
         {/* AppBar spacer */}
         <Box sx={{ ...theme.mixins.toolbar }} />
 
-        {/* Page container */}
-        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: { md: 1 } }}>
-          <Box
-            sx={{
-              flexGrow: 1,
-              overflow: 'auto',
-              bgcolor: 'background.paper',
-              borderRadius: { md: 3 },
-              border: { md: '1px solid' },
-              borderColor: { md: 'divider' },
-              py: 4,
-            }}
-          >
+      {/* Page container */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: { md: 1 } }}>
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', borderRadius: { md: 3 }, border: { md: '1px solid' }, borderColor: { md: 'divider' } }}>
+          <Box id="page-scroll-container" sx={{ flexGrow: 1, overflow: 'auto', height: '100%', bgcolor: 'background.paper', py: 4, scrollbarGutter: 'stable' }}>
             <Container maxWidth="xl">
               <Outlet />
             </Container>
           </Box>
         </Box>
+      </Box>
       </Box>
     </Box>
   )

@@ -6,33 +6,28 @@ tasks:
     cmds:
       - task --list
 
-  install:
-    desc: Install all dependencies (backend npm + frontend pnpm)
-    cmds:
-      - npm install --prefix backend
-      - pnpm install --dir frontend
+  # ── Setup ─────────────────────────────────────────────────────────────────
 
   setup:
     desc: Create backend/.env with default values if it does not exist
     cmds:
       - |
         if [ ! -f backend/.env ]; then
-          echo "Creating backend/.env with default values..."
-          cat > backend/.env << 'EOF'
-        JWT_SECRET=change-me-in-production
-        POSTGRES_USER=postgres
-        POSTGRES_PASSWORD=mypassword
-        POSTGRES_IP=localhost
-        POSTGRES_PORT=5432
-        TZ=Europe/Paris
-        EOF
+          cp backend/.env.example backend/.env
           echo "backend/.env created — edit it before running"
         else
           echo "backend/.env already exists"
         fi
 
+  install:
+    desc: Install frontend dependencies
+    cmds:
+      - pnpm install --dir frontend
+
+  # ── Database ──────────────────────────────────────────────────────────────
+
   db:
-    desc: Start PostgreSQL container (jellystics-db service only)
+    desc: Start PostgreSQL 18 container
     cmds:
       - docker compose up -d jellystics-db
       - echo "Waiting for PostgreSQL to be ready..."
@@ -49,22 +44,58 @@ tasks:
     cmds:
       - docker compose logs -f jellystics-db
 
+  # ── Backend (Go) ──────────────────────────────────────────────────────────
+
   backend:
-    desc: Start backend in dev mode (nodemon)
+    desc: Start Go backend in dev mode
+    dir: backend
     cmds:
-      - npm --prefix backend run dev:server
+      - go run ./cmd/server
+
+  backend:build:
+    desc: Build Go backend binary
+    dir: backend
+    cmds:
+      - go build -o ../dist/jellystics ./cmd/server
+
+  backend:test:
+    desc: Run Go unit tests
+    dir: backend
+    cmds:
+      - go test ./...
+
+  backend:tidy:
+    desc: Run go mod tidy
+    dir: backend
+    cmds:
+      - go mod tidy
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
 
   frontend:
-    desc: Start frontend dev server on port 3001
+    desc: Start frontend dev server
     dir: frontend
     cmds:
       - pnpm dev
 
-  dev:
-    desc: Start DB + backend + frontend dev server concurrently
+  frontend:build:
+    desc: Build frontend for production
+    dir: frontend
     cmds:
-      - task: db
-      - npm --prefix backend run dev
+      - pnpm build
+
+  # ── Production build ──────────────────────────────────────────────────────
+
+  build:
+    desc: Build production binary with frontend embedded
+    cmds:
+      - task: frontend:build
+      - mkdir -p backend/internal/assets/web
+      - cp -r frontend/dist/. backend/internal/assets/web/
+      - task: backend:build
+      - echo "Binary at dist/jellystics"
+
+  # ── Cleanup ───────────────────────────────────────────────────────────────
 
   clean:
     desc: Stop and remove DB container and volumes
@@ -73,24 +104,10 @@ tasks:
       - echo "DB cleaned"
 
   clean:all:
-    desc: Remove DB container + node_modules + build artifacts
+    desc: Remove DB + build artifacts + node_modules
     cmds:
       - task: clean
-      - rm -rf node_modules
-      - rm -rf frontend/node_modules
-      - rm -rf backend/node_modules
-      - rm -rf frontend/dist
-      - rm -rf frontend/*.tsbuildinfo
+      - rm -rf frontend/node_modules frontend/dist
+      - rm -rf dist
+      - rm -f backend/internal/assets/web/*
       - echo "Full clean done"
-
-  build:
-    desc: Build the frontend (outputs to dist/ for the backend to serve)
-    dir: frontend
-    cmds:
-      - pnpm build
-
-  start:
-    desc: Build frontend then run backend in production mode
-    cmds:
-      - task: build
-      - npm --prefix backend run start-app
