@@ -113,6 +113,7 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 		stats.POST("/getLibraryItemsWithStats", statsH.GetLibraryItemsWithStats)
 		stats.POST("/getLibraryItemsPlayMethodStats", statsH.GetLibraryItemsPlayMethodStats)
 		stats.GET("/getPlaybacksByLibraryOverTime", statsH.GetPlaybacksByLibraryOverTime)
+		stats.GET("/getPlaybacksScatter", statsH.GetPlaybacksScatter)
 		stats.POST("/getPlaybackMethodStats", statsH.GetPlaybackMethodStats)
 		stats.POST("/getUserLastPlayed", statsH.GetUserLastPlayed)
 		stats.POST("/getGlobalUserStats", statsH.GetGlobalUserStats)

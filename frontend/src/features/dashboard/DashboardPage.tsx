@@ -124,6 +124,19 @@ export default function DashboardPage() {
       .finally(() => setLibsLoading(false))
   }, [libsDays])
 
+  // ── All playbacks scatter (one point per play) ───────────────────────────
+  type PlaybackScatterPoint = { ts: string; duration: number; name: string; type: string }
+  const [scatterDays, setScatterDays] = useState(30)
+  const [scatterData, setScatterData] = useState<PlaybackScatterPoint[]>([])
+  const [scatterLoading, setScatterLoading] = useState(true)
+  useEffect(() => {
+    setScatterLoading(true)
+    api.get(`/stats/getPlaybacksScatter?days=${scatterDays}`)
+      .then(r => setScatterData(r.data ?? []))
+      .catch(() => setScatterData([]))
+      .finally(() => setScatterLoading(false))
+  }, [scatterDays])
+
   // ── Playbacks over time by library ────────────────────────────────────────
   const [libraryDays, setLibraryDays] = useState(30)
   const [libraryOverTime, setLibraryOverTime] = useState<LibraryDayPoint[]>([])
@@ -189,6 +202,34 @@ export default function DashboardPage() {
   const dayFormatter = (v: number | null) =>
     dayMetric === 'duration' ? formatWatchTime(v ?? 0) : String(v ?? 0)
 
+  const TYPE_LABELS: Record<string, string> = {
+    Movie: t('stats.mediaType.movie'),
+    Episode: t('stats.mediaType.series'),
+    Series: t('stats.mediaType.series'),
+    Audio: t('stats.mediaType.audio'),
+  }
+
+  const scatterSeries = useMemo(() => {
+    const grouped = new Map<string, PlaybackScatterPoint[]>()
+    for (const p of scatterData) {
+      const key = TYPE_LABELS[p.type] ? p.type : 'Other'
+      if (!grouped.has(key)) grouped.set(key, [])
+      grouped.get(key)!.push(p)
+    }
+    return Array.from(grouped.entries()).map(([type, points], i) => ({
+      id: type,
+      label: TYPE_LABELS[type] ?? t('stats.mediaType.other'),
+      data: points.map((p, j) => ({
+        x: new Date(p.ts).getTime(),
+        y: p.duration,
+        id: `${type}-${j}`,
+      })),
+      color: CHART_COLORS[i % CHART_COLORS.length],
+      valueFormatter: (v: { x: number; y: number }) =>
+        `(${new Date(v.x).toLocaleDateString()}, ${v.y})`,
+    }))
+  }, [scatterData, CHART_COLORS, t])
+
   const librarySeries = useMemo(() => {
     const map = new Map<string, { name: string; points: { x: number; y: number; id: string }[] }>()
     for (const row of libraryOverTime) {
@@ -204,6 +245,8 @@ export default function DashboardPage() {
       label: name,
       data: points,
       color: CHART_COLORS[i % CHART_COLORS.length],
+      valueFormatter: (v: { x: number; y: number }) =>
+        `(${new Date(v.x).toLocaleDateString()}, ${v.y})`,
     }))
   }, [libraryOverTime, CHART_COLORS])
 
@@ -396,6 +439,29 @@ export default function DashboardPage() {
               grid={{ vertical: true }}
               slotProps={{ legend: { hidden: true } }}
               margin={{ left: 160, right: 16, top: 8, bottom: 36 }}
+            />
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      {/* All playbacks scatter */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12 }}>
+          <ChartCard
+            title={t('stats.allPlaybacks')}
+            loading={scatterLoading}
+            empty={!scatterLoading && scatterSeries.length === 0}
+            height={300}
+            action={<TimeRangeSelector value={scatterDays} onChange={setScatterDays} />}
+          >
+            <ScatterChart
+              series={scatterSeries}
+              xAxis={[{ scaleType: 'time', valueFormatter: (v) => new Date(v).toLocaleDateString() }]}
+              yAxis={[{ label: 'min' }]}
+              height={300}
+              sx={{ width: '100%' }}
+              slotProps={{ legend: { position: { vertical: 'top', horizontal: 'right' } } }}
+              margin={{ left: 50, right: 20, top: 40, bottom: 40 }}
             />
           </ChartCard>
         </Grid>

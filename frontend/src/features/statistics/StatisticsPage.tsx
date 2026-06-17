@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Grid, Box } from '@mui/material'
+import { Grid, Box, Typography, Chip } from '@mui/material'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { useTranslation } from 'react-i18next'
@@ -132,8 +132,8 @@ export default function StatisticsPage() {
     t('days.short.thu'), t('days.short.fri'), t('days.short.sat'),
   ].map((day, i) => ({
     day,
-    plays: byDay.find((d) => d.day === String(i))?.plays ?? 0,
-    duration: byDay.find((d) => d.day === String(i))?.duration ?? 0,
+    plays: byDay.find((d) => d.day === i)?.plays ?? 0,
+    duration: byDay.find((d) => d.day === i)?.duration ?? 0,
   }))
 
   const chartMetric = (metric: ActivityMetric) => ({
@@ -312,19 +312,67 @@ export default function StatisticsPage() {
             title={t('stats.topItems')}
             loading={itemsLoading}
             empty={topItems.length === 0}
-            height={280}
+            height={480}
             action={<TimeRangeSelector value={itemsDays} onChange={setItemsDays} />}
           >
-            <BarChart
-              layout="horizontal"
-              yAxis={[{ data: topItems.map((d) => d.Name), scaleType: 'band' }]}
-              xAxis={[{ label: t('common.plays') }]}
-              series={[{ data: topItems.map((d) => d.PlayCount), label: t('common.plays'), valueFormatter: (v) => String(v ?? 0), color: CHART_COLORS[0] }]}
-              height={280}
-              sx={{ width: '100%' }}
-              grid={{ vertical: true }}
-              slotProps={{ legend: { hidden: true } }}
-            />
+            <Box sx={{ pt: 0.5 }}>
+              {topItems.map((item, i) => (
+                <Box
+                  key={item.Id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    py: 0.75,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    '&:last-child': { borderBottom: 0 },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ minWidth: 18, textAlign: 'right', fontWeight: 600, fontSize: 11, flexShrink: 0 }}
+                  >
+                    {i + 1}
+                  </Typography>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                      {item.Name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
+                      {item.Type}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: 36,
+                      height: 52,
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      bgcolor: 'rgba(128,128,128,0.1)',
+                    }}
+                  >
+                    <img
+                      src={`/proxy/Items/Images/Primary/?id=${item.Id}&fillWidth=72&quality=85`}
+                      alt={item.Name}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    />
+                  </Box>
+
+                  <Chip
+                    label={`${item.PlayCount} ${t('common.plays')}`}
+                    size="small"
+                    sx={{ fontSize: 11, height: 20, flexShrink: 0 }}
+                  />
+                </Box>
+              ))}
+            </Box>
           </ChartCard>
         </Grid>
       </Grid>

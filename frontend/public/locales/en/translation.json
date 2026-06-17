@@ -78,7 +78,8 @@
     "topItems": "Top viewed items",
     "recentPlays": "Plays (24h)",
     "genreDetail": "Genre breakdown",
-    "playbacksByLibrary": "Playbacks by library"
+    "playbacksByLibrary": "Playbacks by library",
+    "allPlaybacks": "All playbacks"
   },
   "activity": {
     "user": "User",

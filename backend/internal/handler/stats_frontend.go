@@ -977,7 +977,6 @@ func (h *StatsFrontendHandler) GetUserActivity(c *gin.Context) {
 		FROM jf_playback_activity
 		WHERE "UserId" = ?
 		ORDER BY "ActivityDateInserted"::timestamptz DESC
-		LIMIT 200
 	`, userId).Scan(&rows)
 
 	if rows == nil {
@@ -2760,6 +2759,55 @@ func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
 		GROUP BY date, l."Id", l."Name"
 		ORDER BY date, l."Name"
 		`, days).Scan(&rows)
+	}
+
+	if rows == nil {
+		rows = []Row{}
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
+// ---------------------------------------------------------------------------
+// GET /stats/getPlaybacksScatter?days=30  — one point per play (x=time, y=minutes)
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	daysArg := days - 1
+
+	type Row struct {
+		Ts       string `json:"ts"       gorm:"column:ts"`
+		Duration int    `json:"duration" gorm:"column:duration"`
+		Name     string `json:"name"     gorm:"column:name"`
+		Type     string `json:"type"     gorm:"column:type"`
+	}
+	var rows []Row
+
+	base := `
+		SELECT
+		  TO_CHAR(a."ActivityDateInserted"::timestamptz, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ts,
+		  GREATEST(FLOOR(a."PlaybackDuration" / 60.0)::int, 1)                          AS duration,
+		  COALESCE(a."NowPlayingItemName", '')                                            AS name,
+		  CASE
+		    WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" != '' THEN 'Episode'
+		    WHEN mt."Id" IS NOT NULL                               THEN 'Audio'
+		    ELSE 'Movie'
+		  END AS type
+		FROM jf_playback_activity a
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."NowPlayingItemId" AND mt.archived = false
+		WHERE a."PlaybackDuration" > 0`
+
+	if allTime {
+		h.db.Raw(base+`
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC
+		LIMIT 3000
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(base+`
+		  AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC
+		LIMIT 3000
+		`, daysArg).Scan(&rows)
 	}
 
 	if rows == nil {

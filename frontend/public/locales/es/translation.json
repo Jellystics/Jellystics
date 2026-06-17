@@ -78,7 +78,8 @@
     "topItems": "Contenidos más vistos",
     "recentPlays": "Reproducciones (24h)",
     "genreDetail": "Detalle por género",
-    "playbacksByLibrary": "Reproducciones por biblioteca"
+    "playbacksByLibrary": "Reproducciones por biblioteca",
+    "allPlaybacks": "Todas las reproducciones"
   },
   "activity": {
     "user": "Usuario",

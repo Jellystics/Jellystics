@@ -11,7 +11,7 @@ export interface HourStat {
 }
 
 export interface DayStat {
-  day: string
+  day: number
   plays: number
   duration: number
 }
