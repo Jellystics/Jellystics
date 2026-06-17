@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Alert, Box, Chip } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { createColumnHelper } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +16,7 @@ const col = createColumnHelper<Activity>()
 
 export default function ActivityPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [data, setData] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +43,10 @@ export default function ActivityPage() {
       cell: (i) => {
         const { UserName, UserId } = i.row.original
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            onClick={(e) => { e.stopPropagation(); navigate(`/users/${UserId}`) }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .username': { textDecoration: 'underline' } }}
+          >
             <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
               {/* Fallback always rendered behind */}
               <Box
@@ -76,7 +81,7 @@ export default function ActivityPage() {
                 }}
               />
             </Box>
-            {UserName}
+            <span className="username">{UserName}</span>
           </Box>
         )
       },
@@ -87,7 +92,10 @@ export default function ActivityPage() {
         const row = i.row.original
         const label = row.SeriesName ? `${row.SeriesName} — ${i.getValue()}` : i.getValue()
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            onClick={(e) => { e.stopPropagation(); navigate(`/items/${row.ItemId}`) }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .itemname': { textDecoration: 'underline' } }}
+          >
             <Box
               sx={{
                 width: 45,
@@ -122,7 +130,7 @@ export default function ActivityPage() {
                 }}
               />
             </Box>
-            {label}
+            <span className="itemname">{label}</span>
           </Box>
         )
       },

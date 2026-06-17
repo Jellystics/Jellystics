@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Grid, Box, Typography, Chip } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +21,7 @@ type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
 export default function StatisticsPage() {
   const CHART_COLORS = useChartColors()
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   // ── Plays over time ─────────────────────────────────────────────────────
   const [overTimeDays, setOverTimeDays] = useState(30)
@@ -319,6 +321,7 @@ export default function StatisticsPage() {
               {topItems.map((item, i) => (
                 <Box
                   key={item.Id}
+                  onClick={() => navigate(`/items/${item.Id}`)}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -327,6 +330,12 @@ export default function StatisticsPage() {
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                     '&:last-child': { borderBottom: 0 },
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    mx: -0.5,
+                    px: 0.5,
+                    transition: 'background 150ms',
+                    '&:hover': { bgcolor: 'action.hover' },
                   }}
                 >
                   <Typography

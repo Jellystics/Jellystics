@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
@@ -34,6 +34,7 @@ export default function UserDetailPage() {
   const { t } = useTranslation()
   const theme = useTheme()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   const USER_VIEWS = ['history', 'genres', 'lastplayed'] as const
   const currentView = searchParams.get('view') ?? 'history'
@@ -104,7 +105,10 @@ export default function UserDetailPage() {
         const row = i.row.original
         const label = row.SeriesName ? `${row.SeriesName} — ${i.getValue() as string}` : i.getValue() as string
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            onClick={(e) => { e.stopPropagation(); navigate(`/items/${row.ItemId}`) }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .itemname': { textDecoration: 'underline' } }}
+          >
             <Box sx={{
               width: 45, height: 30, borderRadius: 0.75, overflow: 'hidden', flexShrink: 0,
               bgcolor: 'rgba(255,255,255,0.06)', position: 'relative',
@@ -124,7 +128,7 @@ export default function UserDetailPage() {
                 sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </Box>
-            <Typography variant="body2" noWrap title={label}>{label}</Typography>
+            <Typography className="itemname" variant="body2" noWrap title={label}>{label}</Typography>
           </Box>
         )
       },
@@ -350,7 +354,10 @@ export default function UserDetailPage() {
               const itemId = item.NowPlayingItemType === 'Episode' ? item.EpisodeId ?? item.Id : item.Id
               return (
                 <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3 }}>
-                  <Card sx={{ height: '100%' }}>
+                  <Card
+                    onClick={() => navigate(`/items/${item.ItemId}`)}
+                    sx={{ height: '100%', cursor: 'pointer', transition: 'opacity 150ms', '&:hover': { opacity: 0.8 } }}
+                  >
                     <CardMedia
                       component="img"
                       src={`/proxy/Items/Images/Primary/?id=${itemId}&fillWidth=300&quality=80`}
