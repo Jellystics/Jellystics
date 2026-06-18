@@ -35,7 +35,7 @@ export default function TopContent({ items, loading, timeRangeSelector }: TopCon
       <CardHeader
         title={t('dashboard.topContent')}
         action={
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' } }}>
             {timeRangeSelector}
             <ToggleButtonGroup
               size="small"

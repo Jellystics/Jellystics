@@ -161,7 +161,7 @@ export default function StatisticsPage() {
   const clientMargin = useMemo(() => byClient.length ? Math.max(...byClient.map(d => d.client.length)) * 7 + 16 : 80, [byClient])
 
   const chartAction = (selector: React.ReactNode, toggle: React.ReactNode) => (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' } }}>
       {selector}
       {toggle}
     </Box>

@@ -254,7 +254,7 @@ export default function DashboardPage() {
   const clientMargin = useMemo(() => clientNames.length ? Math.max(...clientNames.map(l => l.length)) * 7 + 16 : 80, [clientNames])
 
   const chartAction = (selector: ReactNode, toggle?: ReactNode) => (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' } }}>
       {selector}
       {toggle}
     </Box>

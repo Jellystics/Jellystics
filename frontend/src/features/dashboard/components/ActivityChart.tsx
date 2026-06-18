@@ -47,19 +47,20 @@ export default function ActivityChart() {
   const singleLabel = metric === 'duration' ? t('stats.watchTime') : t('common.plays')
 
   const actions = (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <TimeRangeSelector value={days} onChange={setDays} />
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' }, gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TimeRangeSelector value={days} onChange={setDays} />
+        <Tooltip title={combined ? t('dashboard.singleView', 'Vue simple') : t('dashboard.combinedView', 'Vue combinée')}>
+          <IconButton
+            size="small"
+            onClick={() => setCombined((v) => !v)}
+            color={combined ? 'primary' : 'default'}
+          >
+            <ChartMultiple24Regular style={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
       {!combined && <MetricToggle value={metric} onChange={setMetric} />}
-      <Tooltip title={combined ? t('dashboard.singleView', 'Vue simple') : t('dashboard.combinedView', 'Vue combinée')}>
-        <IconButton
-          size="small"
-          onClick={() => setCombined((v) => !v)}
-          color={combined ? 'primary' : 'default'}
-          sx={{ ml: 0.5 }}
-        >
-          <ChartMultiple24Regular style={{ fontSize: 18 }} />
-        </IconButton>
-      </Tooltip>
     </Box>
   )
 
@@ -103,6 +104,7 @@ export default function ActivityChart() {
           height={260}
           sx={{
             width: '100%',
+            '& svg': { width: '100%' },
             [`& .${lineClasses.line}[data-series="duration"], [data-series="duration"] .${labelMarkClasses.fill}`]: {
               strokeDasharray: '5 4',
               strokeWidth: 1.5,
