@@ -250,6 +250,10 @@ export default function DashboardPage() {
     }))
   }, [libraryOverTime, CHART_COLORS])
 
+  const libMargin = useMemo(() => libBarLabels.length ? Math.max(...libBarLabels.map(l => l.length)) * 7 + 16 : 80, [libBarLabels])
+  const clientMargin = useMemo(() => clientNames.length ? Math.max(...clientNames.map(l => l.length)) * 7 + 16 : 80, [clientNames])
+  const methodMargin = useMemo(() => playbackMethods.length ? Math.max(...playbackMethods.map(m => m.method.length)) * 7 + 16 : 80, [playbackMethods])
+
   const chartAction = (selector: ReactNode, toggle?: ReactNode) => (
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
       {selector}
@@ -385,14 +389,13 @@ export default function DashboardPage() {
           >
             <BarChart
               layout="horizontal"
-              yAxis={[{ data: libBarLabels, scaleType: 'band' }]}
-              xAxis={[{ label: t('common.plays') }]}
+              yAxis={[{ data: libBarLabels, scaleType: 'band', width: libMargin }]}
               series={[{ data: libBarValues, color: CHART_BAR, valueFormatter: (v) => String(v ?? 0) }]}
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
               slotProps={{ legend: { hidden: true } as any }}
-              margin={{ left: 110, right: 16, top: 8, bottom: 36 }}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
             />
           </ChartCard>
         </Grid>
@@ -404,16 +407,15 @@ export default function DashboardPage() {
             height={260}
             action={<TimeRangeSelector value={methodDays} onChange={setMethodDays} />}
           >
-            <PieChart
-              series={[{
-                data: methodData,
-                paddingAngle: 2,
-                cornerRadius: 3,
-                valueFormatter: (item) => `${item.value} ${t('common.plays')}`,
-              }]}
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: playbackMethods.map(m => m.method), scaleType: 'band', width: methodMargin }]}
+              series={[{ data: playbackMethods.map(m => m.count), color: CHART_BAR, valueFormatter: (v) => `${v ?? 0} ${t('common.plays')}` }]}
               height={260}
               sx={{ width: '100%' }}
-              slotProps={{ legend: { position: { vertical: 'middle', horizontal: 'end' } } }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } as any }}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
             />
           </ChartCard>
         </Grid>
@@ -431,14 +433,13 @@ export default function DashboardPage() {
           >
             <BarChart
               layout="horizontal"
-              yAxis={[{ data: clientNames, scaleType: 'band' }]}
-              xAxis={[{ label: t('common.plays') }]}
+              yAxis={[{ data: clientNames, scaleType: 'band', width: clientMargin }]}
               series={[{ data: clientValues, color: CHART_BAR, valueFormatter: (v) => String(v ?? 0) }]}
               height={260}
               sx={{ width: '100%' }}
               grid={{ vertical: true }}
               slotProps={{ legend: { hidden: true } as any }}
-              margin={{ left: 160, right: 16, top: 8, bottom: 36 }}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
             />
           </ChartCard>
         </Grid>

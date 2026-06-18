@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Grid, Box, Typography, Chip } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { BarChart } from '@mui/x-charts/BarChart'
-import { PieChart } from '@mui/x-charts/PieChart'
 import { useTranslation } from 'react-i18next'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
@@ -159,6 +158,9 @@ export default function StatisticsPage() {
   const methodChart = chartMetric(methodMetric)
   const clientChart = chartMetric(clientMetric)
 
+  const methodMargin = useMemo(() => byMethod.length ? Math.max(...byMethod.map(d => d.method.length)) * 7 + 16 : 80, [byMethod])
+  const clientMargin = useMemo(() => byClient.length ? Math.max(...byClient.map(d => d.client.length)) * 7 + 16 : 80, [byClient])
+
   const chartAction = (selector: React.ReactNode, toggle: React.ReactNode) => (
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
       {selector}
@@ -260,14 +262,15 @@ export default function StatisticsPage() {
               <MetricToggle value={methodMetric} onChange={setMethodMetric} />,
             )}
           >
-            <PieChart
-              series={[{
-                data: byMethod.map((item, i) => ({ id: i, value: methodChart.getPieValue(item), label: item.method, color: CHART_COLORS[i % CHART_COLORS.length] })),
-                outerRadius: 100, paddingAngle: 2, cornerRadius: 3,
-                valueFormatter: (item) => methodChart.formatter(item.value),
-              }]}
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: byMethod.map(d => d.method), scaleType: 'band', width: methodMargin }]}
+              series={[{ data: byMethod.map(d => methodChart.getPieValue(d)), valueFormatter: methodChart.formatter, color: CHART_COLORS[0] }]}
               height={280}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
               sx={{ width: '100%' }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
@@ -282,14 +285,15 @@ export default function StatisticsPage() {
               <MetricToggle value={clientMetric} onChange={setClientMetric} />,
             )}
           >
-            <PieChart
-              series={[{
-                data: byClient.map((item, i) => ({ id: i, value: clientChart.getPieValue(item), label: item.client, color: CHART_COLORS[i % CHART_COLORS.length] })),
-                outerRadius: 100, paddingAngle: 2, cornerRadius: 3,
-                valueFormatter: (item) => clientChart.formatter(item.value),
-              }]}
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: byClient.map(d => d.client), scaleType: 'band', width: clientMargin }]}
+              series={[{ data: byClient.map(d => clientChart.getPieValue(d)), valueFormatter: clientChart.formatter, color: CHART_COLORS[0] }]}
               height={280}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
               sx={{ width: '100%' }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>
         </Grid>
