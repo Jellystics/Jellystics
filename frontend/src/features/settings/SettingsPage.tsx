@@ -1,4 +1,4 @@
-import { Box, Tab, Tabs } from '@mui/material'
+import { Box, Tab, Tabs, Select, MenuItem, FormControl, useMediaQuery, useTheme } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
@@ -21,6 +21,8 @@ const TABS = [
 export default function SettingsPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const currentView = searchParams.get('view') ?? 'config'
   const tabIndex = TABS.findIndex((tab) => tab.view === currentView)
@@ -31,16 +33,30 @@ export default function SettingsPage() {
       <PageHeader title={t('nav.settings')} />
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setSearchParams({ view: TABS[v].view }, { replace: true })}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          {TABS.map(({ key }) => (
-            <Tab key={key} label={t(key)} />
-          ))}
-        </Tabs>
+        {isMobile ? (
+          <FormControl size="small" fullWidth sx={{ mb: '-1px' }}>
+            <Select
+              value={TABS[activeTab].view}
+              onChange={(e) => setSearchParams({ view: e.target.value }, { replace: true })}
+              sx={{ borderRadius: 0, borderBottom: 'none', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+            >
+              {TABS.map(({ key, view }) => (
+                <MenuItem key={view} value={view}>{t(key)}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ) : (
+          <Tabs
+            value={activeTab}
+            onChange={(_, v) => setSearchParams({ view: TABS[v].view }, { replace: true })}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {TABS.map(({ key }) => (
+              <Tab key={key} label={t(key)} />
+            ))}
+          </Tabs>
+        )}
       </Box>
 
       <Box
