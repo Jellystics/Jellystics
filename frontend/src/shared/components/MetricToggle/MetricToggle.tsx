@@ -22,10 +22,10 @@ export default function MetricToggle({ value, onChange }: MetricToggleProps) {
         if (next) onChange(next)
       }}
       sx={{
+        height: 32,
         '& .MuiToggleButton-root': {
-          px: 1.25,
-          py: 0.35,
-          fontSize: 11,
+          px: 1.5,
+          fontSize: 13,
           textTransform: 'none',
         },
       }}
