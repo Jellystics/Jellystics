@@ -329,7 +329,8 @@
   "units": {
     "kilobytes": "Ko",
     "megabytes": "Mo",
-    "gigabytes": "Go"
+    "gigabytes": "Go",
+    "terabytes": "To"
   },
   "time": {
     "hourShort": "h",

@@ -329,7 +329,8 @@
   "units": {
     "kilobytes": "KB",
     "megabytes": "MB",
-    "gigabytes": "GB"
+    "gigabytes": "GB",
+    "terabytes": "TB"
   },
   "time": {
     "hourShort": "h",
