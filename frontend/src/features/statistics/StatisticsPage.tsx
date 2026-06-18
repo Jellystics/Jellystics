@@ -158,7 +158,6 @@ export default function StatisticsPage() {
   const methodChart = chartMetric(methodMetric)
   const clientChart = chartMetric(clientMetric)
 
-  const methodMargin = useMemo(() => byMethod.length ? Math.max(...byMethod.map(d => d.method.length)) * 7 + 16 : 80, [byMethod])
   const clientMargin = useMemo(() => byClient.length ? Math.max(...byClient.map(d => d.client.length)) * 7 + 16 : 80, [byClient])
 
   const chartAction = (selector: React.ReactNode, toggle: React.ReactNode) => (
@@ -263,13 +262,11 @@ export default function StatisticsPage() {
             )}
           >
             <BarChart
-              layout="horizontal"
-              yAxis={[{ data: byMethod.map(d => d.method), scaleType: 'band', width: methodMargin }]}
+              xAxis={[{ data: byMethod.map(d => d.method), scaleType: 'band' }]}
               series={[{ data: byMethod.map(d => methodChart.getPieValue(d)), valueFormatter: methodChart.formatter, color: CHART_COLORS[0] }]}
               height={280}
-              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
               sx={{ width: '100%' }}
-              grid={{ vertical: true }}
+              grid={{ horizontal: true }}
               slotProps={{ legend: { hidden: true } as any }}
             />
           </ChartCard>

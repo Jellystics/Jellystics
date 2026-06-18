@@ -252,7 +252,6 @@ export default function DashboardPage() {
 
   const libMargin = useMemo(() => libBarLabels.length ? Math.max(...libBarLabels.map(l => l.length)) * 7 + 16 : 80, [libBarLabels])
   const clientMargin = useMemo(() => clientNames.length ? Math.max(...clientNames.map(l => l.length)) * 7 + 16 : 80, [clientNames])
-  const methodMargin = useMemo(() => playbackMethods.length ? Math.max(...playbackMethods.map(m => m.method.length)) * 7 + 16 : 80, [playbackMethods])
 
   const chartAction = (selector: ReactNode, toggle?: ReactNode) => (
     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -408,14 +407,12 @@ export default function DashboardPage() {
             action={<TimeRangeSelector value={methodDays} onChange={setMethodDays} />}
           >
             <BarChart
-              layout="horizontal"
-              yAxis={[{ data: playbackMethods.map(m => m.method), scaleType: 'band', width: methodMargin }]}
+              xAxis={[{ data: playbackMethods.map(m => m.method), scaleType: 'band' }]}
               series={[{ data: playbackMethods.map(m => m.count), color: CHART_BAR, valueFormatter: (v) => `${v ?? 0} ${t('common.plays')}` }]}
               height={260}
               sx={{ width: '100%' }}
-              grid={{ vertical: true }}
+              grid={{ horizontal: true }}
               slotProps={{ legend: { hidden: true } as any }}
-              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
             />
           </ChartCard>
         </Grid>
