@@ -42,7 +42,7 @@ export default function TopContent({ items, loading, timeRangeSelector }: TopCon
               exclusive
               value={typeFilter}
               onChange={(_, v) => { if (v) setTypeFilter(v) }}
-              sx={{ '& .MuiToggleButton-root': { py: 0.25, px: 1, fontSize: 11, textTransform: 'none', lineHeight: 1.6 } }}
+              sx={{ height: 32, '& .MuiToggleButton-root': { px: 1.5, fontSize: 13, textTransform: 'none' } }}
             >
               <ToggleButton value="all">All</ToggleButton>
               <ToggleButton value="Movie">Movies</ToggleButton>
