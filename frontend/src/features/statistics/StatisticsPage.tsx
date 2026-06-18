@@ -23,6 +23,18 @@ export default function StatisticsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
+  // ── Global stats (StatCards) ────────────────────────────────────────────
+  const [globalStats, setGlobalStats] = useState<{ TotalPlays: number; TotalWatchTime: number } | null>(null)
+  const [globalLoading, setGlobalLoading] = useState(true)
+
+  useEffect(() => {
+    setGlobalLoading(true)
+    api.get('/stats/getGlobalStats')
+      .then(r => setGlobalStats(r.data))
+      .catch(() => {})
+      .finally(() => setGlobalLoading(false))
+  }, [])
+
   // ── Plays over time ─────────────────────────────────────────────────────
   const [overTimeDays, setOverTimeDays] = useState(30)
   const [overTime, setOverTime] = useState<WatchStatOverTime[]>([])
@@ -119,10 +131,6 @@ export default function StatisticsPage() {
       .finally(() => setItemsLoading(false))
   }, [itemsDays])
 
-  // ── Derived values ──────────────────────────────────────────────────────
-  const totalPlays = overTime.reduce((s, d) => s + d.plays, 0)
-  const totalDuration = overTime.reduce((s, d) => s + d.duration, 0)
-
   const hourData = Array.from({ length: 24 }, (_, h) => ({
     hour: `${String(h).padStart(2, '0')}${t('time.hourShort')}`,
     plays: byHour.find((d) => d.hour === h)?.plays ?? 0,
@@ -164,10 +172,10 @@ export default function StatisticsPage() {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.totalPlays')} value={totalPlays} icon={<Play24Regular />} loading={overTimeLoading} />
+          <StatCard label={t('stats.totalPlays')} value={globalStats?.TotalPlays ?? 0} icon={<Play24Regular />} loading={globalLoading} />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label={t('stats.watchTime')} value={formatWatchTime(totalDuration)} icon={<Clock24Regular />} loading={overTimeLoading} />
+          <StatCard label={t('stats.watchTime')} value={formatWatchTime(globalStats?.TotalWatchTime ?? 0)} icon={<Clock24Regular />} loading={globalLoading} />
         </Grid>
       </Grid>
 
