@@ -1169,16 +1169,49 @@ func (h *StatsFrontendHandler) GetLibraries(c *gin.Context) {
 	var rows []Row
 	h.db.Raw(`
 		WITH item_stats AS (
+		  -- Top-level items: Movies, Series, MusicAlbums — direct children of library
 		  SELECT
 		    i."ParentId" AS "LibraryId",
 		    COUNT(*) FILTER (WHERE i."Type" NOT IN ('Season', 'Folder'))::int AS "ItemCount",
-		    COUNT(*) FILTER (WHERE i."Type" = 'Episode')::int AS "EpisodeCount",
-		    COUNT(*) FILTER (WHERE i."Type" = 'Season')::int AS "SeasonCount",
-		    COALESCE(SUM(ii."Size") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder')), 0)::bigint AS "TotalSize"
+		    COALESCE(SUM(ii."Size") FILTER (WHERE i."Type" NOT IN ('Season', 'Folder')), 0)::bigint AS "DirectSize"
 		  FROM jf_library_items i
 		  LEFT JOIN jf_item_info ii ON ii."Id" = i."Id"
 		  WHERE i.archived = false
 		  GROUP BY i."ParentId"
+		),
+		episode_stats AS (
+		  -- Episodes live in jf_library_episodes; their sizes are in jf_item_info
+		  SELECT
+		    series."ParentId" AS "LibraryId",
+		    COUNT(DISTINCT e."Id")::int AS "EpisodeCount",
+		    COALESCE(SUM(ii."Size"), 0)::bigint AS "EpisodeSize"
+		  FROM jf_library_episodes e
+		  JOIN jf_library_items series
+		    ON series."Id" = e."SeriesId" AND series.archived = false
+		  LEFT JOIN jf_item_info ii ON ii."Id" = e."Id"
+		  WHERE e.archived = false
+		  GROUP BY series."ParentId"
+		),
+		season_stats AS (
+		  -- Seasons live in jf_library_seasons
+		  SELECT
+		    series."ParentId" AS "LibraryId",
+		    COUNT(DISTINCT s."Id")::int AS "SeasonCount"
+		  FROM jf_library_seasons s
+		  JOIN jf_library_items series
+		    ON series."Id" = s."SeriesId" AND series.archived = false
+		  WHERE s.archived = false
+		  GROUP BY series."ParentId"
+		),
+		track_size_stats AS (
+		  -- Music tracks live in jf_music_tracks with a direct LibraryId
+		  SELECT
+		    t."LibraryId",
+		    COALESCE(SUM(ii."Size"), 0)::bigint AS "TrackSize"
+		  FROM jf_music_tracks t
+		  LEFT JOIN jf_item_info ii ON ii."Id" = t."Id"
+		  WHERE t.archived = false AND t."LibraryId" IS NOT NULL
+		  GROUP BY t."LibraryId"
 		),
 		play_stats AS (
 		  SELECT
@@ -1197,16 +1230,19 @@ func (h *StatsFrontendHandler) GetLibraries(c *gin.Context) {
 		  l."Id",
 		  l."Name",
 		  COALESCE(l."CollectionType", l."Type", 'unknown') AS "CollectionType",
-		  COALESCE(ist."ItemCount", 0)      AS "ItemCount",
-		  COALESCE(ist."EpisodeCount", 0)   AS "EpisodeCount",
-		  COALESCE(ist."SeasonCount", 0)    AS "SeasonCount",
-		  COALESCE(ist."TotalSize", 0)      AS "TotalSize",
-		  COALESCE(pst."TotalPlayCount", 0) AS "TotalPlayCount",
-		  COALESCE(pst."TotalWatchTime", 0) AS "TotalWatchTime",
+		  COALESCE(ist."ItemCount", 0)                                          AS "ItemCount",
+		  COALESCE(epst."EpisodeCount", 0)                                      AS "EpisodeCount",
+		  COALESCE(ssst."SeasonCount", 0)                                       AS "SeasonCount",
+		  COALESCE(ist."DirectSize", 0) + COALESCE(epst."EpisodeSize", 0) + COALESCE(tsst."TrackSize", 0) AS "TotalSize",
+		  COALESCE(pst."TotalPlayCount", 0)                                     AS "TotalPlayCount",
+		  COALESCE(pst."TotalWatchTime", 0)                                     AS "TotalWatchTime",
 		  pst."LastActivity"
 		FROM jf_libraries l
-		LEFT JOIN item_stats ist ON ist."LibraryId" = l."Id"
-		LEFT JOIN play_stats pst ON pst."LibraryId" = l."Id"
+		LEFT JOIN item_stats   ist  ON ist."LibraryId"  = l."Id"
+		LEFT JOIN episode_stats epst ON epst."LibraryId" = l."Id"
+		LEFT JOIN season_stats      ssst ON ssst."LibraryId" = l."Id"
+		LEFT JOIN track_size_stats  tsst ON tsst."LibraryId" = l."Id"
+		LEFT JOIN play_stats        pst  ON pst."LibraryId"  = l."Id"
 		WHERE l.archived = false
 		ORDER BY l."Name"
 	`).Scan(&rows)

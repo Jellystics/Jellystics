@@ -314,6 +314,8 @@ func (r *itemInfoRepo) RemoveOrphaned(ctx context.Context) error {
 	return r.db.WithContext(ctx).Exec(`
 		DELETE FROM jf_item_info
 		WHERE "Id" NOT IN (SELECT "Id" FROM jf_library_items)
+		  AND "Id" NOT IN (SELECT "Id" FROM jf_library_episodes)
+		  AND "Id" NOT IN (SELECT "Id" FROM jf_music_tracks)
 	`).Error
 }
 
@@ -514,7 +516,7 @@ func (r *webhookRepo) Delete(ctx context.Context, id int) error {
 type statsRepo struct{ db *gorm.DB }
 
 func (r *statsRepo) RefreshViews(ctx context.Context) error {
-	return r.db.WithContext(ctx).Exec("CALL ju_update_library_stats_data()").Error
+	return nil
 }
 
 func (r *statsRepo) GetGlobalStats(ctx context.Context) (*GlobalStats, error) {

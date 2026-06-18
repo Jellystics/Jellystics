@@ -505,12 +505,13 @@ func (s *Service) SyncMusicLibrary(ctx context.Context, libraryId string) error 
 		}
 	}
 
-	// Tracks (Audio → jf_music_tracks)
+	// Tracks (Audio → jf_music_tracks + jf_item_info for file size)
 	tracks, err := s.jf.GetAllItems(ctx, libraryId, []string{"Audio"}, jellyfin.StandardFields)
 	if err != nil {
 		return err
 	}
 	trackMapped := make([]models.JFMusicTrack, 0, len(tracks))
+	trackInfos := make([]models.JFItemInfo, 0, len(tracks))
 	trackIds := make([]string, 0, len(tracks))
 	for _, t := range tracks {
 		genres := genresJSON(t.Genres)
@@ -534,6 +535,9 @@ func (s *Service) SyncMusicLibrary(ctx context.Context, libraryId string) error 
 		}
 		trackMapped = append(trackMapped, track)
 		trackIds = append(trackIds, t.Id)
+		if len(t.MediaSources) > 0 {
+			trackInfos = append(trackInfos, mapItemInfo(t, t.MediaSources[0], "Audio"))
+		}
 	}
 	if err := s.repos.MusicTrack.Upsert(ctx, trackMapped); err != nil {
 		return err
@@ -543,7 +547,10 @@ func (s *Service) SyncMusicLibrary(ctx context.Context, libraryId string) error 
 			return err
 		}
 	}
-	return nil
+	if err := s.repos.ItemInfo.Upsert(ctx, trackInfos); err != nil {
+		return err
+	}
+	return s.repos.ItemInfo.RemoveOrphaned(ctx)
 }
 
 // SyncGenericLibrary syncs a library with no special handling.
@@ -553,18 +560,24 @@ func (s *Service) SyncGenericLibrary(ctx context.Context, libraryId string) erro
 		return err
 	}
 	mapped := make([]models.JFLibraryItem, 0, len(items))
+	infos := make([]models.JFItemInfo, 0, len(items))
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
 		mapped = append(mapped, mapLibraryItem(item, libraryId))
 		ids = append(ids, item.Id)
+		if len(item.MediaSources) > 0 {
+			infos = append(infos, mapItemInfo(item, item.MediaSources[0], item.Type))
+		}
 	}
 	if err := s.repos.Item.Upsert(ctx, mapped); err != nil {
 		return err
 	}
 	if len(ids) > 0 {
-		return s.repos.Item.ArchiveNotIn(ctx, libraryId, ids)
+		if err := s.repos.Item.ArchiveNotIn(ctx, libraryId, ids); err != nil {
+			return err
+		}
 	}
-	return nil
+	return s.repos.ItemInfo.Upsert(ctx, infos)
 }
 
 // SyncSessions fetches active sessions and updates the watchdog table.
