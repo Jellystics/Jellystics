@@ -17,10 +17,14 @@ WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
+ARG APP_VERSION=0.0.0
+
 COPY backend/ ./
 COPY --from=frontend-builder /app/dist ./internal/assets/web/
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /jellystics ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X 'github.com/Jellystics/Jellystics/internal/handler.currentAppVersion=${APP_VERSION}'" \
+    -o /jellystics ./cmd/server
 
 # Stage 3: Minimal runtime image
 FROM debian:bookworm-slim
