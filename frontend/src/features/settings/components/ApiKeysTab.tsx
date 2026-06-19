@@ -96,7 +96,7 @@ export default function ApiKeysTab() {
       },
     }),
     col.accessor('key', {
-      header: t('settings.apiKey'),
+      header: t('setup.apiKey'),
       enableGlobalFilter: false,
       cell: (i) => (
         <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
