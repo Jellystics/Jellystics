@@ -173,7 +173,7 @@ export default function LoginPage() {
                 {t('auth.signIn')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-                {t('auth.connectedTo', { name: serverInfo?.serverName ?? '' })}
+                {t('auth.connectedTo', { name: '' })}<strong>{serverInfo?.serverName ?? ''}</strong>
               </Typography>
 
               {error && (
