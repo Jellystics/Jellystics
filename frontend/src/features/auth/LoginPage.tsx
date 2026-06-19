@@ -3,7 +3,6 @@ import {
   Box, Button, TextField, Typography,
   CircularProgress, Alert, Paper, Divider,
 } from '@mui/material'
-import { ArrowLeft24Regular } from '@fluentui/react-icons'
 import AuthLogo from './AuthLogo'
 import { useTranslation } from 'react-i18next'
 import publicApi from '@/lib/publicApi'
@@ -84,12 +83,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const goBack = () => {
-    setStep('server')
-    setError(null)
-    setPassword('')
   }
 
   if (initializing) {
@@ -211,15 +204,6 @@ export default function LoginPage() {
                   sx={{ mt: 0.5 }}
                 >
                   {loading ? <CircularProgress size={22} color="inherit" /> : t('auth.signIn')}
-                </Button>
-                <Button
-                  type="button"
-                  fullWidth
-                  disabled={loading}
-                  startIcon={<ArrowLeft24Regular style={{ fontSize: 18 }} />}
-                  onClick={goBack}
-                >
-                  {t('auth.changeServer')}
                 </Button>
               </Box>
             </Box>
