@@ -5,7 +5,9 @@ const MODE_KEY = 'jellystics-theme-mode'
 const DEFAULT_PRIMARY = '#64748b'
 
 export function getThemeMode(): ThemeMode {
-  return (localStorage.getItem(MODE_KEY) as ThemeMode) ?? 'dark'
+  const stored = localStorage.getItem(MODE_KEY) as ThemeMode | null
+  if (stored) return stored
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function setThemeMode(mode: ThemeMode): void {
