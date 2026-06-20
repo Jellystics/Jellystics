@@ -256,7 +256,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 	itemType := c.DefaultQuery("type", "all")
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 
 	type Item struct {
 		Id        string `json:"Id"`
@@ -367,7 +367,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
 
 	type UserRow struct {
@@ -380,23 +380,25 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 	if allTime {
 		h.db.Raw(`
 			SELECT
-			  "UserId",
-			  MAX("UserName") AS "UserName",
+			  a."UserId",
+			  COALESCE(u."Name", MAX(a."UserName"), a."UserId") AS "UserName",
 			  COUNT(*)::int AS "TotalPlays",
-			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
-			FROM jf_playback_activity
-			GROUP BY "UserId" ORDER BY "TotalPlays" DESC LIMIT ?
+			  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
+			FROM jf_playback_activity a
+			LEFT JOIN jf_users u ON u."Id" = a."UserId"
+			GROUP BY a."UserId", u."Name" ORDER BY "TotalPlays" DESC LIMIT ?
 		`, limit).Scan(&dbRows)
 	} else {
 		h.db.Raw(`
 			SELECT
-			  "UserId",
-			  MAX("UserName") AS "UserName",
+			  a."UserId",
+			  COALESCE(u."Name", MAX(a."UserName"), a."UserId") AS "UserName",
 			  COUNT(*)::int AS "TotalPlays",
-			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
-			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-			GROUP BY "UserId"
+			  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
+			FROM jf_playback_activity a
+			LEFT JOIN jf_users u ON u."Id" = a."UserId"
+			WHERE a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			GROUP BY a."UserId", u."Name"
 			ORDER BY "TotalPlays" DESC
 			LIMIT ?
 		`, daysArg, limit).Scan(&dbRows)
@@ -446,9 +448,6 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 		days = 30
 	}
 	allTime := days <= 0
-	if !allTime {
-		days = days - 1
-	}
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -541,7 +540,7 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -626,7 +625,7 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -711,7 +710,7 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 
 	type Row struct {
 		Method   string `json:"method"`
@@ -774,7 +773,7 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 
 	type Row struct {
 		Client   string `json:"client"`
@@ -931,9 +930,11 @@ type activityRow struct {
 	UserName             *string `json:"UserName"`
 	ItemId               *string `json:"ItemId"`
 	NowPlayingItemName   *string `json:"NowPlayingItemName"`
+	NowPlayingItemType   *string `json:"NowPlayingItemType"`
 	SeriesName           *string `json:"SeriesName"`
 	SeasonId             *string `json:"SeasonId"`
 	EpisodeId            *string `json:"EpisodeId"`
+	ParentId             *string `json:"ParentId"`
 	Client               *string `json:"Client"`
 	DeviceName           *string `json:"DeviceName"`
 	DeviceId             *string `json:"DeviceId"`
@@ -952,37 +953,43 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 
 	const baseSelect = `
 		SELECT
-		  "Id", "UserId", "UserName",
-		  "NowPlayingItemId" AS "ItemId",
-		  "NowPlayingItemName",
-		  "SeriesName", "SeasonId", "EpisodeId",
-		  "Client", "DeviceName", "DeviceId", "ApplicationVersion",
-		  "PlayMethod",
-		  "IsPaused",
+		  a."Id", a."UserId", a."UserName",
+		  a."NowPlayingItemId" AS "ItemId",
+		  a."NowPlayingItemName",
+		  CASE
+		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Episode'
+		    ELSE COALESCE(i."Type", 'Unknown')
+		  END AS "NowPlayingItemType",
+		  a."SeriesName", a."SeasonId", a."EpisodeId",
+		  i."ParentId",
+		  a."Client", a."DeviceName", a."DeviceId", a."ApplicationVersion",
+		  a."PlayMethod",
+		  a."IsPaused",
 		  false AS "IsActive",
-		  ("PlaybackDuration" * 10000000)::bigint AS "PlayDuration",
-		  "ActivityDateInserted",
-		  "RemoteEndPoint"
-		FROM jf_playback_activity`
+		  (a."PlaybackDuration" * 10000000)::bigint AS "PlayDuration",
+		  a."ActivityDateInserted",
+		  a."RemoteEndPoint"
+		FROM jf_playback_activity a
+		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"`
 
 	var rows []activityRow
 	switch {
 	case dateFrom != "" && dateTo != "":
 		h.db.Raw(baseSelect+`
-		WHERE "ActivityDateInserted"::date >= ?::date
-		  AND "ActivityDateInserted"::date <= ?::date
-		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateFrom, dateTo).Scan(&rows)
+		WHERE a."ActivityDateInserted"::date >= ?::date
+		  AND a."ActivityDateInserted"::date <= ?::date
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateFrom, dateTo).Scan(&rows)
 	case dateFrom != "":
 		h.db.Raw(baseSelect+`
-		WHERE "ActivityDateInserted"::date >= ?::date
-		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateFrom).Scan(&rows)
+		WHERE a."ActivityDateInserted"::date >= ?::date
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateFrom).Scan(&rows)
 	case dateTo != "":
 		h.db.Raw(baseSelect+`
-		WHERE "ActivityDateInserted"::date <= ?::date
-		ORDER BY "ActivityDateInserted"::timestamptz DESC`, dateTo).Scan(&rows)
+		WHERE a."ActivityDateInserted"::date <= ?::date
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateTo).Scan(&rows)
 	default:
 		h.db.Raw(baseSelect + `
-		ORDER BY "ActivityDateInserted"::timestamptz DESC`).Scan(&rows)
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC`).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -1005,6 +1012,10 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		pm := ls.PlayMethod
 		itemId := ls.NowPlayingItemId
 		itemName := ls.NowPlayingItemName
+		itemType := ls.Type
+		if itemType == "" {
+			itemType = "Unknown"
+		}
 		dur := int64(ls.PlaybackDuration) * 600_000_000
 		isActive := true
 		isPaused := false
@@ -1013,6 +1024,7 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 			UserName:             &userName,
 			ItemId:               &itemId,
 			NowPlayingItemName:   &itemName,
+			NowPlayingItemType:   &itemType,
 			Client:               &client,
 			PlayMethod:           &pm,
 			IsPaused:             &isPaused,
@@ -1615,7 +1627,7 @@ func (h *StatsFrontendHandler) GetGenreStats(c *gin.Context) {
 				  COUNT(*)::int AS "PlayCount"
 				FROM jf_playback_activity a
 				LEFT JOIN jf_library_items i
-				  ON a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id"
+				  ON a."NowPlayingItemId" = i."Id" AND i."ParentId" = ?
 				CROSS JOIN LATERAL jsonb_array_elements_text(
 				  CASE
 				    WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["No Genre"]'::jsonb
@@ -1623,11 +1635,10 @@ func (h *StatsFrontendHandler) GetGenreStats(c *gin.Context) {
 				  END
 				) AS genre
 				WHERE a."UserId" = ?
-				  AND i."ParentId" = ?
 				GROUP BY genre
 				ORDER BY "PlayCount" DESC, genre ASC
 				LIMIT 100
-			`, userId, libraryId).Scan(&rows)
+			`, libraryId, userId).Scan(&rows)
 		} else {
 			h.db.Raw(`
 				SELECT
@@ -1636,7 +1647,7 @@ func (h *StatsFrontendHandler) GetGenreStats(c *gin.Context) {
 				  COUNT(*)::int AS "PlayCount"
 				FROM jf_playback_activity a
 				LEFT JOIN jf_library_items i
-				  ON a."NowPlayingItemId" = i."Id" OR a."EpisodeId" = i."Id"
+				  ON a."NowPlayingItemId" = i."Id"
 				CROSS JOIN LATERAL jsonb_array_elements_text(
 				  CASE
 				    WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["No Genre"]'::jsonb
@@ -2896,7 +2907,7 @@ func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
 	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days - 1
+	daysArg := days
 
 	type Row struct {
 		Ts       string `json:"ts"       gorm:"column:ts"`

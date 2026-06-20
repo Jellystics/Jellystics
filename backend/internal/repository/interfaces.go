@@ -168,7 +168,7 @@ type ItemPlayStat struct {
 	Name       string  `json:"name"`
 	Type       string  `json:"type"`
 	TimesPlayed int64  `json:"timesPlayed"`
-	TotalTicks int64   `json:"totalTicks"`
+	TotalDuration int64   `json:"totalDuration"`
 }
 
 type ArtistPlayStat struct {
