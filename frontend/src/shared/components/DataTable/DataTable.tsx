@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -61,7 +61,7 @@ export interface FilterDef {
 type SelectFilter = string[]
 type RangeFilter = [number | undefined, number | undefined]
 type DateRangeFilter = [string | undefined, string | undefined]
-type FilterState = Record<string, SelectFilter | RangeFilter | DateRangeFilter>
+export type FilterState = Record<string, SelectFilter | RangeFilter | DateRangeFilter>
 
 interface DataTableProps<T> {
   data: T[]
@@ -75,6 +75,16 @@ interface DataTableProps<T> {
   filterDefs?: FilterDef[]
   /** Called when a server-side filter is applied or cleared; receives only the active server-side filter values */
   onServerFilterChange?: (serverFilters: Record<string, SelectFilter | RangeFilter | DateRangeFilter>) => void
+  /** Initial filter state (e.g. restored from URL params) */
+  initialFilters?: FilterState
+  /** Called whenever active filters change (apply / clear) */
+  onFiltersChange?: (filters: FilterState) => void
+  /** Initial search string (e.g. restored from URL params) */
+  initialSearch?: string
+  /** Called whenever the search field changes */
+  onSearchChange?: (search: string) => void
+  /** When true, disables client-side filtering (all filtering is handled externally) */
+  manualFiltering?: boolean
 }
 
 export default function DataTable<T>({
@@ -87,20 +97,26 @@ export default function DataTable<T>({
   initialColumnVisibility,
   filterDefs,
   onServerFilterChange,
+  initialFilters,
+  onFiltersChange,
+  initialSearch,
+  onSearchChange,
+  manualFiltering,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
+  const [globalFilter, setGlobalFilter] = useState(initialSearch ?? '')
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(initialColumnVisibility ?? {})
   const [colAnchor, setColAnchor] = useState<null | HTMLElement>(null)
   const [filterAnchor, setFilterAnchor] = useState<null | HTMLElement>(null)
-  const [activeFilters, setActiveFilters] = useState<FilterState>({})
+  const [activeFilters, setActiveFilters] = useState<FilterState>(initialFilters ?? {})
   const [pendingFilters, setPendingFilters] = useState<FilterState>({})
 
   const debouncedFilter = useDebounce(globalFilter, 300)
 
-  // Unique values for select filters from raw data
-  const uniqueValues = useMemo(() => {
+  // Unique values for select filters — frozen while loading to avoid stale options flash
+  const stableUniqueValues = useRef<Record<string, string[]>>({})
+  const computedUniqueValues = useMemo(() => {
     const result: Record<string, string[]> = {}
     filterDefs?.forEach((def) => {
       if (def.type !== 'select') return
@@ -113,10 +129,15 @@ export default function DataTable<T>({
     })
     return result
   }, [data, filterDefs])
+  // Only update stable values when not loading (so filter dropdown doesn't flicker during API call)
+  useEffect(() => {
+    if (!loading) stableUniqueValues.current = computedUniqueValues
+  }, [loading, computedUniqueValues])
+  const uniqueValues = loading ? stableUniqueValues.current : computedUniqueValues
 
-  // Apply filters client-side
+  // Apply filters client-side (skipped when manualFiltering is true)
   const filteredData = useMemo(() => {
-    if (!filterDefs?.length) return data
+    if (manualFiltering || !filterDefs?.length) return data
     const hasActive = filterDefs.some((def) => {
       const f = activeFilters[def.id]
       if (!f) return false
@@ -212,6 +233,7 @@ export default function DataTable<T>({
     }
     setActiveFilters(newFilters)
     notifyServerFilters(newFilters)
+    onFiltersChange?.(newFilters)
   }
 
   return (
@@ -223,7 +245,7 @@ export default function DataTable<T>({
             size="small"
             placeholder={searchPlaceholder ?? t('common.search')}
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => { setGlobalFilter(e.target.value); onSearchChange?.(e.target.value) }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -462,7 +484,7 @@ export default function DataTable<T>({
                 fullWidth
                 variant="contained"
                 size="small"
-                onClick={() => { setActiveFilters(pendingFilters); notifyServerFilters(pendingFilters); setFilterAnchor(null) }}
+                onClick={() => { setActiveFilters(pendingFilters); notifyServerFilters(pendingFilters); onFiltersChange?.(pendingFilters); setFilterAnchor(null) }}
               >
                 {t('common.apply', 'Appliquer')}
               </Button>
@@ -516,7 +538,7 @@ export default function DataTable<T>({
 
             return []
           })}
-          <Button size="small" onClick={() => { setActiveFilters({}); notifyServerFilters({}) }} sx={{ fontSize: 12 }}>
+          <Button size="small" onClick={() => { setActiveFilters({}); notifyServerFilters({}); onFiltersChange?.({}) }} sx={{ fontSize: 12 }}>
             {t('common.clearAll', 'Tout effacer')}
           </Button>
         </Box>

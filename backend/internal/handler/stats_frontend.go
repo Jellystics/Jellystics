@@ -947,9 +947,38 @@ type activityRow struct {
 	RemoteEndPoint       *string `json:"RemoteEndPoint"`
 }
 
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func inClause(col string, n int) string {
+	ph := make([]string, n)
+	for i := range ph {
+		ph[i] = "?"
+	}
+	return col + " IN (" + strings.Join(ph, ",") + ")"
+}
+
 func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
-	dateFrom := c.Query("dateFrom") // YYYY-MM-DD
-	dateTo := c.Query("dateTo")     // YYYY-MM-DD
+	dateFrom   := c.Query("dateFrom")
+	dateTo     := c.Query("dateTo")
+	clients    := splitCSV(c.Query("client"))
+	methods    := splitCSV(c.Query("playMethod"))
+	mediaTypes := splitCSV(c.Query("mediaType"))
+	devices    := splitCSV(c.Query("deviceName"))
+	users      := splitCSV(c.Query("userName"))
+	durMinStr  := c.Query("durMin")
+	durMaxStr  := c.Query("durMax")
 
 	const baseSelect = `
 		SELECT
@@ -972,31 +1001,66 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"`
 
-	var rows []activityRow
-	switch {
-	case dateFrom != "" && dateTo != "":
-		h.db.Raw(baseSelect+`
-		WHERE a."ActivityDateInserted"::date >= ?::date
-		  AND a."ActivityDateInserted"::date <= ?::date
-		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateFrom, dateTo).Scan(&rows)
-	case dateFrom != "":
-		h.db.Raw(baseSelect+`
-		WHERE a."ActivityDateInserted"::date >= ?::date
-		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateFrom).Scan(&rows)
-	case dateTo != "":
-		h.db.Raw(baseSelect+`
-		WHERE a."ActivityDateInserted"::date <= ?::date
-		ORDER BY a."ActivityDateInserted"::timestamptz DESC`, dateTo).Scan(&rows)
-	default:
-		h.db.Raw(baseSelect + `
-		ORDER BY a."ActivityDateInserted"::timestamptz DESC`).Scan(&rows)
+	var wheres []string
+	var args   []interface{}
+
+	if dateFrom != "" {
+		wheres = append(wheres, `a."ActivityDateInserted"::date >= ?::date`)
+		args = append(args, dateFrom)
 	}
+	if dateTo != "" {
+		wheres = append(wheres, `a."ActivityDateInserted"::date <= ?::date`)
+		args = append(args, dateTo)
+	}
+	if len(clients) > 0 {
+		wheres = append(wheres, inClause(`a."Client"`, len(clients)))
+		for _, v := range clients { args = append(args, v) }
+	}
+	if len(methods) > 0 {
+		wheres = append(wheres, inClause(`a."PlayMethod"`, len(methods)))
+		for _, v := range methods { args = append(args, v) }
+	}
+	if len(mediaTypes) > 0 {
+		expr := `CASE WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Episode' ELSE COALESCE(i."Type", 'Unknown') END`
+		wheres = append(wheres, inClause(expr, len(mediaTypes)))
+		for _, v := range mediaTypes { args = append(args, v) }
+	}
+	if len(devices) > 0 {
+		wheres = append(wheres, inClause(`a."DeviceName"`, len(devices)))
+		for _, v := range devices { args = append(args, v) }
+	}
+	if len(users) > 0 {
+		wheres = append(wheres, inClause(`a."UserName"`, len(users)))
+		for _, v := range users { args = append(args, v) }
+	}
+	if durMinStr != "" {
+		if durMin, err := strconv.Atoi(durMinStr); err == nil {
+			wheres = append(wheres, `a."PlaybackDuration" >= ?`)
+			args = append(args, durMin*60)
+		}
+	}
+	if durMaxStr != "" {
+		if durMax, err := strconv.Atoi(durMaxStr); err == nil {
+			wheres = append(wheres, `a."PlaybackDuration" <= ?`)
+			args = append(args, durMax*60)
+		}
+	}
+
+	query := baseSelect
+	if len(wheres) > 0 {
+		query += "\n\t\tWHERE " + strings.Join(wheres, "\n\t\t  AND ")
+	}
+	query += `
+		ORDER BY a."ActivityDateInserted"::timestamptz DESC`
+
+	var rows []activityRow
+	h.db.Raw(query, args...).Scan(&rows)
 
 	if rows == nil {
 		rows = []activityRow{}
 	}
 
-	if dateFrom != "" || dateTo != "" {
+	if len(wheres) > 0 {
 		c.JSON(http.StatusOK, rows)
 		return
 	}
