@@ -22,6 +22,9 @@ export default function StatisticsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refresh = () => setRefreshKey(k => k + 1)
+
   // ── Global stats (StatCards) ────────────────────────────────────────────
   const [globalStats, setGlobalStats] = useState<{ TotalPlays: number; TotalWatchTime: number } | null>(null)
   const [globalLoading, setGlobalLoading] = useState(true)
@@ -32,7 +35,7 @@ export default function StatisticsPage() {
       .then(r => setGlobalStats(r.data))
       .catch(() => {})
       .finally(() => setGlobalLoading(false))
-  }, [])
+  }, [refreshKey])
 
   // ── Plays over time ─────────────────────────────────────────────────────
   const [overTimeDays, setOverTimeDays] = useState(30)
@@ -46,7 +49,7 @@ export default function StatisticsPage() {
       .then(r => setOverTime(r.data ?? []))
       .catch(() => setOverTime([]))
       .finally(() => setOverTimeLoading(false))
-  }, [overTimeDays])
+  }, [overTimeDays, refreshKey])
 
   // ── Plays by hour ───────────────────────────────────────────────────────
   const [hourDays, setHourDays] = useState(30)
@@ -60,7 +63,7 @@ export default function StatisticsPage() {
       .then(r => setByHour(r.data ?? []))
       .catch(() => setByHour([]))
       .finally(() => setHourLoading(false))
-  }, [hourDays])
+  }, [hourDays, refreshKey])
 
   // ── Plays by day of week ────────────────────────────────────────────────
   const [dayDays, setDayDays] = useState(30)
@@ -74,7 +77,7 @@ export default function StatisticsPage() {
       .then(r => setByDay(r.data ?? []))
       .catch(() => setByDay([]))
       .finally(() => setDayLoading(false))
-  }, [dayDays])
+  }, [dayDays, refreshKey])
 
   // ── Playback method ─────────────────────────────────────────────────────
   const [methodDays, setMethodDays] = useState(30)
@@ -88,7 +91,7 @@ export default function StatisticsPage() {
       .then(r => setByMethod(r.data ?? []))
       .catch(() => setByMethod([]))
       .finally(() => setMethodLoading(false))
-  }, [methodDays])
+  }, [methodDays, refreshKey])
 
   // ── Top clients ─────────────────────────────────────────────────────────
   const [clientDays, setClientDays] = useState(30)
@@ -102,7 +105,7 @@ export default function StatisticsPage() {
       .then(r => setByClient(r.data ?? []))
       .catch(() => setByClient([]))
       .finally(() => setClientLoading(false))
-  }, [clientDays])
+  }, [clientDays, refreshKey])
 
   // ── Most active users ───────────────────────────────────────────────────
   const [usersDays, setUsersDays] = useState(30)
@@ -115,7 +118,7 @@ export default function StatisticsPage() {
       .then(r => setActiveUsers((r.data ?? []).slice(0, 8)))
       .catch(() => setActiveUsers([]))
       .finally(() => setUsersLoading(false))
-  }, [usersDays])
+  }, [usersDays, refreshKey])
 
   // ── Top items ───────────────────────────────────────────────────────────
   const [itemsDays, setItemsDays] = useState(30)
@@ -130,7 +133,7 @@ export default function StatisticsPage() {
       .then(r => { setTopItems((r.data ?? []).slice(0, 10)); setTopItemsPage(0) })
       .catch(() => setTopItems([]))
       .finally(() => setItemsLoading(false))
-  }, [itemsDays])
+  }, [itemsDays, refreshKey])
 
   // ── Completion rate ──────────────────────────────────────────────────
   const [completionDays, setCompletionDays] = useState(30)
@@ -143,7 +146,7 @@ export default function StatisticsPage() {
       .then(r => setCompletion(r.data))
       .catch(() => setCompletion(null))
       .finally(() => setCompletionLoading(false))
-  }, [completionDays])
+  }, [completionDays, refreshKey])
 
   const hourData = Array.from({ length: 24 }, (_, h) => ({
     hour: `${String(h).padStart(2, '0')}${t('time.hourShort')}`,
@@ -185,7 +188,7 @@ export default function StatisticsPage() {
 
   return (
     <>
-      <PageHeader title={t('nav.statistics')} />
+      <PageHeader title={t('nav.statistics')} onRefresh={refresh} loading={globalLoading} />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, md: 3 }}>

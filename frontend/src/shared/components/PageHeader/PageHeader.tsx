@@ -16,6 +16,8 @@ export default function PageHeader({ title, actions, onRefresh, loading }: PageH
       <Typography variant="h4" sx={{ fontWeight: 600 }}>
         {title}
       </Typography>
+      <Box sx={{ flexGrow: 1 }} />
+      {actions && actions}
       {onRefresh && (
         <Tooltip title={t('common.refresh')}>
           <span>
@@ -25,8 +27,6 @@ export default function PageHeader({ title, actions, onRefresh, loading }: PageH
           </span>
         </Tooltip>
       )}
-      <Box sx={{ flexGrow: 1 }} />
-      {actions && actions}
     </Box>
   )
 }

@@ -30,7 +30,7 @@ export default function TimelinePage() {
 
   const isCurrentMonth = isSameMonth(viewMonth, new Date())
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true)
     setError(null)
     setSelectedDay(null)
@@ -40,7 +40,9 @@ export default function TimelinePage() {
       .then(r => setEntries(r.data ?? []))
       .catch(() => setError(t('common.loadError')))
       .finally(() => setLoading(false))
-  }, [viewMonth, t])
+  }
+
+  useEffect(() => { load() }, [viewMonth, t])
 
   const byDay = useMemo(() => {
     const map = new Map<string, TimelineEntry[]>()
@@ -69,7 +71,7 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
 
   return (
     <>
-      <PageHeader title={t('nav.timeline')} />
+      <PageHeader title={t('nav.timeline')} onRefresh={() => load()} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Card sx={{ mb: 3 }}>

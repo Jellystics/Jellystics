@@ -150,7 +150,7 @@ export default function DashboardPage() {
   }, [libraryDays])
 
   // ── Stable data (no per-chart time range) ────────────────────────────────
-  const { globalStats, sessions, viewsByLibraryType, loading, error } = useDashboard()
+  const { globalStats, sessions, viewsByLibraryType, loading, error, refetch } = useDashboard()
 
   // ── Derived values ────────────────────────────────────────────────────────
   const mediaTypeLabels: Record<string, string> = {
@@ -262,7 +262,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={t('nav.dashboard')} />
+      <PageHeader title={t('nav.dashboard')} onRefresh={() => refetch()} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* Stat cards */}

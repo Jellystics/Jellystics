@@ -1273,7 +1273,7 @@ export default function LibraryDetailPage() {
 
   return (
     <>
-      <PageHeader title={stats?.Name ?? (id ?? '')} />
+      <PageHeader title={stats?.Name ?? (id ?? '')} onRefresh={() => load(false)} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>

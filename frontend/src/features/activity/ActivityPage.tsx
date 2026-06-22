@@ -289,7 +289,7 @@ export default function ActivityPage() {
 
   return (
     <>
-      <PageHeader title={t('nav.activity')} />
+      <PageHeader title={t('nav.activity')} onRefresh={() => load()} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <DataTable
         data={data}
