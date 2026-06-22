@@ -32,7 +32,7 @@ function formatDate(value?: string | null): string {
 
 export default function ItemDetailPage() {
   const { t } = useTranslation()
-  const { itemId, libraryId } = useParams<{ itemId: string; libraryId: string }>()
+  const { itemId } = useParams<{ itemId: string }>()
   const navigate = useNavigate()
   const [details, setDetails] = useState<ItemDetails | null>(null)
   const [loading, setLoading] = useState(true)

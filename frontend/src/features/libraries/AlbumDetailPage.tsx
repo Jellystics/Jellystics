@@ -28,7 +28,7 @@ function formatTicks(ticks: number | null): string {
 }
 
 export default function AlbumDetailPage() {
-  const { libraryId, albumId } = useParams<{ libraryId: string; albumId: string }>()
+  const { albumId } = useParams<{ albumId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
