@@ -3,14 +3,11 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Grid, Alert, Card, CardActionArea, CardContent, Typography, Tabs, Tab, Box,
   Chip, List, ListItem, ListItemText, Skeleton, TextField, InputAdornment,
-  IconButton, Tooltip, Table, TableBody, TableCell, TableHead, TableRow, CircularProgress,
-  TableSortLabel, TablePagination, Paper, ToggleButtonGroup, ToggleButton,
+  IconButton, Tooltip, CircularProgress,
+  TablePagination, ToggleButtonGroup, ToggleButton,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
-import {
-  useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
-  getPaginationRowModel, flexRender, createColumnHelper, type SortingState,
-} from '@tanstack/react-table'
+import { createColumnHelper } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { alpha } from '@mui/material/styles'
@@ -165,13 +162,9 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
   libraryId: string
   t: (k: string, fb?: string) => string
 }) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
-
   const columns = useMemo(() => [
     colHelper.accessor('IndexNumber', {
       header: '#',
-      size: 48,
       cell: (info) => (
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
           {info.getValue() ?? '—'}
@@ -213,7 +206,6 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
     }),
     colHelper.accessor('RunTimeTicks', {
       header: t('library.duration', 'Durée'),
-      size: 72,
       cell: (info) => (
         <Typography variant="caption" color="text.secondary">
           {formatTicks(info.getValue())}
@@ -222,7 +214,6 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
     }),
     colHelper.accessor('PlayCount', {
       header: t('common.plays'),
-      size: 80,
       cell: (info) => {
         const v = info.getValue()
         return v > 0
@@ -232,128 +223,14 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
     }),
   ], [t, navigate, libraryId])
 
-  const table = useReactTable({
-    data: tracks,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 50 } },
-    globalFilterFn: (row, _colId, filterValue) => {
-      const v = filterValue.toLowerCase()
-      return (
-        row.original.Name.toLowerCase().includes(v) ||
-        (row.original.Artist ?? '').toLowerCase().includes(v) ||
-        (row.original.AlbumName ?? '').toLowerCase().includes(v)
-      )
-    },
-  })
-
-  if (loading) {
-    return (
-      <Paper variant="outlined" sx={{ borderRadius: 2 }}>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Box key={i} sx={{ display: 'flex', gap: 2, px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Skeleton variant="text" width={24} />
-            <Skeleton variant="text" sx={{ flex: 1 }} />
-            <Skeleton variant="text" width={100} />
-            <Skeleton variant="text" width={100} />
-            <Skeleton variant="text" width={40} />
-          </Box>
-        ))}
-      </Paper>
-    )
-  }
-
   return (
-    <Box>
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          size="small"
-          placeholder={`${t('common.search')}…`}
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search20Regular style={{ fontSize: 16 }} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{ width: { xs: '100%', sm: 320 } }}
-        />
-        <Typography variant="caption" color="text.secondary" sx={{ ml: 1.5 }}>
-          {table.getFilteredRowModel().rows.length} {t('library.tracks', 'titres')}
-        </Typography>
-      </Box>
-
-      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              {table.getHeaderGroups().flatMap((hg) => hg.headers).map((header) => (
-                <TableCell
-                  key={header.id}
-                  style={{ width: header.column.columnDef.size }}
-                  sx={{ fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', bgcolor: 'rgba(255,255,255,0.03)' }}
-                >
-                  {header.column.getCanSort() ? (
-                    <TableSortLabel
-                      active={header.column.getIsSorted() !== false}
-                      direction={header.column.getIsSorted() === 'asc' ? 'asc' : 'desc'}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableSortLabel>
-                  ) : (
-                    flexRender(header.column.columnDef.header, header.getContext())
-                  )}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                  {t('common.noData')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} sx={{ fontSize: 13, maxWidth: 240, overflow: 'hidden' }}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={table.getFilteredRowModel().rows.length}
-          page={table.getState().pagination.pageIndex}
-          rowsPerPage={table.getState().pagination.pageSize}
-          rowsPerPageOptions={[25, 50, 100]}
-          onPageChange={(_, p) => table.setPageIndex(p)}
-          onRowsPerPageChange={(e) => table.setPageSize(Number(e.target.value))}
-          labelRowsPerPage={t('common.rowsPerPage', 'Lignes/page')}
-        />
-      </Paper>
-    </Box>
+    <DataTable
+      data={tracks}
+      columns={columns}
+      loading={loading}
+      searchPlaceholder={`${t('common.search')}…`}
+      defaultPageSize={50}
+    />
   )
 }
 
@@ -635,14 +512,14 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
   libraryId: string
   t: (k: string, fb?: string) => string
 }) {
-  const [sorting, setSorting] = useState<SortingState>([])
   const [hovered, setHovered] = useState<LibraryItem | null>(null)
 
   const columns = useMemo(() => [
     itemColHelper.display({
       id: 'poster',
       size: 52,
-      header: '',
+      header: () => null,
+      meta: { hideFromColumnsMenu: true },
       cell: (info) => {
         const item = info.row.original
         return (
@@ -734,106 +611,18 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
     }),
   ], [t])
 
-  const table = useReactTable({
-    data: items,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 25 } },
-  })
-
-  if (loading) {
-    return (
-      <Paper variant="outlined" sx={{ borderRadius: 2 }}>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <Box key={i} sx={{ display: 'flex', gap: 2, px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', alignItems: 'center' }}>
-            <Skeleton variant="rectangular" width={36} height={52} sx={{ borderRadius: 1, flexShrink: 0 }} />
-            <Box sx={{ flex: 1 }}>
-              <Skeleton variant="text" width="45%" />
-              <Skeleton variant="text" width="25%" />
-            </Box>
-            <Skeleton variant="text" width={60} />
-            <Skeleton variant="text" width={40} />
-            <Skeleton variant="text" width={40} />
-          </Box>
-        ))}
-      </Paper>
-    )
-  }
-
   return (
     <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
       {/* Table */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {table.getHeaderGroups().flatMap((hg) => hg.headers).map((header) => (
-                  <TableCell
-                    key={header.id}
-                    style={{ width: header.column.columnDef.size }}
-                    sx={{ fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', bgcolor: 'rgba(255,255,255,0.03)', py: 1.25 }}
-                  >
-                    {header.column.getCanSort() ? (
-                      <TableSortLabel
-                        active={header.column.getIsSorted() !== false}
-                        direction={header.column.getIsSorted() === 'asc' ? 'asc' : 'desc'}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableSortLabel>
-                    ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                    {t('common.noData')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    hover
-                    onClick={() => navigate(`/libraries/${libraryId}/items/${row.original.Id}`)}
-                    onMouseEnter={() => setHovered(row.original)}
-                    sx={{
-                      cursor: 'pointer',
-                      '&:last-child td': { borderBottom: 0 },
-                      bgcolor: hovered?.Id === row.original.Id ? 'action.selected' : undefined,
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} sx={{ fontSize: 13, py: 0.75, maxWidth: 260, overflow: 'hidden' }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          <TablePagination
-            component="div"
-            count={table.getCoreRowModel().rows.length}
-            page={table.getState().pagination.pageIndex}
-            rowsPerPage={table.getState().pagination.pageSize}
-            rowsPerPageOptions={[25, 50, 100]}
-            onPageChange={(_, p) => table.setPageIndex(p)}
-            onRowsPerPageChange={(e) => table.setPageSize(Number(e.target.value))}
-            labelRowsPerPage={t('common.rowsPerPage', 'Lignes/page')}
-          />
-        </Paper>
+        <DataTable
+          data={items}
+          columns={columns}
+          loading={loading}
+          searchable={false}
+          onRowClick={(row) => navigate(`/libraries/${libraryId}/items/${row.Id}`)}
+          onRowHover={setHovered}
+        />
       </Box>
 
       {/* Poster preview panel */}

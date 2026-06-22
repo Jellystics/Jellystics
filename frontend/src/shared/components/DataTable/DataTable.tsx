@@ -85,6 +85,12 @@ interface DataTableProps<T> {
   onSearchChange?: (search: string) => void
   /** When true, disables client-side filtering (all filtering is handled externally) */
   manualFiltering?: boolean
+  /** Called when a row is clicked */
+  onRowClick?: (row: T) => void
+  /** Called on row mouse enter (row) and mouse leave (null) */
+  onRowHover?: (row: T | null) => void
+  /** Initial page size (default: 25) */
+  defaultPageSize?: number
 }
 
 export default function DataTable<T>({
@@ -102,6 +108,9 @@ export default function DataTable<T>({
   initialSearch,
   onSearchChange,
   manualFiltering,
+  onRowClick,
+  onRowHover,
+  defaultPageSize = 25,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -204,7 +213,7 @@ export default function DataTable<T>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 25 } },
+    initialState: { pagination: { pageSize: defaultPageSize } },
   })
 
   const skeletonRows = useMemo(() => Array.from({ length: 10 }), [])
@@ -303,7 +312,7 @@ export default function DataTable<T>({
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
             {t('common.columns')}
           </Typography>
-          {table.getAllLeafColumns().map((col) => (
+          {table.getAllLeafColumns().filter((col) => !(col.columnDef.meta as Record<string, unknown> | undefined)?.hideFromColumnsMenu).map((col) => (
             <Box key={col.id}>
               <FormControlLabel
                 control={
@@ -593,7 +602,10 @@ export default function DataTable<T>({
                     <TableRow
                       key={row.id}
                       hover
-                      sx={{ height: 43, cursor: 'pointer', '&:last-child td': { border: 0 } }}
+                      onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                      onMouseEnter={onRowHover ? () => onRowHover(row.original) : undefined}
+                      onMouseLeave={onRowHover ? () => onRowHover(null) : undefined}
+                      sx={{ height: 43, cursor: onRowClick ? 'pointer' : 'default', '&:last-child td': { border: 0 } }}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id} sx={{ fontSize: 13 }}>
