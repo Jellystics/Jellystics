@@ -5,7 +5,7 @@ interface ChartCardProps {
   children: React.ReactNode
   loading?: boolean
   empty?: boolean
-  height?: number
+  height?: number | 'auto'
   action?: React.ReactNode
 }
 
@@ -30,9 +30,9 @@ export default function ChartCard({ title, children, loading, empty, height = 28
       <Divider sx={{ mt: 1.5, mb: 0 }} />
       <Box sx={{ px: 3, py: 2.5 }}>
         {loading || empty ? (
-          <Skeleton variant="rectangular" width="100%" height={height} sx={{ borderRadius: 2 }} />
+          <Skeleton variant="rectangular" width="100%" height={height === 'auto' ? 200 : height} sx={{ borderRadius: 2 }} />
         ) : (
-          <Box sx={{ height, minWidth: 0, minHeight: height, width: '100%' }}>{children}</Box>
+          <Box sx={{ height, minWidth: 0, minHeight: height === 'auto' ? undefined : height, width: '100%' }}>{children}</Box>
         )}
       </Box>
     </Paper>

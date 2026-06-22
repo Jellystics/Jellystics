@@ -21,7 +21,7 @@ import type { Activity } from '@/shared/types/activity'
 import type { UserStats, UserActivity } from '@/shared/types/user'
 
 type GenreRow = { genre: string; plays: number; duration: number }
-import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular } from '@fluentui/react-icons'
+import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 import { useChartColors } from '@/lib/chartColors'
@@ -253,6 +253,16 @@ export default function UserDetailPage() {
 
   return (
     <>
+      <Box
+        component="button"
+        onClick={() => navigate(-1 as any)}
+        style={{ all: 'unset', cursor: 'pointer' }}
+      >
+        <Typography variant="body2" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+          <ArrowLeft24Regular style={{ fontSize: 18 }} />
+          {t('common.back', 'Back')}
+        </Typography>
+      </Box>
       <PageHeader title={username} onRefresh={load} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

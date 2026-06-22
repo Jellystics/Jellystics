@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Grid, Box, Typography, Chip } from '@mui/material'
+import { Grid, Box, Typography, Chip, Pagination } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { useTranslation } from 'react-i18next'
@@ -120,12 +120,14 @@ export default function StatisticsPage() {
   // ── Top items ───────────────────────────────────────────────────────────
   const [itemsDays, setItemsDays] = useState(30)
   const [topItems, setTopItems] = useState<PlayedItem[]>([])
+  const [topItemsPage, setTopItemsPage] = useState(0)
+  const TOP_ITEMS_PAGE_SIZE = 5
   const [itemsLoading, setItemsLoading] = useState(true)
 
   useEffect(() => {
     setItemsLoading(true)
     api.get(`/stats/getMostPlayedItems?limit=10&days=${itemsDays}`)
-      .then(r => setTopItems((r.data ?? []).slice(0, 10)))
+      .then(r => { setTopItems((r.data ?? []).slice(0, 10)); setTopItemsPage(0) })
       .catch(() => setTopItems([]))
       .finally(() => setItemsLoading(false))
   }, [itemsDays])
@@ -337,11 +339,13 @@ export default function StatisticsPage() {
             title={t('stats.topItems')}
             loading={itemsLoading}
             empty={topItems.length === 0}
-            height={480}
+            height="auto"
             action={<TimeRangeSelector value={itemsDays} onChange={setItemsDays} />}
           >
             <Box sx={{ pt: 0.5 }}>
-              {topItems.map((item, i) => (
+              {topItems
+                .slice(topItemsPage * TOP_ITEMS_PAGE_SIZE, (topItemsPage + 1) * TOP_ITEMS_PAGE_SIZE)
+                .map((item, i) => (
                 <Box
                   key={item.Id}
                   onClick={() => navigate(`/items/${item.Id}`)}
@@ -366,7 +370,7 @@ export default function StatisticsPage() {
                     color="text.secondary"
                     sx={{ minWidth: 18, textAlign: 'right', fontWeight: 600, fontSize: 11, flexShrink: 0 }}
                   >
-                    {i + 1}
+                    {topItemsPage * TOP_ITEMS_PAGE_SIZE + i + 1}
                   </Typography>
 
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -404,6 +408,16 @@ export default function StatisticsPage() {
                   />
                 </Box>
               ))}
+              {topItems.length > TOP_ITEMS_PAGE_SIZE && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                  <Pagination
+                    count={Math.ceil(topItems.length / TOP_ITEMS_PAGE_SIZE)}
+                    page={topItemsPage + 1}
+                    onChange={(_, p) => setTopItemsPage(p - 1)}
+                    size="small"
+                  />
+                </Box>
+              )}
             </Box>
           </ChartCard>
         </Grid>

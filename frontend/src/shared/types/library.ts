@@ -70,6 +70,9 @@ export interface ItemDetails {
     ParentId?: string
     Path?: string
     Bitrate?: number
+    AlbumId?: string
+    AlbumName?: string
+    Artist?: string
   }
   stats: {
     TotalPlays: number

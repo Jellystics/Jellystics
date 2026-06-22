@@ -127,7 +127,11 @@ export default function AlbumDetailPage() {
                         '&:last-child': { borderBottom: 0 },
                         gap: 2,
                         alignItems: 'center',
+                        cursor: 'pointer',
+                        transition: 'background 150ms',
+                        '&:hover': { bgcolor: 'action.hover' },
                       }}
+                      onClick={() => navigate(`/items/${track.Id}`)}
                     >
                       <Typography
                         variant="caption"

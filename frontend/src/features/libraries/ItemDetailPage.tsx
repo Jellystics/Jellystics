@@ -21,8 +21,8 @@ import { getDateLocale } from '@/lib/dateLocale'
 const userCol = createColumnHelper<ItemWatchUser>()
 const historyCol = createColumnHelper<ItemWatchHistory>()
 
-function posterUrl(itemId: string): string {
-  return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(itemId)}&fillWidth=420&quality=95`
+function posterUrl(itemId: string, fallbackId?: string): string {
+  return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(fallbackId ?? itemId)}&fillWidth=420&quality=95`
 }
 
 function formatDate(value?: string | null): string {
@@ -143,12 +143,12 @@ export default function ItemDetailPage() {
     <>
       <Box
         component="button"
-        onClick={() => navigate(libraryId ? `/libraries/${libraryId}` : '/libraries')}
+        onClick={() => navigate(-1 as any)}
         style={{ all: 'unset', cursor: 'pointer' }}
       >
         <Typography variant="body2" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
           <ArrowLeft24Regular style={{ fontSize: 18 }} />
-          {t('item.backToLibrary')}
+          {t('common.back', 'Back')}
         </Typography>
       </Box>
 
@@ -163,9 +163,17 @@ export default function ItemDetailPage() {
             <Card sx={{ overflow: 'hidden' }}>
               <Box
                 component="img"
-                src={posterUrl(item.Id)}
+                src={posterUrl(item.Id, item.Type === 'Audio' ? item.AlbumId : undefined)}
                 alt={item.Name}
-                sx={{ width: '100%', aspectRatio: '2 / 3', objectFit: 'cover', display: 'block' }}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  // Fallback to item's own image if album image fails
+                  if (item.AlbumId && e.currentTarget.src.includes(item.AlbumId)) {
+                    e.currentTarget.src = posterUrl(item.Id)
+                  } else {
+                    e.currentTarget.style.display = 'none'
+                  }
+                }}
+                sx={{ width: '100%', aspectRatio: item.Type === 'Audio' ? '1 / 1' : '2 / 3', objectFit: 'cover', display: 'block' }}
               />
             </Card>
           ) : null}
@@ -197,7 +205,25 @@ export default function ItemDetailPage() {
                 </>
               ) : item ? (
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>{item.Name}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{item.Name}</Typography>
+                  {item.Artist && (
+                    <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>
+                      {item.Artist}
+                    </Typography>
+                  )}
+                  {item.AlbumName && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        mb: 1,
+                        ...(item.AlbumId ? { cursor: 'pointer', '&:hover': { textDecoration: 'underline' } } : {}),
+                      }}
+                      onClick={() => item.AlbumId && navigate(`/libraries/${item.ParentId}/albums/${item.AlbumId}`)}
+                    >
+                      {item.AlbumName}
+                    </Typography>
+                  )}
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                     {item.Type && <Chip label={item.Type} size="small" />}
                     {item.ProductionYear && <Chip label={item.ProductionYear} size="small" />}

@@ -1513,28 +1513,58 @@ func (h *StatsFrontendHandler) GetItemDetails(c *gin.Context) {
 		Size            *int64          `json:"Size"`
 		Path            *string         `json:"Path"`
 		Bitrate         *int64          `json:"Bitrate"`
+		AlbumId         *string         `json:"AlbumId"`
+		AlbumName       *string         `json:"AlbumName"`
+		Artist          *string         `json:"Artist"`
 	}
 	var item ItemInfo
 	h.db.Raw(`
-		SELECT
-		  i."Id",
-		  i."Name",
-		  i."Type",
-		  i."ProductionYear",
-		  i."CommunityRating",
-		  i."PremiereDate",
-		  i."DateCreated",
-		  i."RunTimeTicks",
-		  i."Genres",
-		  i."ParentId",
-		  info."Size",
-		  info."Path",
-		  info."Bitrate"
-		FROM jf_library_items i
-		LEFT JOIN jf_item_info info ON info."Id" = i."Id"
-		WHERE i."Id" = ?
-		LIMIT 1
-	`, itemId).Scan(&item)
+		SELECT * FROM (
+		  SELECT
+		    i."Id",
+		    i."Name",
+		    i."Type",
+		    i."ProductionYear",
+		    i."CommunityRating",
+		    i."PremiereDate",
+		    i."DateCreated",
+		    i."RunTimeTicks",
+		    i."Genres",
+		    i."ParentId",
+		    info."Size",
+		    info."Path",
+		    info."Bitrate",
+		    NULL AS "AlbumId",
+		    NULL AS "AlbumName",
+		    NULL AS "Artist"
+		  FROM jf_library_items i
+		  LEFT JOIN jf_item_info info ON info."Id" = i."Id"
+		  WHERE i."Id" = ?
+
+		  UNION ALL
+
+		  SELECT
+		    t."Id",
+		    t."Name",
+		    'Audio' AS "Type",
+		    t."ProductionYear",
+		    NULL::float8 AS "CommunityRating",
+		    NULL AS "PremiereDate",
+		    t."DateCreated",
+		    t."RunTimeTicks",
+		    t."Genres",
+		    t."LibraryId" AS "ParentId",
+		    NULL::bigint AS "Size",
+		    NULL AS "Path",
+		    NULL::bigint AS "Bitrate",
+		    t."AlbumId",
+		    t."AlbumName",
+		    COALESCE(t."AlbumArtist", a."Name") AS "Artist"
+		  FROM jf_music_tracks t
+		  LEFT JOIN jf_music_artists a ON a."Id" = t."ArtistId"
+		  WHERE t."Id" = ?
+		) sub LIMIT 1
+	`, itemId, itemId).Scan(&item)
 
 	type HistEntry struct {
 		Id                   *string `json:"Id"`

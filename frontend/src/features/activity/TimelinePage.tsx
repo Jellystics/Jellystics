@@ -11,6 +11,7 @@ import {
 } from 'date-fns'
 import { ChevronLeft24Regular, ChevronRight24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { TimelineEntry } from '@/shared/types/activity'
@@ -19,6 +20,7 @@ import { useChartColors } from '@/lib/chartColors'
 
 export default function TimelinePage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const CHART_COLORS = useChartColors()
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()))
   const [entries, setEntries] = useState<TimelineEntry[]>([])
@@ -246,11 +248,13 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                   >
                     {/* Media poster */}
                     <Box
+                      onClick={() => navigate(`/items/${e.ItemId}`)}
                       sx={{
                         position: 'relative', width: 36, height: 52,
                         borderRadius: 1, overflow: 'hidden', flexShrink: 0,
                         bgcolor: 'rgba(128,128,128,0.1)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer',
                       }}
                     >
                       <img
@@ -262,18 +266,30 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                     </Box>
 
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 13 }} noWrap>
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        onClick={() => navigate(`/items/${e.ItemId}`)}
+                        sx={{ fontWeight: 500, fontSize: 13, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                      >
                         {e.ItemName}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
                         <Avatar
                           src={`/proxy/Users/Images/Primary/?id=${e.UserId}&fillWidth=32&quality=90`}
-                          sx={{ width: 16, height: 16, bgcolor: 'primary.main', fontSize: 8, fontWeight: 700 }}
+                          sx={{ width: 16, height: 16, bgcolor: 'primary.main', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}
+                          onClick={() => navigate(`/users/${e.UserId}?view=history`)}
                         >
                           {e.UserName?.charAt(0)?.toUpperCase()}
                         </Avatar>
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
-                          {e.UserName}
+                          <Box
+                            component="span"
+                            onClick={() => navigate(`/users/${e.UserId}?view=history`)}
+                            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                          >
+                            {e.UserName}
+                          </Box>
                           {startLabel && ` · ${startLabel}`}
                           {` · ${dur}`}
                           {e.Client && ` · ${e.Client}`}
