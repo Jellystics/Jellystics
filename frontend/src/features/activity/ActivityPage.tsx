@@ -11,6 +11,7 @@ import DataTable, { type FilterDef, type FilterState } from '@/shared/components
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
 import { getDateLocale } from '@/lib/dateLocale'
+import { formatDuration, ticksToMinutes } from '@/shared/utils/formatTicks'
 
 const FILTER_URL_KEYS: Record<string, string> = {
   Client: 'client',
@@ -234,14 +235,7 @@ export default function ActivityPage() {
     }),
     col.accessor('PlayDuration', {
       header: t('activity.duration'),
-      cell: (i) => {
-        const seconds = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000)
-        const h = Math.floor(seconds / 3600)
-        const m = Math.floor((seconds % 3600) / 60)
-        const s = seconds % 60
-        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        return `${m}:${String(s).padStart(2, '0')}`
-      },
+      cell: (i) => formatDuration(i.getValue() as number),
     }),
     col.accessor('RemoteEndPoint', {
       header: t('activity.ip'),
@@ -263,7 +257,7 @@ export default function ActivityPage() {
       label: t('activity.duration'),
       type: 'range',
       unit: 'min',
-      transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
+      transform: (ticks: number) => ticksToMinutes(ticks),
     },
     { id: 'ActivityDateInserted', label: t('activity.date'), type: 'daterange' },
   ], [t])

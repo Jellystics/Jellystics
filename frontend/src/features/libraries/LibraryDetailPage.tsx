@@ -12,7 +12,6 @@ import {
   getPaginationRowModel, flexRender, createColumnHelper, type SortingState,
 } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import i18next from 'i18next'
 import { format, parseISO } from 'date-fns'
 import { alpha } from '@mui/material/styles'
 import { PieChart } from '@mui/x-charts/PieChart'
@@ -30,6 +29,8 @@ import {
   Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular, ArrowSync24Regular,
 } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { formatTicks, formatDuration } from '@/shared/utils/formatTicks'
+import { formatSize } from '@/shared/utils/formatSize'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import { getDateLocale } from '@/lib/dateLocale'
 
@@ -68,20 +69,8 @@ interface Artist {
   PlayCount: number
 }
 
-function formatSize(bytes?: number): string | null {
-  if (!bytes) return null
-  const gb = bytes / 1024 / 1024 / 1024
-  if (gb >= 1024) return `${(gb / 1024).toFixed(gb / 1024 >= 10 ? 1 : 2)} ${i18next.t('units.terabytes')}`
-  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} ${i18next.t('units.gigabytes')}`
-  const mb = bytes / 1024 / 1024
-  return `${Math.round(mb)} ${i18next.t('units.megabytes')}`
-}
 
-function formatTicks(ticks: number | null): string {
-  if (!ticks) return '—'
-  const s = Math.floor(ticks / 10_000_000)
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
+
 
 type HistoryPoint = { date: string; plays: number }
 type ItemWithStats = { Name: string; times_played: number; total_play_time: number }
@@ -950,16 +939,6 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
 
 const actColHelper = createColumnHelper<Activity>()
 
-function formatPlayDuration(ticks: number): string {
-  const totalSeconds = Math.floor(ticks / 10_000_000)
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 function LibraryActivityTab({ data, loading, onRefresh, t }: {
   data: Activity[]
@@ -1072,7 +1051,7 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
         const v = info.getValue()
         return (
           <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-            {v > 0 ? formatPlayDuration(v) : '—'}
+            {v > 0 ? formatDuration(v) : '—'}
           </Typography>
         )
       },

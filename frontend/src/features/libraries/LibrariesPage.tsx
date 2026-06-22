@@ -6,21 +6,13 @@ import {
 } from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import i18next from 'i18next'
 import { format, parseISO } from 'date-fns'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { Library } from '@/shared/types/library'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { formatSize } from '@/shared/utils/formatSize'
 import { getDateLocale } from '@/lib/dateLocale'
-
-function formatSize(bytes?: number): string | null {
-  if (!bytes) return null
-  const gb = bytes / 1024 / 1024 / 1024
-  if (gb >= 1024) return `${(gb / 1024).toFixed(gb / 1024 >= 10 ? 1 : 2)} ${i18next.t('units.terabytes')}`
-  if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 1 : 2)} ${i18next.t('units.gigabytes')}`
-  return `${Math.round(bytes / 1024 / 1024)} ${i18next.t('units.megabytes')}`
-}
 
 // Cache des item IDs utilisés pour les fonds de carte (5 min TTL)
 const SAMPLE_TTL = 5 * 60 * 1000

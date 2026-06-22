@@ -23,6 +23,7 @@ import type { UserStats, UserActivity } from '@/shared/types/user'
 type GenreRow = { genre: string; plays: number; duration: number }
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { ticksToMinutes } from '@/shared/utils/formatTicks'
 import { getDateLocale } from '@/lib/dateLocale'
 import { useChartColors } from '@/lib/chartColors'
 
@@ -223,7 +224,7 @@ export default function UserDetailPage() {
     }),
     col.accessor('PlayDuration', {
       header: t('activity.duration'),
-      cell: (i) => { const s = Math.floor(((i.getValue() as number) ?? 0) / 10_000_000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}` : `${m}${t('time.minuteShort')}` },
+      cell: (i) => formatWatchTime(ticksToMinutes(i.getValue() as number)),
     }),
   ]
 
@@ -245,7 +246,7 @@ export default function UserDetailPage() {
       label: t('activity.duration'),
       type: 'range',
       unit: 'min',
-      transform: (ticks: number) => Math.floor(ticks / 10_000_000 / 60),
+      transform: (ticks: number) => ticksToMinutes(ticks),
     },
   ], [t])
 
@@ -709,12 +710,7 @@ export default function UserDetailPage() {
         ) : (
           <Grid container spacing={2}>
             {lastPlayed.map((item) => {
-              const secs = Math.floor(((item.PlayDuration ?? 0)) / 10_000_000)
-              const h = Math.floor(secs / 3600)
-              const m = Math.floor((secs % 3600) / 60)
-              const durationLabel = h > 0
-                ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}`
-                : `${m}${t('time.minuteShort')}`
+              const durationLabel = formatWatchTime(ticksToMinutes(item.PlayDuration ?? 0))
               const itemId = item.NowPlayingItemType === 'Episode' ? item.EpisodeId ?? item.Id : item.Id
               return (
                 <Grid key={item.Id} size={{ xs: 6, sm: 4, md: 3 }}>

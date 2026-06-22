@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { MusicNote224Regular, Play24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
+import { formatTicks } from '@/shared/utils/formatTicks'
 
 interface Track {
   Id: string
@@ -19,13 +20,6 @@ interface Track {
   PlayCount: number
 }
 
-function formatTicks(ticks: number | null): string {
-  if (!ticks) return '—'
-  const totalSeconds = Math.floor(ticks / 10_000_000)
-  const m = Math.floor(totalSeconds / 60)
-  const s = totalSeconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 export default function AlbumDetailPage() {
   const { albumId } = useParams<{ albumId: string }>()

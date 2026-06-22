@@ -10,20 +10,11 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useSocket } from '@/shared/hooks/useSocket'
 import type { Session } from '@/shared/types/activity'
+import { formatDuration } from '@/shared/utils/formatTicks'
 
 interface LiveSessionsProps {
   initialSessions: Session[]
   loading: boolean
-}
-
-function formatDuration(ticks?: number): string {
-  if (!ticks) return '0:00'
-  const totalSeconds = Math.floor(ticks / 10_000_000)
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function formatBitrate(bps?: number): string {
