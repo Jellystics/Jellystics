@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip, Tooltip,
+  Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip, Tooltip, Pagination,
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
@@ -91,6 +91,8 @@ export default function UserDetailPage() {
 
   const [bingeStats, setBingeStats] = useState<BingeStats | null>(null)
   const [bingeDays, setBingeDays] = useState<number>(30)
+  const [bingePage, setBingePage] = useState(0)
+  const BINGE_PAGE_SIZE = 5
   const [watchHeatmap, setWatchHeatmap] = useState<WatchHeatmapData | null>(null)
 
   const handleWatchDaysChange = (_: React.MouseEvent<HTMLElement>, v: number | null) => {
@@ -137,7 +139,7 @@ export default function UserDetailPage() {
   useEffect(() => {
     if (!id) return
     api.get(`/stats/getBingeStats?days=${bingeDays}&userId=${id}`)
-      .then((res) => setBingeStats(res.data))
+      .then((res) => { setBingeStats(res.data); setBingePage(0) })
       .catch(() => setBingeStats(null))
   }, [id, bingeDays])
 
@@ -493,24 +495,44 @@ export default function UserDetailPage() {
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>
                   {t('insights.topBingedSeries', 'Top binged series')}
                 </Typography>
-                {bingeStats.topBingedSeries.map((s) => (
+                {bingeStats.topBingedSeries
+                  .slice(bingePage * BINGE_PAGE_SIZE, (bingePage + 1) * BINGE_PAGE_SIZE)
+                  .map((s) => (
                   <Box
                     key={s.seriesId}
                     sx={{
-                      display: 'flex', alignItems: 'center', gap: 1,
+                      display: 'flex', alignItems: 'center', gap: 1.5,
                       p: 1, borderRadius: 1,
                       bgcolor: alpha(theme.palette.primary.main, 0.06),
+                      cursor: 'pointer',
                     }}
+                    onClick={() => navigate(`/items/${s.seriesId}`)}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }} noWrap>
+                    <Box
+                      component="img"
+                      src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(s.seriesId)}&fillWidth=60&quality=80`}
+                      sx={{ width: 40, height: 56, borderRadius: 0.5, objectFit: 'cover', flexShrink: 0, bgcolor: 'action.hover' }}
+                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 700, flex: 1, minWidth: 0 }} noWrap>
                       {s.seriesName}
                     </Typography>
                     <Chip label={`${s.bingeCount} binges`} size="small" color="primary" variant="outlined" />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" noWrap>
                       ~{s.avgEpisodesPerBinge.toFixed(1)} ep/binge
                     </Typography>
                   </Box>
                 ))}
+                {bingeStats.topBingedSeries.length > BINGE_PAGE_SIZE && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                    <Pagination
+                      count={Math.ceil(bingeStats.topBingedSeries.length / BINGE_PAGE_SIZE)}
+                      page={bingePage + 1}
+                      onChange={(_, p) => setBingePage(p - 1)}
+                      size="small"
+                    />
+                  </Box>
+                )}
               </Box>
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
