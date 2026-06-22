@@ -117,6 +117,12 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 		stats.POST("/getUserLastPlayed", statsH.GetUserLastPlayed)
 		stats.POST("/getGlobalUserStats", statsH.GetGlobalUserStats)
 		stats.POST("/getLibraryLastPlayed", statsH.GetLibraryLastPlayed)
+		stats.GET("/getWatchHeatmap", statsH.GetWatchHeatmap)
+		stats.GET("/getTimeToWatch", statsH.GetTimeToWatch)
+		stats.GET("/getUnwatchedContent", statsH.GetUnwatchedContent)
+		stats.GET("/getBingeStats", statsH.GetBingeStats)
+		stats.GET("/getCompletionRate", statsH.GetCompletionRate)
+		stats.GET("/getViewingDiversity", statsH.GetViewingDiversity)
 	}
 
 	// Utils

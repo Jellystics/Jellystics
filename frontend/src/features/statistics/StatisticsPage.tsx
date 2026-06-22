@@ -8,7 +8,7 @@ import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import api from '@/lib/axios'
 import type { WatchStatOverTime, HourStat, DayStat, PlayMethodStat, ClientStat } from '@/shared/types/stats'
-import { Play24Regular, Clock24Regular } from '@fluentui/react-icons'
+import { Play24Regular, Clock24Regular, CheckmarkCircle24Regular, DismissCircle24Regular, DataPie24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import { useChartColors } from '@/lib/chartColors'
@@ -130,6 +130,19 @@ export default function StatisticsPage() {
       .finally(() => setItemsLoading(false))
   }, [itemsDays])
 
+  // ── Completion rate ──────────────────────────────────────────────────
+  const [completionDays, setCompletionDays] = useState(30)
+  const [completion, setCompletion] = useState<any>(null)
+  const [completionLoading, setCompletionLoading] = useState(true)
+
+  useEffect(() => {
+    setCompletionLoading(true)
+    api.get(`/stats/getCompletionRate?days=${completionDays}`)
+      .then(r => setCompletion(r.data))
+      .catch(() => setCompletion(null))
+      .finally(() => setCompletionLoading(false))
+  }, [completionDays])
+
   const hourData = Array.from({ length: 24 }, (_, h) => ({
     hour: `${String(h).padStart(2, '0')}${t('time.hourShort')}`,
     plays: byHour.find((d) => d.hour === h)?.plays ?? 0,
@@ -159,6 +172,7 @@ export default function StatisticsPage() {
   const clientChart = chartMetric(clientMetric)
 
   const clientMargin = useMemo(() => byClient.length ? Math.max(...byClient.map(d => d.client.length)) * 7 + 16 : 80, [byClient])
+  const completionTypeMargin = useMemo(() => completion?.byType?.length ? Math.max(...completion.byType.map((d: any) => d.type.length)) * 7 + 16 : 80, [completion])
 
   const chartAction = (selector: React.ReactNode, toggle: React.ReactNode) => (
     <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' } }}>
@@ -391,6 +405,79 @@ export default function StatisticsPage() {
                 </Box>
               ))}
             </Box>
+          </ChartCard>
+        </Grid>
+      </Grid>
+
+      {/* ── Completion Rate ──────────────────────────────────────────────── */}
+      <Typography variant="h6" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
+        {t('insights.completionRate', 'Completion Rate')}
+      </Typography>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <StatCard
+            label={t('insights.avgCompletion', 'Avg Completion')}
+            value={completion ? `${Math.round(completion.overall.avgCompletionRate * 100)}%` : '—'}
+            icon={<DataPie24Regular />}
+            loading={completionLoading}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <StatCard
+            label={t('insights.completedPlays', 'Completed Plays')}
+            value={completion?.overall?.completedPlays ?? 0}
+            icon={<CheckmarkCircle24Regular />}
+            loading={completionLoading}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <StatCard
+            label={t('insights.abandonedPlays', 'Abandoned Plays')}
+            value={completion?.overall?.abandonedPlays ?? 0}
+            icon={<DismissCircle24Regular />}
+            loading={completionLoading}
+          />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard
+            title={t('insights.completionDistribution', 'Completion Distribution')}
+            loading={completionLoading}
+            empty={!completion?.distribution?.length}
+            height={280}
+            action={<TimeRangeSelector value={completionDays} onChange={setCompletionDays} />}
+          >
+            <BarChart
+              xAxis={[{ data: (completion?.distribution ?? []).map((d: any) => d.bucket), scaleType: 'band' }]}
+              series={[{ data: (completion?.distribution ?? []).map((d: any) => d.count), label: t('common.plays', 'Plays'), valueFormatter: (v) => String(v ?? 0), color: CHART_COLORS[0] }]}
+              height={280}
+              sx={{ width: '100%' }}
+              grid={{ horizontal: true }}
+              slotProps={{ legend: { hidden: true } as any }}
+            />
+          </ChartCard>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ChartCard
+            title={t('insights.completionByType', 'Completion by Type')}
+            loading={completionLoading}
+            empty={!completion?.byType?.length}
+            height={280}
+            action={<TimeRangeSelector value={completionDays} onChange={setCompletionDays} />}
+          >
+            <BarChart
+              layout="horizontal"
+              yAxis={[{ data: (completion?.byType ?? []).map((d: any) => d.type), scaleType: 'band', width: completionTypeMargin }]}
+              series={[{ data: (completion?.byType ?? []).map((d: any) => Math.round(d.avgCompletionRate * 100)), label: t('insights.completionPercent', 'Completion %'), valueFormatter: (v) => `${v ?? 0}%`, color: CHART_COLORS[1] }]}
+              height={280}
+              margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
+              sx={{ width: '100%' }}
+              grid={{ vertical: true }}
+              slotProps={{ legend: { hidden: true } as any }}
+            />
           </ChartCard>
         </Grid>
       </Grid>

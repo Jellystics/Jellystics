@@ -2441,7 +2441,7 @@ func (h *StatsFrontendHandler) GetViewsByLibraryType(c *gin.Context) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /stats/getGenreUserStats?userid=&size=50&page=1
+// GET /stats/getGenreUserStats?userid=&type=Movie|Episode|Audio&size=10&page=1
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetGenreUserStats(c *gin.Context) {
@@ -2450,12 +2450,18 @@ func (h *StatsFrontendHandler) GetGenreUserStats(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userid is required"})
 		return
 	}
-	size := parseDays(c.DefaultQuery("size", "50"), 50)
+	mediaType := c.Query("type") // optional filter: Movie, Episode, Audio
+	size := parseDays(c.DefaultQuery("size", "10"), 10)
 	page := parseDays(c.DefaultQuery("page", "1"), 1)
 	offset := (page - 1) * size
 
-	var total int
-	h.db.Raw(`
+	// Optional type filter injected via fmt.Sprintf — the ? is a GORM placeholder
+	typeFilter := ""
+	if mediaType != "" {
+		typeFilter = `AND i."Type" = ?`
+	}
+
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) FROM (
 		  SELECT COALESCE(g.genre, 'No Genre') AS genre
 		  FROM jf_playback_activity a
@@ -2467,18 +2473,12 @@ func (h *StatsFrontendHandler) GetGenreUserStats(c *gin.Context) {
 		           ELSE i."Genres" END
 		    ) AS genre
 		  ) g ON true
-		  WHERE a."UserId" = ?
+		  WHERE a."UserId" = ? %s
 		  GROUP BY COALESCE(g.genre, 'No Genre')
 		) sub
-	`, userId).Scan(&total)
+	`, typeFilter)
 
-	type Row struct {
-		Genre    string `json:"genre"`
-		Duration int64  `json:"duration"`
-		Plays    int    `json:"plays"`
-	}
-	var rows []Row
-	h.db.Raw(`
+	dataQuery := fmt.Sprintf(`
 		SELECT COALESCE(g.genre, 'No Genre') AS genre,
 		       SUM(a."PlaybackDuration") AS duration,
 		       COUNT(*) AS plays
@@ -2491,11 +2491,30 @@ func (h *StatsFrontendHandler) GetGenreUserStats(c *gin.Context) {
 		         ELSE i."Genres" END
 		  ) AS genre
 		) g ON true
-		WHERE a."UserId" = ?
+		WHERE a."UserId" = ? %s
 		GROUP BY COALESCE(g.genre, 'No Genre')
-		ORDER BY genre ASC
+		ORDER BY plays DESC
 		LIMIT ? OFFSET ?
-	`, userId, size, offset).Scan(&rows)
+	`, typeFilter)
+
+	var total int
+	if mediaType != "" {
+		h.db.Raw(countQuery, userId, mediaType).Scan(&total)
+	} else {
+		h.db.Raw(countQuery, userId).Scan(&total)
+	}
+
+	type Row struct {
+		Genre    string `json:"genre"`
+		Duration int64  `json:"duration"`
+		Plays    int    `json:"plays"`
+	}
+	var rows []Row
+	if mediaType != "" {
+		h.db.Raw(dataQuery, userId, mediaType, size, offset).Scan(&rows)
+	} else {
+		h.db.Raw(dataQuery, userId, size, offset).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -3012,6 +3031,897 @@ func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
 		rows = []Row{}
 	}
 	c.JSON(http.StatusOK, rows)
+}
+
+// ---------------------------------------------------------------------------
+// Watch Heatmap (hour × day matrix)
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetWatchHeatmap(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	userId := c.Query("userId")
+
+	query := `
+SELECT
+  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
+  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
+  COUNT(*)::int AS plays,
+  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
+FROM jf_playback_activity
+WHERE 1=1`
+
+	args := []interface{}{}
+
+	if !allTime {
+		query += ` AND "ActivityDateInserted"::timestamptz >= NOW() - MAKE_INTERVAL(days => ?)`
+		args = append(args, days)
+	}
+	if userId != "" {
+		query += ` AND "UserId" = ?`
+		args = append(args, userId)
+	}
+
+	query += ` GROUP BY day, hour ORDER BY day, hour`
+
+	type sqlRow struct {
+		Day      int `json:"day"`
+		Hour     int `json:"hour"`
+		Plays    int `json:"plays"`
+		Duration int `json:"duration"`
+	}
+
+	var sqlRows []sqlRow
+	if err := h.db.Raw(query, args...).Scan(&sqlRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Build lookup from SQL results
+	type key struct{ day, hour int }
+	lookup := make(map[key]sqlRow, len(sqlRows))
+	for _, r := range sqlRows {
+		lookup[key{r.Day, r.Hour}] = r
+	}
+
+	// Fill 7×24 grid
+	type cell struct {
+		Day      int `json:"day"`
+		Hour     int `json:"hour"`
+		Plays    int `json:"plays"`
+		Duration int `json:"duration"`
+	}
+	cells := make([]cell, 0, 7*24)
+	maxPlays := 0
+	maxDuration := 0
+
+	for d := 0; d < 7; d++ {
+		for hr := 0; hr < 24; hr++ {
+			cl := cell{Day: d, Hour: hr}
+			if r, ok := lookup[key{d, hr}]; ok {
+				cl.Plays = r.Plays
+				cl.Duration = r.Duration
+			}
+			if cl.Plays > maxPlays {
+				maxPlays = cl.Plays
+			}
+			if cl.Duration > maxDuration {
+				maxDuration = cl.Duration
+			}
+			cells = append(cells, cl)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cells":       cells,
+		"maxPlays":    maxPlays,
+		"maxDuration": maxDuration,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GetTimeToWatch – time between item added and first playback
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetTimeToWatch(c *gin.Context) {
+	libraryID := c.Query("libraryId")
+	limitStr := c.DefaultQuery("limit", "20")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 20
+	}
+
+	type row struct {
+		Id           string
+		Name         string
+		Type         string
+		DaysToWatch  float64
+		DateAdded    string
+		FirstWatched string
+	}
+
+	query := `
+WITH first_watch AS (
+  SELECT
+    COALESCE(a."NowPlayingItemId", a."EpisodeId") AS item_id,
+    MIN(a."ActivityDateInserted"::timestamptz) AS first_played
+  FROM jf_playback_activity a
+  WHERE a."PlaybackDuration" > 0
+  GROUP BY COALESCE(a."NowPlayingItemId", a."EpisodeId")
+),
+item_dates AS (
+  SELECT i."Id", i."Name", i."Type", i."DateCreated"::timestamptz AS date_added, i."ParentId"
+  FROM jf_library_items i
+  WHERE i.archived = false AND i."Type" NOT IN ('Season', 'Folder')
+  UNION ALL
+  SELECT e."Id", e."Name", e."Type", e."DateCreated"::timestamptz AS date_added, s."ParentId"
+  FROM jf_library_episodes e
+  JOIN jf_library_items s ON s."Id" = e."SeriesId"
+  WHERE e.archived = false
+)
+SELECT id."Id", id."Name", id."Type",
+       EXTRACT(EPOCH FROM (fw.first_played - id.date_added)) / 86400.0 AS days_to_watch,
+       TO_CHAR(id.date_added, 'YYYY-MM-DD') AS date_added,
+       TO_CHAR(fw.first_played, 'YYYY-MM-DD') AS first_watched
+FROM item_dates id
+JOIN first_watch fw ON fw.item_id = id."Id"
+WHERE id.date_added IS NOT NULL AND fw.first_played >= id.date_added`
+
+	var args []interface{}
+	if libraryID != "" {
+		query += ` AND id."ParentId" = ?`
+		args = append(args, libraryID)
+	}
+	query += ` ORDER BY days_to_watch DESC`
+
+	var rows []row
+	if err := h.db.Raw(query, args...).Scan(&rows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(rows) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"avgDaysToWatch":    0,
+			"medianDaysToWatch": 0,
+			"distribution":     []gin.H{},
+			"slowestItems":     []gin.H{},
+			"fastestItems":     []gin.H{},
+		})
+		return
+	}
+
+	// Compute avg
+	var total float64
+	for _, r := range rows {
+		total += r.DaysToWatch
+	}
+	avg := total / float64(len(rows))
+
+	// Compute median (rows are sorted desc by days_to_watch)
+	n := len(rows)
+	var median float64
+	if n%2 == 0 {
+		median = (rows[n/2-1].DaysToWatch + rows[n/2].DaysToWatch) / 2.0
+	} else {
+		median = rows[n/2].DaysToWatch
+	}
+
+	// Distribution buckets
+	type bucket struct {
+		Label string
+		Max   float64 // exclusive upper bound; -1 means infinity
+	}
+	buckets := []bucket{
+		{"Same day", 1},
+		{"1-3 days", 4},
+		{"4-7 days", 8},
+		{"1-2 weeks", 15},
+		{"2-4 weeks", 29},
+		{"1-3 months", 91},
+		{"3+ months", -1},
+	}
+	counts := make([]int, len(buckets))
+	for _, r := range rows {
+		for i, b := range buckets {
+			if b.Max < 0 || r.DaysToWatch < b.Max {
+				counts[i]++
+				break
+			}
+		}
+	}
+	type distEntry struct {
+		Bucket string `json:"bucket"`
+		Count  int    `json:"count"`
+	}
+	distribution := make([]distEntry, len(buckets))
+	for i, b := range buckets {
+		distribution[i] = distEntry{Bucket: b.Label, Count: counts[i]}
+	}
+
+	// Slowest (rows already sorted desc)
+	slowLimit := limit
+	if slowLimit > len(rows) {
+		slowLimit = len(rows)
+	}
+	slowest := rows[:slowLimit]
+
+	// Fastest (end of slice)
+	fastLimit := limit
+	if fastLimit > len(rows) {
+		fastLimit = len(rows)
+	}
+	fastest := make([]row, fastLimit)
+	copy(fastest, rows[len(rows)-fastLimit:])
+	// Reverse so fastest first
+	for i, j := 0, len(fastest)-1; i < j; i, j = i+1, j-1 {
+		fastest[i], fastest[j] = fastest[j], fastest[i]
+	}
+
+	// Build JSON items
+	toJSON := func(items []row) []gin.H {
+		out := make([]gin.H, len(items))
+		for i, r := range items {
+			out[i] = gin.H{
+				"id":           r.Id,
+				"name":         r.Name,
+				"type":         r.Type,
+				"daysToWatch":  math.Round(r.DaysToWatch*100) / 100,
+				"dateAdded":    r.DateAdded,
+				"firstWatched": r.FirstWatched,
+			}
+		}
+		return out
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"avgDaysToWatch":    math.Round(avg*100) / 100,
+		"medianDaysToWatch": math.Round(median*100) / 100,
+		"distribution":     distribution,
+		"slowestItems":     toJSON(slowest),
+		"fastestItems":     toJSON(fastest),
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GET /stats/getUnwatchedContent?libraryId=&type=&page=1&pageSize=25
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetUnwatchedContent(c *gin.Context) {
+	libraryId := c.Query("libraryId")
+	typeFilter := c.Query("type")
+	pageSize := parseDays(c.DefaultQuery("pageSize", "25"), 25)
+	page := parseDays(c.DefaultQuery("page", "1"), 1)
+	offset := (page - 1) * pageSize
+
+	// ── Summary: count total vs unwatched per type ──────────────────────────
+	type TypeStat struct {
+		Type      string `json:"type"`
+		Total     int    `json:"total"`
+		Unwatched int    `json:"unwatched"`
+	}
+	var typeStats []TypeStat
+
+	summaryQuery := `
+		SELECT
+			i."Type" AS type,
+			COUNT(*)::int AS total,
+			COUNT(*) FILTER (WHERE a."NowPlayingItemId" IS NULL)::int AS unwatched
+		FROM jf_library_items i
+		LEFT JOIN (
+			SELECT DISTINCT "NowPlayingItemId" FROM jf_playback_activity
+		) a ON a."NowPlayingItemId" = i."Id"
+		WHERE i.archived = false AND i."Type" NOT IN ('Season', 'Folder')
+	`
+	summaryArgs := []interface{}{}
+	if libraryId != "" {
+		summaryQuery += ` AND i."ParentId" = ?`
+		summaryArgs = append(summaryArgs, libraryId)
+	}
+	summaryQuery += ` GROUP BY i."Type"`
+
+	h.db.Raw(summaryQuery, summaryArgs...).Scan(&typeStats)
+	if typeStats == nil {
+		typeStats = []TypeStat{}
+	}
+
+	totalItems := 0
+	unwatchedItems := 0
+	for _, ts := range typeStats {
+		totalItems += ts.Total
+		unwatchedItems += ts.Unwatched
+	}
+
+	unwatchedPercent := 0.0
+	if totalItems > 0 {
+		unwatchedPercent = math.Round(float64(unwatchedItems)/float64(totalItems)*1000) / 10
+	}
+
+	// ── Paginated unwatched items ───────────────────────────────────────────
+	var total int64
+	countQuery := `
+		SELECT COUNT(*)
+		FROM jf_library_items i
+		LEFT JOIN (
+			SELECT DISTINCT "NowPlayingItemId" FROM jf_playback_activity
+		) a ON a."NowPlayingItemId" = i."Id"
+		WHERE i.archived = false AND i."Type" NOT IN ('Season', 'Folder')
+		  AND a."NowPlayingItemId" IS NULL
+	`
+	countArgs := []interface{}{}
+	if libraryId != "" {
+		countQuery += ` AND i."ParentId" = ?`
+		countArgs = append(countArgs, libraryId)
+	}
+	if typeFilter != "" {
+		countQuery += ` AND i."Type" = ?`
+		countArgs = append(countArgs, typeFilter)
+	}
+	h.db.Raw(countQuery, countArgs...).Scan(&total)
+
+	type ItemRow struct {
+		Id          string          `json:"id"`
+		Name        string          `json:"name"`
+		Type        string          `json:"type"`
+		DateAdded   *time.Time      `json:"dateAdded"`
+		Genres      json.RawMessage `json:"genres"`
+		LibraryName string          `json:"libraryName"`
+	}
+	var rows []ItemRow
+
+	itemsQuery := `
+		SELECT i."Id" AS id, i."Name" AS name, i."Type" AS type,
+		       i."DateCreated" AS date_added,
+		       i."Genres" AS genres, l."Name" AS library_name
+		FROM jf_library_items i
+		LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
+		LEFT JOIN (
+			SELECT DISTINCT "NowPlayingItemId" FROM jf_playback_activity
+		) a ON a."NowPlayingItemId" = i."Id"
+		WHERE i.archived = false AND i."Type" NOT IN ('Season', 'Folder')
+		  AND a."NowPlayingItemId" IS NULL
+	`
+	itemsArgs := []interface{}{}
+	if libraryId != "" {
+		itemsQuery += ` AND i."ParentId" = ?`
+		itemsArgs = append(itemsArgs, libraryId)
+	}
+	if typeFilter != "" {
+		itemsQuery += ` AND i."Type" = ?`
+		itemsArgs = append(itemsArgs, typeFilter)
+	}
+	itemsQuery += ` ORDER BY i."DateCreated" DESC NULLS LAST LIMIT ? OFFSET ?`
+	itemsArgs = append(itemsArgs, pageSize, offset)
+
+	h.db.Raw(itemsQuery, itemsArgs...).Scan(&rows)
+	if rows == nil {
+		rows = []ItemRow{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"summary": gin.H{
+			"totalItems":     totalItems,
+			"unwatchedItems": unwatchedItems,
+			"unwatchedPercent": unwatchedPercent,
+			"byType":         typeStats,
+		},
+		"items": paginate(int(total), pageSize, page, rows),
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Binge-watching detection
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetBingeStats(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	userId := c.Query("userId")
+
+	dateFilter := ""
+	if !allTime {
+		cutoff := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+		dateFilter = fmt.Sprintf(`AND "ActivityDateInserted" >= '%s'`, cutoff)
+	}
+
+	userFilter := ""
+	if userId != "" {
+		userFilter = fmt.Sprintf(`AND "UserId" = '%s'`, userId)
+	}
+
+	bingeSessionsCTE := fmt.Sprintf(`
+WITH episode_plays AS (
+  SELECT "UserId", "UserName",
+         "NowPlayingItemId" AS series_id, "SeriesName",
+         "ActivityDateInserted"::timestamptz AS played_at,
+         LAG("ActivityDateInserted"::timestamptz) OVER (
+           PARTITION BY "UserId", "NowPlayingItemId"
+           ORDER BY "ActivityDateInserted"::timestamptz
+         ) AS prev_played_at
+  FROM jf_playback_activity
+  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" != ''
+    %s %s
+),
+session_markers AS (
+  SELECT *,
+    SUM(CASE WHEN prev_played_at IS NULL
+              OR played_at - prev_played_at > INTERVAL '24 hours'
+         THEN 1 ELSE 0 END)
+      OVER (PARTITION BY "UserId", series_id ORDER BY played_at) AS session_id
+  FROM episode_plays
+),
+binge_sessions AS (
+  SELECT "UserId", MAX("UserName") AS user_name,
+         series_id, MAX("SeriesName") AS series_name,
+         session_id, COUNT(*) AS episode_count
+  FROM session_markers
+  GROUP BY "UserId", series_id, session_id
+  HAVING COUNT(*) >= 3
+)`, dateFilter, userFilter)
+
+	// --- Total binge sessions ---
+	var totalBingeSessions int64
+	h.db.Raw(bingeSessionsCTE + `
+SELECT COALESCE(COUNT(*), 0) FROM binge_sessions`).Scan(&totalBingeSessions)
+
+	// --- Top binged series ---
+	type SeriesRow struct {
+		SeriesId             string  `json:"seriesId"`
+		SeriesName           string  `json:"seriesName"`
+		BingeCount           int64   `json:"bingeCount"`
+		TotalEpisodesWatched int64   `json:"totalEpisodesWatched"`
+		AvgEpisodesPerBinge  float64 `json:"avgEpisodesPerBinge"`
+	}
+	var topSeries []SeriesRow
+	h.db.Raw(bingeSessionsCTE + `
+SELECT series_id AS "series_id",
+       MAX(series_name) AS "series_name",
+       COUNT(*) AS "binge_count",
+       SUM(episode_count) AS "total_episodes_watched",
+       ROUND(AVG(episode_count)::numeric, 1) AS "avg_episodes_per_binge"
+FROM binge_sessions
+GROUP BY series_id
+ORDER BY "binge_count" DESC
+LIMIT 20`).Scan(&topSeries)
+
+	if topSeries == nil {
+		topSeries = []SeriesRow{}
+	}
+
+	// --- Top binge users ---
+	type UserRow struct {
+		UserId               string `json:"userId"`
+		UserName             string `json:"userName"`
+		BingeCount           int64  `json:"bingeCount"`
+		TotalEpisodesWatched int64  `json:"totalEpisodesWatched"`
+	}
+	var topUsers []UserRow
+	h.db.Raw(bingeSessionsCTE + `
+SELECT "UserId" AS "user_id",
+       MAX(user_name) AS "user_name",
+       COUNT(*) AS "binge_count",
+       SUM(episode_count) AS "total_episodes_watched"
+FROM binge_sessions
+GROUP BY "UserId"
+ORDER BY "binge_count" DESC
+LIMIT 20`).Scan(&topUsers)
+
+	if topUsers == nil {
+		topUsers = []UserRow{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"totalBingeSessions": totalBingeSessions,
+		"topBingedSeries":    topSeries,
+		"topBingeUsers":      topUsers,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GET /stats/getCompletionRate?days=30&userId=&libraryId=
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	userId := c.Query("userId")
+	libraryId := c.Query("libraryId")
+
+	// Build dynamic WHERE clause
+	where := `WHERE COALESCE(a."PlaybackDuration", 0) > 0`
+	args := []interface{}{}
+
+	if !allTime {
+		where += ` AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)`
+		args = append(args, days)
+	}
+	if userId != "" {
+		where += ` AND a."UserId" = ?`
+		args = append(args, userId)
+	}
+	if libraryId != "" {
+		where += ` AND a."NowPlayingItemId" IN (SELECT "Id" FROM jf_library_items WHERE "ParentId" = ?)`
+		args = append(args, libraryId)
+	}
+
+	// CTE that computes completion ratio per playback row
+	cte := `
+	WITH completion AS (
+		SELECT
+			a."PlaybackDuration",
+			CASE
+				WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
+					THEN 'Episode'
+				WHEN COALESCE(i."Type", '') = 'Audio'
+					THEN 'Audio'
+				ELSE 'Movie'
+			END AS item_type,
+			LEAST(
+				a."PlaybackDuration"::float
+				/ NULLIF(
+					COALESCE(
+						CASE WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
+							THEN e."RunTimeTicks"
+							ELSE i."RunTimeTicks"
+						END,
+						0
+					) / 10000000.0,
+					0
+				),
+				1.0
+			) AS completion_ratio
+		FROM jf_playback_activity a
+		LEFT JOIN jf_library_items i    ON i."Id" = a."NowPlayingItemId"
+		LEFT JOIN jf_library_episodes e ON e."Id" = a."EpisodeId"
+		` + where + `
+			AND COALESCE(
+				CASE WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
+					THEN e."RunTimeTicks"
+					ELSE i."RunTimeTicks"
+				END,
+				0
+			) > 0
+	)`
+
+	// 1. Overall stats
+	type OverallResult struct {
+		AvgCompletionRate float64 `json:"avgCompletionRate"`
+		TotalPlays        int     `json:"totalPlays"`
+		CompletedPlays    int     `json:"completedPlays"`
+		AbandonedPlays    int     `json:"abandonedPlays"`
+	}
+	var overall OverallResult
+	h.db.Raw(cte+`
+		SELECT
+			COALESCE(AVG(completion_ratio), 0)::float AS "avgCompletionRate",
+			COUNT(*)::int AS "totalPlays",
+			COUNT(*) FILTER (WHERE completion_ratio >= 0.75)::int AS "completedPlays",
+			COUNT(*) FILTER (WHERE completion_ratio < 0.75)::int AS "abandonedPlays"
+		FROM completion
+	`, args...).Scan(&overall)
+
+	// 2. By type
+	type ByTypeRow struct {
+		Type              string  `json:"type"`
+		AvgCompletionRate float64 `json:"avgCompletionRate"`
+		TotalPlays        int     `json:"totalPlays"`
+	}
+	var byType []ByTypeRow
+	h.db.Raw(cte+`
+		SELECT
+			item_type AS "type",
+			COALESCE(AVG(completion_ratio), 0)::float AS "avgCompletionRate",
+			COUNT(*)::int AS "totalPlays"
+		FROM completion
+		GROUP BY item_type
+		ORDER BY "totalPlays" DESC
+	`, args...).Scan(&byType)
+	if byType == nil {
+		byType = []ByTypeRow{}
+	}
+
+	// 3. Distribution buckets
+	type DistRow struct {
+		Bucket string `json:"bucket"`
+		Count  int    `json:"count"`
+	}
+	var dist []DistRow
+	h.db.Raw(cte+`
+		SELECT
+			b.bucket,
+			COALESCE(cnt, 0)::int AS "count"
+		FROM (VALUES ('0-25%'), ('25-50%'), ('50-75%'), ('75-100%')) AS b(bucket)
+		LEFT JOIN (
+			SELECT
+				CASE
+					WHEN completion_ratio < 0.25 THEN '0-25%'
+					WHEN completion_ratio < 0.50 THEN '25-50%'
+					WHEN completion_ratio < 0.75 THEN '50-75%'
+					ELSE '75-100%'
+				END AS bucket,
+				COUNT(*)::int AS cnt
+			FROM completion
+			GROUP BY 1
+		) d ON d.bucket = b.bucket
+		ORDER BY CASE b.bucket
+			WHEN '0-25%' THEN 1
+			WHEN '25-50%' THEN 2
+			WHEN '50-75%' THEN 3
+			WHEN '75-100%' THEN 4
+		END
+	`, args...).Scan(&dist)
+	if dist == nil {
+		dist = []DistRow{}
+	}
+
+	// Round avgCompletionRate to 2 decimal places
+	overall.AvgCompletionRate = math.Round(overall.AvgCompletionRate*100) / 100
+	for i := range byType {
+		byType[i].AvgCompletionRate = math.Round(byType[i].AvgCompletionRate*100) / 100
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"overall":      overall,
+		"byType":       byType,
+		"distribution": dist,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GetViewingDiversity - diversity of viewing habits per user
+// ---------------------------------------------------------------------------
+
+func (h *StatsFrontendHandler) GetViewingDiversity(c *gin.Context) {
+	days, allTime := parseDaysAllTime(c, 30)
+	userId := c.Query("userId")
+
+	// Build date filter fragment
+	dateFilter := ""
+	dateArgs := []interface{}{}
+	if !allTime {
+		dateFilter = `AND a."ActivityDateInserted" >= NOW() - MAKE_INTERVAL(days => ?)`
+		dateArgs = append(dateArgs, days)
+	}
+
+	userFilter := ""
+	userArgs := []interface{}{}
+	if userId != "" {
+		userFilter = `AND a."UserId" = ?`
+		userArgs = append(userArgs, userId)
+	}
+
+	// Genre query
+	genreSQL := fmt.Sprintf(`
+		SELECT a."UserId",
+		       COALESCE(u."Name", a."UserName", a."UserId") AS user_name,
+		       genre,
+		       COUNT(*)::int AS plays
+		FROM jf_playback_activity a
+		LEFT JOIN jf_users u ON u."Id" = a."UserId"
+		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId" AND i.archived = false
+		CROSS JOIN LATERAL jsonb_array_elements_text(
+		  CASE WHEN jsonb_array_length(COALESCE(i."Genres", '[]'::jsonb)) = 0 THEN '["Unknown"]'::jsonb
+		       ELSE i."Genres" END
+		) AS genre
+		WHERE 1=1 %s %s
+		GROUP BY a."UserId", u."Name", a."UserName", genre
+	`, dateFilter, userFilter)
+
+	genreArgs := append(append([]interface{}{}, dateArgs...), userArgs...)
+
+	type genreRow struct {
+		UserId   string `gorm:"column:UserId"`
+		UserName string `gorm:"column:user_name"`
+		Genre    string `gorm:"column:genre"`
+		Plays    int    `gorm:"column:plays"`
+	}
+	var genreRows []genreRow
+	if err := h.db.Raw(genreSQL, genreArgs...).Scan(&genreRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Library query
+	libSQL := fmt.Sprintf(`
+		SELECT a."UserId", l."Id" AS library_id, l."Name" AS library_name, COUNT(*)::int AS plays
+		FROM jf_playback_activity a
+		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+		LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
+		WHERE l."Id" IS NOT NULL %s %s
+		GROUP BY a."UserId", l."Id", l."Name"
+	`, dateFilter, userFilter)
+
+	libArgs := append(append([]interface{}{}, dateArgs...), userArgs...)
+
+	type libRow struct {
+		UserId      string `gorm:"column:UserId"`
+		LibraryId   string `gorm:"column:library_id"`
+		LibraryName string `gorm:"column:library_name"`
+		Plays       int    `gorm:"column:plays"`
+	}
+	var libRows []libRow
+	if err := h.db.Raw(libSQL, libArgs...).Scan(&libRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Unique items query
+	itemSQL := fmt.Sprintf(`
+		SELECT a."UserId", COUNT(DISTINCT a."NowPlayingItemId")::int AS unique_items, COUNT(*)::int AS total_plays
+		FROM jf_playback_activity a
+		WHERE 1=1 %s %s
+		GROUP BY a."UserId"
+	`, dateFilter, userFilter)
+
+	itemArgs := append(append([]interface{}{}, dateArgs...), userArgs...)
+
+	type itemRow struct {
+		UserId      string `gorm:"column:UserId"`
+		UniqueItems int    `gorm:"column:unique_items"`
+		TotalPlays  int    `gorm:"column:total_plays"`
+	}
+	var itemRows []itemRow
+	if err := h.db.Raw(itemSQL, itemArgs...).Scan(&itemRows).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Aggregate per user
+
+	type genreInfo struct {
+		Genre string
+		Plays int
+	}
+	userGenres := map[string][]genreInfo{}
+	userNames := map[string]string{}
+	for _, r := range genreRows {
+		userGenres[r.UserId] = append(userGenres[r.UserId], genreInfo{Genre: r.Genre, Plays: r.Plays})
+		userNames[r.UserId] = r.UserName
+	}
+
+	type libInfo struct {
+		LibraryId   string
+		LibraryName string
+		Plays       int
+	}
+	userLibs := map[string][]libInfo{}
+	for _, r := range libRows {
+		userLibs[r.UserId] = append(userLibs[r.UserId], libInfo{LibraryId: r.LibraryId, LibraryName: r.LibraryName, Plays: r.Plays})
+	}
+
+	userItems := map[string]itemRow{}
+	for _, r := range itemRows {
+		userItems[r.UserId] = r
+	}
+
+	userSet := map[string]bool{}
+	for _, r := range genreRows {
+		userSet[r.UserId] = true
+	}
+	for _, r := range itemRows {
+		userSet[r.UserId] = true
+	}
+
+	// Shannon entropy: normalized to [0,1]
+	shannonDiversity := func(genres []genreInfo) float64 {
+		total := 0
+		for _, g := range genres {
+			total += g.Plays
+		}
+		if total == 0 || len(genres) <= 1 {
+			return 0
+		}
+		entropy := 0.0
+		for _, g := range genres {
+			p := float64(g.Plays) / float64(total)
+			if p > 0 {
+				entropy -= p * math.Log(p)
+			}
+		}
+		maxEntropy := math.Log(float64(len(genres)))
+		if maxEntropy == 0 {
+			return 0
+		}
+		score := entropy / maxEntropy
+		return math.Round(score*100) / 100
+	}
+
+	// Build response
+
+	if userId != "" {
+		genres := userGenres[userId]
+		libs := userLibs[userId]
+		items := userItems[userId]
+		userName := userNames[userId]
+
+		totalGenrePlays := 0
+		for _, g := range genres {
+			totalGenrePlays += g.Plays
+		}
+
+		genreBreakdown := make([]gin.H, 0, len(genres))
+		for _, g := range genres {
+			pct := 0.0
+			if totalGenrePlays > 0 {
+				pct = math.Round(float64(g.Plays)/float64(totalGenrePlays)*10000) / 100
+			}
+			genreBreakdown = append(genreBreakdown, gin.H{
+				"genre":   g.Genre,
+				"plays":   g.Plays,
+				"percent": pct,
+			})
+		}
+		sort.Slice(genreBreakdown, func(i, j int) bool {
+			return genreBreakdown[i]["plays"].(int) > genreBreakdown[j]["plays"].(int)
+		})
+
+		totalLibPlays := 0
+		for _, l := range libs {
+			totalLibPlays += l.Plays
+		}
+
+		libraryBreakdown := make([]gin.H, 0, len(libs))
+		for _, l := range libs {
+			pct := 0.0
+			if totalLibPlays > 0 {
+				pct = math.Round(float64(l.Plays)/float64(totalLibPlays)*10000) / 100
+			}
+			libraryBreakdown = append(libraryBreakdown, gin.H{
+				"libraryId":   l.LibraryId,
+				"libraryName": l.LibraryName,
+				"plays":       l.Plays,
+				"percent":     pct,
+			})
+		}
+		sort.Slice(libraryBreakdown, func(i, j int) bool {
+			return libraryBreakdown[i]["plays"].(int) > libraryBreakdown[j]["plays"].(int)
+		})
+
+		c.JSON(http.StatusOK, gin.H{
+			"userId":           userId,
+			"userName":         userName,
+			"diversityScore":   shannonDiversity(genres),
+			"uniqueGenres":     len(genres),
+			"uniqueLibraries":  len(libs),
+			"uniqueItems":      items.UniqueItems,
+			"genreBreakdown":   genreBreakdown,
+			"libraryBreakdown": libraryBreakdown,
+		})
+		return
+	}
+
+	// All users ranking
+	type userSummary struct {
+		UserId         string  `json:"userId"`
+		UserName       string  `json:"userName"`
+		DiversityScore float64 `json:"diversityScore"`
+		UniqueGenres   int     `json:"uniqueGenres"`
+		UniqueLibs     int     `json:"uniqueLibraries"`
+		UniqueItems    int     `json:"uniqueItems"`
+		TotalPlays     int     `json:"totalPlays"`
+	}
+
+	users := make([]userSummary, 0, len(userSet))
+	for uid := range userSet {
+		genres := userGenres[uid]
+		libs := userLibs[uid]
+		items := userItems[uid]
+		name := userNames[uid]
+		if name == "" {
+			name = uid
+		}
+		users = append(users, userSummary{
+			UserId:         uid,
+			UserName:       name,
+			DiversityScore: shannonDiversity(genres),
+			UniqueGenres:   len(genres),
+			UniqueLibs:     len(libs),
+			UniqueItems:    items.UniqueItems,
+			TotalPlays:     items.TotalPlays,
+		})
+	}
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].DiversityScore > users[j].DiversityScore
+	})
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 // ensure math is used

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip,
+  Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip, Tooltip,
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
@@ -9,22 +9,49 @@ import { format, parseISO } from 'date-fns'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { LineChart } from '@mui/x-charts/LineChart'
 import { BarChart } from '@mui/x-charts/BarChart'
-import { useTheme } from '@mui/material/styles'
+import { useTheme, alpha } from '@mui/material/styles'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import ActivityHeatmap from './components/ActivityHeatmap'
-import GenreRadarChart from './components/GenreRadarChart'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
 import type { UserStats, UserActivity } from '@/shared/types/user'
-import type { GenreStat } from '@/shared/types/library'
+
+type GenreRow = { genre: string; plays: number; duration: number }
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
 import { useChartColors } from '@/lib/chartColors'
+
+interface BingedSeries {
+  seriesId: string
+  seriesName: string
+  bingeCount: number
+  totalEpisodesWatched: number
+  avgEpisodesPerBinge: number
+}
+
+interface BingeStats {
+  totalBingeSessions: number
+  topBingedSeries: BingedSeries[]
+  topBingeUsers: { userId: string; userName: string; bingeCount: number; totalEpisodesWatched: number }[]
+}
+
+interface HeatmapCell {
+  day: number
+  hour: number
+  plays: number
+  duration: number
+}
+
+interface WatchHeatmapData {
+  cells: HeatmapCell[]
+  maxPlays: number
+  maxDuration: number
+}
 
 const col = createColumnHelper<Activity>()
 
@@ -43,10 +70,13 @@ export default function UserDetailPage() {
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [activity, setActivity] = useState<Activity[]>([])
   const [heatmapData, setHeatmapData] = useState<UserActivity[]>([])
-  const [genres, setGenres] = useState<GenreStat[]>([])
   const [watchOverTime, setWatchOverTime] = useState<{ date: string; plays: number; duration: number }[]>([])
-  const [genreBarData, setGenreBarData] = useState<{ genre: string; plays: number }[]>([])
   const [lastPlayed, setLastPlayed] = useState<Activity[]>([])
+  const [genreMovie, setGenreMovie] = useState<GenreRow[]>([])
+  const [genreEpisode, setGenreEpisode] = useState<GenreRow[]>([])
+  const [genreAudio, setGenreAudio] = useState<GenreRow[]>([])
+  const [genreLoading, setGenreLoading] = useState(false)
+  const [genreMetric, setGenreMetric] = useState<ActivityMetric>('count')
   const [globalStats, setGlobalStats] = useState<{ Plays?: number; total_playback_duration?: number } | null>(null)
   const [heatmapMetric, setHeatmapMetric] = useState<ActivityMetric>('count')
 
@@ -58,6 +88,10 @@ export default function UserDetailPage() {
   const [watchMetric, setWatchMetric] = useState<ActivityMetric>('duration')
   const [watchDays, setWatchDays] = useState<number>(30)
   const [chartVisible, setChartVisible] = useState(true)
+
+  const [bingeStats, setBingeStats] = useState<BingeStats | null>(null)
+  const [bingeDays, setBingeDays] = useState<number>(30)
+  const [watchHeatmap, setWatchHeatmap] = useState<WatchHeatmapData | null>(null)
 
   const handleWatchDaysChange = (_: React.MouseEvent<HTMLElement>, v: number | null) => {
     if (v === null) return
@@ -78,23 +112,17 @@ export default function UserDetailPage() {
       api.get(`/stats/getUserStats?userId=${id}`),
       api.get(`/stats/getUserActivity?userId=${id}`),
       api.get(`/stats/getUserActivityByDate?userId=${id}`),
-      api.get(`/stats/getUserGenreStats?userId=${id}`),
       api.get(`/stats/getWatchStatisticsOverTime?userId=${id}&days=0`),
-      api.get(`/stats/getGenreUserStats?userid=${id}&size=10&page=1`),
       api.post(`/stats/getUserLastPlayed`, { userid: id }),
       api.post(`/stats/getGlobalUserStats`, { userid: id }),
       api.get(`/stats/getPopularHourOfDay?days=0&userId=${id}`),
       api.get(`/stats/getPopularDayOfWeek?days=0&userId=${id}`),
     ])
-      .then(([statsRes, activityRes, heatmapRes, genreRes, overTimeRes, genreBarRes, lastPlayedRes, globalStatsRes, hourRes, dayRes]) => {
+      .then(([statsRes, activityRes, heatmapRes, overTimeRes, lastPlayedRes, globalStatsRes, hourRes, dayRes]) => {
         setUserStats(statsRes.data)
         setActivity(activityRes.data ?? [])
         setHeatmapData(heatmapRes.data ?? [])
-        setGenres(genreRes.data ?? [])
         setWatchOverTime(overTimeRes.data ?? [])
-        const barResults: { genre: string; plays: number }[] = (genreBarRes.data?.results ?? [])
-          .map((r: { genre: string; plays: string | number }) => ({ genre: r.genre, plays: Number(r.plays) }))
-        setGenreBarData(barResults)
         setLastPlayed((lastPlayedRes.data ?? []).slice(0, 12))
         setGlobalStats(globalStatsRes.data ?? null)
         setByHour(hourRes.data ?? [])
@@ -105,6 +133,41 @@ export default function UserDetailPage() {
   }, [id, t])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!id) return
+    api.get(`/stats/getBingeStats?days=${bingeDays}&userId=${id}`)
+      .then((res) => setBingeStats(res.data))
+      .catch(() => setBingeStats(null))
+  }, [id, bingeDays])
+
+  useEffect(() => {
+    if (!id) return
+    api.get(`/stats/getWatchHeatmap?days=0&userId=${id}`)
+      .then((res) => setWatchHeatmap(res.data))
+      .catch(() => setWatchHeatmap(null))
+  }, [id])
+
+  // Lazy-load genre breakdown by media type when the genres tab is visited
+  useEffect(() => {
+    if (tab !== 1 || !id) return
+    setGenreLoading(true)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map = (data: any) => (data?.results ?? []).map((r: any) => ({
+      genre: r.genre as string,
+      plays: Number(r.plays),
+      duration: Number(r.duration),
+    }))
+    Promise.all([
+      api.get(`/stats/getGenreUserStats?userid=${id}&type=Movie&size=8&page=1`),
+      api.get(`/stats/getGenreUserStats?userid=${id}&type=Episode&size=8&page=1`),
+      api.get(`/stats/getGenreUserStats?userid=${id}&type=Audio&size=8&page=1`),
+    ]).then(([movieRes, episodeRes, audioRes]) => {
+      setGenreMovie(map(movieRes.data))
+      setGenreEpisode(map(episodeRes.data))
+      setGenreAudio(map(audioRes.data))
+    }).catch(() => {}).finally(() => setGenreLoading(false))
+  }, [tab, id])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns: ColumnDef<Activity, any>[] = [
@@ -233,6 +296,65 @@ export default function UserDetailPage() {
         )}
       </Card>
 
+      {/* Watch Patterns Heatmap */}
+      <Card sx={{ mb: 3, p: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+          {t('insights.watchHeatmap', 'Watch Patterns')}
+        </Typography>
+        {!watchHeatmap ? (
+          <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 1 }} />
+        ) : (
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'auto repeat(24, 1fr)', gridTemplateRows: 'auto repeat(7, 28px)', gap: '2px', minWidth: 600 }}>
+              {/* Hour labels row */}
+              <Box />
+              {Array.from({ length: 24 }, (_, h) => (
+                <Box key={`h-${h}`} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{h}</Typography>
+                </Box>
+              ))}
+              {/* Day rows */}
+              {[
+                t('days.short.sun', 'Sun'), t('days.short.mon', 'Mon'), t('days.short.tue', 'Tue'),
+                t('days.short.wed', 'Wed'), t('days.short.thu', 'Thu'), t('days.short.fri', 'Fri'),
+                t('days.short.sat', 'Sat'),
+              ].map((dayLabel, dayIdx) => (
+                <Box key={`day-${dayIdx}`} sx={{ display: 'contents' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', pr: 1 }}>
+                    <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 700 }}>{dayLabel}</Typography>
+                  </Box>
+                  {Array.from({ length: 24 }, (_, h) => {
+                    const cell = watchHeatmap.cells.find((c) => c.day === dayIdx && c.hour === h)
+                    const plays = cell?.plays ?? 0
+                    const duration = cell?.duration ?? 0
+                    const intensity = watchHeatmap.maxPlays > 0 ? plays / watchHeatmap.maxPlays : 0
+                    return (
+                      <Tooltip
+                        key={`${dayIdx}-${h}`}
+                        title={`${dayLabel} ${h}:00 — ${plays} plays, ${formatWatchTime(duration)}`}
+                        arrow
+                        placement="top"
+                      >
+                        <Box
+                          sx={{
+                            borderRadius: 0.5,
+                            bgcolor: plays > 0
+                              ? alpha(CHART_COLORS[0], Math.max(0.1, intensity))
+                              : alpha(theme.palette.text.primary, 0.04),
+                            cursor: 'default',
+                            '&:hover': { outline: '2px solid', outlineColor: 'text.disabled', outlineOffset: -2, zIndex: 1 },
+                          }}
+                        />
+                      </Tooltip>
+                    )
+                  })}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+      </Card>
+
       <ChartCard
         title={t('users.watchOverTime')}
         loading={loading}
@@ -337,6 +459,68 @@ export default function UserDetailPage() {
         </Grid>
       </Grid>
 
+      {/* Binge Stats */}
+      <Card sx={{ mb: 3, mt: 3, p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {t('insights.bingeStats', 'Binge-watching')}
+          </Typography>
+          <ToggleButtonGroup
+            value={bingeDays}
+            exclusive
+            size="small"
+            onChange={(_, v) => { if (v !== null) setBingeDays(v) }}
+            sx={{ '& .MuiToggleButton-root': { px: 1.5, py: 0.25, fontSize: 12, textTransform: 'none' } }}
+          >
+            <ToggleButton value={7}>7d</ToggleButton>
+            <ToggleButton value={30}>30d</ToggleButton>
+            <ToggleButton value={90}>90d</ToggleButton>
+            <ToggleButton value={0}>{t('common.all', 'All')}</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <StatCard
+              label={t('insights.bingeSessions', 'Binge sessions')}
+              value={bingeStats?.totalBingeSessions ?? '—'}
+              icon={<Play24Regular />}
+              loading={!bingeStats && loading}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 8 }}>
+            {bingeStats && bingeStats.topBingedSeries.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>
+                  {t('insights.topBingedSeries', 'Top binged series')}
+                </Typography>
+                {bingeStats.topBingedSeries.map((s) => (
+                  <Box
+                    key={s.seriesId}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 1,
+                      p: 1, borderRadius: 1,
+                      bgcolor: alpha(theme.palette.primary.main, 0.06),
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }} noWrap>
+                      {s.seriesName}
+                    </Typography>
+                    <Chip label={`${s.bingeCount} binges`} size="small" color="primary" variant="outlined" />
+                    <Typography variant="caption" color="text.secondary">
+                      ~{s.avgEpisodesPerBinge.toFixed(1)} ep/binge
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                {t('common.noData')}
+              </Typography>
+            )}
+          </Grid>
+        </Grid>
+      </Card>
+
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mt: 3 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>
           <Tab label={t('users.watchHistory')} />
@@ -355,47 +539,63 @@ export default function UserDetailPage() {
         />
       )}
 
-      {tab === 1 && (
-        <>
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              {loading ? (
-                <Skeleton variant="rectangular" width="100%" height={320} sx={{ borderRadius: 2 }} />
-              ) : genres.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                  {t('common.noData')}
-                </Typography>
-              ) : (
-                <GenreRadarChart genres={genres} />
-              )}
-            </CardContent>
-          </Card>
+      {tab === 1 && (() => {
+        const sections: { label: string; data: GenreRow[]; color: string }[] = [
+          { label: t('stats.mediaType.movie', 'Films'), data: genreMovie, color: CHART_COLORS[0] },
+          { label: t('stats.mediaType.series', 'Séries'), data: genreEpisode, color: CHART_COLORS[1] },
+          { label: t('stats.mediaType.audio', 'Musique'), data: genreAudio, color: CHART_COLORS[2] },
+        ].filter((s) => genreLoading || s.data.length > 0)
 
-          <ChartCard
-            title={t('stats.genreDetail', 'Détail par genre')}
-            loading={loading}
-            empty={genreBarData.length === 0}
-            height={240}
-          >
-            <BarChart
-              layout="horizontal"
-              yAxis={[{ data: genreBarData.map((d) => d.genre), scaleType: 'band' }]}
-              xAxis={[{ label: t('common.plays') }]}
-              series={[{
-                data: genreBarData.map((d) => d.plays),
-                label: t('common.plays'),
-                valueFormatter: (v) => String(v ?? 0),
-                color: CHART_COLORS[0],
-              }]}
-              height={240}
-              margin={{ left: 120 }}
-              sx={{ width: '100%' }}
-              grid={{ vertical: true }}
-              slotProps={{ legend: { hidden: true } as any }}
-            />
-          </ChartCard>
-        </>
-      )}
+        const fmtDuration = (secs: number) => {
+          const h = Math.floor(secs / 3600)
+          const m = Math.floor((secs % 3600) / 60)
+          return h > 0 ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}` : `${m}${t('time.minuteShort')}`
+        }
+
+        return (
+          <>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+              <MetricToggle value={genreMetric} onChange={setGenreMetric} />
+            </Box>
+            {sections.length === 0 && !genreLoading ? (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                {t('common.noData')}
+              </Typography>
+            ) : (
+              <Grid container spacing={2}>
+                {(genreLoading ? [
+                  { label: t('stats.mediaType.movie', 'Films'), data: [], color: CHART_COLORS[0] },
+                  { label: t('stats.mediaType.series', 'Séries'), data: [], color: CHART_COLORS[1] },
+                  { label: t('stats.mediaType.audio', 'Musique'), data: [], color: CHART_COLORS[2] },
+                ] : sections).map(({ label, data, color }) => {
+                  const chartHeight = Math.max(160, data.length * 36 + 40)
+                  return (
+                    <Grid key={label} size={{ xs: 12, md: 4 }}>
+                      <ChartCard title={label} loading={genreLoading} empty={!genreLoading && data.length === 0} height={chartHeight}>
+                        <BarChart
+                          layout="horizontal"
+                          yAxis={[{ data: data.map((d) => d.genre), scaleType: 'band' }]}
+                          xAxis={[{ tickMinStep: 1 }]}
+                          series={[{
+                            data: data.map((d) => genreMetric === 'duration' ? d.duration : d.plays),
+                            color,
+                            valueFormatter: (v) => genreMetric === 'duration' ? fmtDuration(v ?? 0) : String(v ?? 0),
+                          }]}
+                          height={chartHeight}
+                          margin={{ left: 110, right: 16, top: 8, bottom: 24 }}
+                          sx={{ width: '100%' }}
+                          grid={{ vertical: true }}
+                          slotProps={{ legend: { hidden: true } as any }}
+                        />
+                      </ChartCard>
+                    </Grid>
+                  )
+                })}
+              </Grid>
+            )}
+          </>
+        )
+      })()}
 
       {tab === 2 && (
         loading ? (

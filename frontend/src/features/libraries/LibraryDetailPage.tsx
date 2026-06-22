@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import i18next from 'i18next'
 import { format, parseISO } from 'date-fns'
+import { alpha } from '@mui/material/styles'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { LineChart } from '@mui/x-charts/LineChart'
 import { BarChart } from '@mui/x-charts/BarChart'
@@ -86,6 +87,19 @@ type HistoryPoint = { date: string; plays: number }
 type ItemWithStats = { Name: string; times_played: number; total_play_time: number }
 type PlayMethodStat = { Key: string; Transcodes: number; DirectPlays: number }
 type LastPlayedRow = { NowPlayingItemName: string; ActivityDateInserted: string; UserName: string }
+
+type TimeToWatchData = {
+  avgDaysToWatch: number
+  medianDaysToWatch: number
+  distribution: { bucket: string; count: number }[]
+  slowestItems: { id: string; name: string; type: string; daysToWatch: number; dateAdded: string; firstWatched: string }[]
+  fastestItems: { id: string; name: string; type: string; daysToWatch: number; dateAdded: string; firstWatched: string }[]
+}
+
+type UnwatchedContentData = {
+  summary: { totalItems: number; unwatchedItems: number; unwatchedPercent: number; byType: { type: string; count: number }[] }
+  items: { current_page: number; pages: number; size: number; results: { id: string; name: string; type: string; dateAdded: string; genres: string[]; libraryName: string }[] }
+}
 
 // ─── Album grid ────────────────────────────────────────────────────────────
 
@@ -1139,6 +1153,10 @@ export default function LibraryDetailPage() {
   const [itemsWithStats, setItemsWithStats] = useState<ItemWithStats[]>([])
   const [playMethodStats, setPlayMethodStats] = useState<PlayMethodStat[]>([])
   const [lastPlayed, setLastPlayed] = useState<LastPlayedRow[]>([])
+  const [timeToWatch, setTimeToWatch] = useState<TimeToWatchData | null>(null)
+  const [timeToWatchLoading, setTimeToWatchLoading] = useState(false)
+  const [unwatchedContent, setUnwatchedContent] = useState<UnwatchedContentData | null>(null)
+  const [unwatchedLoading, setUnwatchedLoading] = useState(false)
 
   const isMusicLibrary = !loading && (tracks.length > 0 || artists.length > 0 || albums.length > 0)
   const albumsSynced = albums.length > 0
@@ -1195,6 +1213,26 @@ export default function LibraryDetailPage() {
     const interval = window.setInterval(() => load(false), 15000)
     return () => window.clearInterval(interval)
   }, [load])
+
+  // Fetch Time to Watch data
+  useEffect(() => {
+    if (!id) return
+    setTimeToWatchLoading(true)
+    api.get(`/stats/getTimeToWatch?libraryId=${id}&limit=10`)
+      .then((res) => setTimeToWatch(res.data))
+      .catch(() => setTimeToWatch(null))
+      .finally(() => setTimeToWatchLoading(false))
+  }, [id])
+
+  // Fetch Unwatched Content data
+  useEffect(() => {
+    if (!id) return
+    setUnwatchedLoading(true)
+    api.get(`/stats/getUnwatchedContent?libraryId=${id}&pageSize=10`)
+      .then((res) => setUnwatchedContent(res.data))
+      .catch(() => setUnwatchedContent(null))
+      .finally(() => setUnwatchedLoading(false))
+  }, [id])
 
   const handleSelectArtist = async (artistId: string, artistName: string) => {
     setSelectedArtist(artistName)
@@ -1594,6 +1632,157 @@ export default function LibraryDetailPage() {
                         })}
                       </List>
                     )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Time to Watch */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
+                  {t('library.timeToWatch', 'Time to Watch')}
+                </Typography>
+                {timeToWatchLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+                ) : !timeToWatch ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>{t('common.noData')}</Typography>
+                ) : (
+                  <>
+                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                      <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: 1, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08) }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{timeToWatch.avgDaysToWatch.toFixed(1)}</Typography>
+                        <Typography variant="caption" color="text.secondary">{t('library.avgDays', 'Avg days')}</Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: 1, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08) }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{timeToWatch.medianDaysToWatch.toFixed(1)}</Typography>
+                        <Typography variant="caption" color="text.secondary">{t('library.medianDays', 'Median days')}</Typography>
+                      </Box>
+                    </Box>
+
+                    {timeToWatch.distribution.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <BarChart
+                          xAxis={[{ data: timeToWatch.distribution.map((d) => d.bucket), scaleType: 'band' }]}
+                          series={[{ data: timeToWatch.distribution.map((d) => d.count), label: t('common.count', 'Count'), color: CHART_BAR }]}
+                          height={180}
+                          sx={{ width: '100%' }}
+                          grid={{ horizontal: true }}
+                          slotProps={{ legend: { hidden: true } as any }}
+                        />
+                      </Box>
+                    )}
+
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }} color="success.main">
+                          {t('library.fastestWatched', 'Fastest watched')}
+                        </Typography>
+                        <List dense disablePadding>
+                          {timeToWatch.fastestItems.slice(0, 5).map((item) => (
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                              <ListItemText
+                                primary={item.name}
+                                secondary={`${item.daysToWatch} ${t('library.days', 'days')}`}
+                                slotProps={{
+                                  primary: { style: { fontSize: 12, fontWeight: 500 } },
+                                  secondary: { style: { fontSize: 11 } },
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }} color="warning.main">
+                          {t('library.slowestWatched', 'Slowest watched')}
+                        </Typography>
+                        <List dense disablePadding>
+                          {timeToWatch.slowestItems.slice(0, 5).map((item) => (
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                              <ListItemText
+                                primary={item.name}
+                                secondary={`${item.daysToWatch} ${t('library.days', 'days')}`}
+                                slotProps={{
+                                  primary: { style: { fontSize: 12, fontWeight: 500 } },
+                                  secondary: { style: { fontSize: 11 } },
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                    </Grid>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Unwatched Content Summary */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} gutterBottom>
+                  {t('library.unwatchedContent', 'Unwatched Content')}
+                </Typography>
+                {unwatchedLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+                ) : !unwatchedContent ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>{t('common.noData')}</Typography>
+                ) : (
+                  <>
+                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                      <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: 1, bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08) }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{unwatchedContent.summary.unwatchedItems}</Typography>
+                        <Typography variant="caption" color="text.secondary">{t('library.unwatchedItems', 'Unwatched')}</Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center', flex: 1, p: 1.5, borderRadius: 1, bgcolor: (theme) => alpha(theme.palette.warning.main, 0.08) }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>{unwatchedContent.summary.unwatchedPercent.toFixed(1)}%</Typography>
+                        <Typography variant="caption" color="text.secondary">{t('library.unwatchedPercent', 'of library')}</Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <PieChart
+                        series={[{
+                          data: [
+                            { id: 0, value: unwatchedContent.summary.totalItems - unwatchedContent.summary.unwatchedItems, label: t('library.watched', 'Watched'), color: COLORS[1] },
+                            { id: 1, value: unwatchedContent.summary.unwatchedItems, label: t('library.unwatched', 'Unwatched'), color: COLORS[0] },
+                          ].filter((d) => d.value > 0),
+                          innerRadius: 35,
+                          outerRadius: 80,
+                          paddingAngle: 2,
+                          cornerRadius: 3,
+                        }]}
+                        height={200}
+                        sx={{ width: '100%' }}
+                      />
+                    </Box>
+
+                    {unwatchedContent.items.results.length > 0 && (
+                      <>
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }} color="text.secondary">
+                          {t('library.unwatchedItemsList', 'Unwatched items')}
+                        </Typography>
+                        <List dense disablePadding>
+                          {unwatchedContent.items.results.map((item) => (
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                              <ListItemText
+                                primary={item.name}
+                                secondary={item.type}
+                                slotProps={{
+                                  primary: { style: { fontSize: 12, fontWeight: 500 } },
+                                  secondary: { style: { fontSize: 11 } },
+                                }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </Grid>
