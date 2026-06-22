@@ -54,13 +54,13 @@ export default function ActivityChart() {
           <IconButton
             size="small"
             onClick={() => setCombined((v) => !v)}
-            color={combined ? 'primary' : 'default'}
+            color="default"
           >
             <ChartMultiple24Regular style={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
       </Box>
-      {!combined && <MetricToggle value={metric} onChange={setMetric} />}
+      <MetricToggle value={metric} onChange={combined ? undefined : setMetric} both={combined} />
     </Box>
   )
 

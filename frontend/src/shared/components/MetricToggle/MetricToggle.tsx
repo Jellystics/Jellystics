@@ -5,21 +5,22 @@ export type ActivityMetric = 'count' | 'duration'
 
 interface MetricToggleProps {
   value: ActivityMetric
-  onChange: (value: ActivityMetric) => void
+  onChange?: (value: ActivityMetric) => void
+  both?: boolean
 }
 
-export default function MetricToggle({ value, onChange }: MetricToggleProps) {
+export default function MetricToggle({ value, onChange, both }: MetricToggleProps) {
   const { t } = useTranslation()
   const playsLabel = t('common.plays')
   const capitalizedPlays = playsLabel.charAt(0).toUpperCase() + playsLabel.slice(1)
 
   return (
     <ToggleButtonGroup
-      exclusive
+      exclusive={!both}
       size="small"
-      value={value}
+      value={both ? ['count', 'duration'] : value}
       onChange={(_, next) => {
-        if (next) onChange(next)
+        if (!both && next && onChange) onChange(next)
       }}
       sx={{
         height: 32,

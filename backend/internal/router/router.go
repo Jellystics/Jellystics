@@ -37,7 +37,7 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 	statsH     := handler.NewStatsFrontendHandler(db, repos)
 	webhookH   := handler.NewWebhookHandler(svcs)
 	syncH      := handler.NewSyncHandler(svcs)
-	libH       := handler.NewLibraryHandler(svcs, repos)
+	libH       := handler.NewLibraryHandler(svcs, repos, db)
 	userH      := handler.NewUserHandler(repos)
 	backupH    := handler.NewBackupHandler(repos, hub)
 	logsH      := handler.NewLogsHandler(repos)

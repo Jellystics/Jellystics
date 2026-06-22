@@ -1924,24 +1924,23 @@ func (h *StatsFrontendHandler) GetLibraryArtists(c *gin.Context) {
 	var rows []Row
 	h.db.Raw(`
 		SELECT
-		  ar."Id",
-		  ar."Name",
+		  COALESCE(t."ArtistId", '') AS "Id",
+		  COALESCE(t."AlbumArtist", 'Unknown') AS "Name",
 		  ar."ImageTagsPrimary",
-		  COUNT(DISTINCT album."Id")::int AS "AlbumCount",
+		  COUNT(DISTINCT t."AlbumId")::int AS "AlbumCount",
 		  COUNT(t."Id")::int AS "TrackCount",
 		  COALESCE(SUM(pc.play_count), 0)::int AS "PlayCount"
-		FROM jf_music_artists ar
-		LEFT JOIN jf_library_items album ON album."ArtistId" = ar."Id" AND album.archived = false
-		LEFT JOIN jf_music_tracks t ON t."AlbumId" = album."Id" AND t.archived = false
+		FROM jf_music_tracks t
+		LEFT JOIN jf_music_artists ar ON ar."Id" = t."ArtistId"
 		LEFT JOIN (
 		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
 		  GROUP BY "NowPlayingItemId"
 		) pc ON pc."NowPlayingItemId" = t."Id"
-		WHERE ar."LibraryId" = ?
-		  AND ar.archived = false
-		GROUP BY ar."Id", ar."Name", ar."ImageTagsPrimary"
-		ORDER BY ar."Name"
+		WHERE t."LibraryId" = ?
+		  AND t.archived = false
+		GROUP BY COALESCE(t."ArtistId", ''), COALESCE(t."AlbumArtist", 'Unknown'), ar."ImageTagsPrimary"
+		ORDER BY COALESCE(t."AlbumArtist", 'Unknown')
 	`, libraryId).Scan(&rows)
 
 	if rows == nil {
@@ -1975,28 +1974,28 @@ func (h *StatsFrontendHandler) GetArtistAlbums(c *gin.Context) {
 	var rows []Row
 	h.db.Raw(`
 		SELECT
-		  album."Id",
-		  album."Name",
-		  album."AlbumArtist",
-		  album."ArtistId",
+		  t."AlbumId" AS "Id",
+		  COALESCE(album."Name", t."AlbumName") AS "Name",
+		  t."AlbumArtist",
+		  t."ArtistId",
 		  album."ProductionYear",
 		  album."ImageTagsPrimary",
 		  COUNT(t."Id")::int AS "TrackCount",
 		  COALESCE(SUM(pc.play_count), 0)::int AS "PlayCount"
-		FROM jf_library_items album
-		LEFT JOIN jf_music_tracks t ON t."AlbumId" = album."Id" AND t.archived = false
+		FROM jf_music_tracks t
+		LEFT JOIN jf_library_items album ON album."Id" = t."AlbumId" AND album.archived = false
 		LEFT JOIN (
 		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
 		  GROUP BY "NowPlayingItemId"
 		) pc ON pc."NowPlayingItemId" = t."Id"
-		WHERE album."ParentId" = ?
-		  AND album.archived = false
-		  AND album."Type" = 'MusicAlbum'
-		  AND album."ArtistId" = ?
-		GROUP BY album."Id", album."Name", album."AlbumArtist", album."ArtistId", album."ProductionYear", album."ImageTagsPrimary"
-		ORDER BY album."Name"
-	`, libraryId, artistId).Scan(&rows)
+		WHERE t."ArtistId" = ?
+		  AND t."LibraryId" = ?
+		  AND t.archived = false
+		  AND t."AlbumId" IS NOT NULL
+		GROUP BY t."AlbumId", album."Name", t."AlbumName", t."AlbumArtist", t."ArtistId", album."ProductionYear", album."ImageTagsPrimary"
+		ORDER BY COALESCE(album."Name", t."AlbumName")
+	`, artistId, libraryId).Scan(&rows)
 
 	if rows == nil {
 		rows = []Row{}
@@ -3392,7 +3391,7 @@ func (h *StatsFrontendHandler) GetUnwatchedContent(c *gin.Context) {
 		Id          string          `json:"id"`
 		Name        string          `json:"name"`
 		Type        string          `json:"type"`
-		DateAdded   *time.Time      `json:"dateAdded"`
+		DateAdded   *string         `json:"dateAdded"`
 		Genres      json.RawMessage `json:"genres"`
 		LibraryName string          `json:"libraryName"`
 	}
