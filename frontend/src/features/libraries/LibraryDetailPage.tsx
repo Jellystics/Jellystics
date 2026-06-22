@@ -1273,6 +1273,16 @@ export default function LibraryDetailPage() {
 
   return (
     <>
+      <Box
+        component="button"
+        onClick={() => navigate(-1 as any)}
+        style={{ all: 'unset', cursor: 'pointer' }}
+      >
+        <Typography variant="body2" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+          <ArrowLeft24Regular style={{ fontSize: 18 }} />
+          {t('common.back', 'Back')}
+        </Typography>
+      </Box>
       <PageHeader title={stats?.Name ?? (id ?? '')} onRefresh={() => load(false)} loading={loading} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

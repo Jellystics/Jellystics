@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box, Card, CardContent, Typography, List, ListItem, Skeleton, Alert, Chip,
-  IconButton, Tooltip,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { MusicNote224Regular, Play24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
@@ -51,16 +50,17 @@ export default function AlbumDetailPage() {
 
   return (
     <>
-      <PageHeader
-        title={albumName || '…'}
-        actions={
-          <Tooltip title={t('common.back', 'Retour')}>
-            <IconButton onClick={() => navigate(libraryId ? `/libraries/${libraryId}` : -1 as never)}>
-              <ArrowLeft24Regular />
-            </IconButton>
-          </Tooltip>
-        }
-      />
+      <Box
+        component="button"
+        onClick={() => navigate(-1 as any)}
+        style={{ all: 'unset', cursor: 'pointer' }}
+      >
+        <Typography variant="body2" color="primary.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+          <ArrowLeft24Regular style={{ fontSize: 18 }} />
+          {t('common.back', 'Back')}
+        </Typography>
+      </Box>
+      <PageHeader title={albumName || '…'} />
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Box sx={{ display: 'flex', gap: 3, mb: 3, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'flex-start' } }}>
