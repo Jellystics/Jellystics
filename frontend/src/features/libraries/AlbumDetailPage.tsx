@@ -8,17 +8,9 @@ import { MusicNote224Regular, Play24Regular, ArrowLeft24Regular } from '@fluentu
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import { formatTicks } from '@/shared/utils/formatTicks'
+import type { MusicTrack } from '@/shared/types/library'
 
-interface Track {
-  Id: string
-  Name: string
-  IndexNumber: number | null
-  RunTimeTicks: number | null
-  AlbumId: string
-  AlbumName: string
-  Artist: string | null
-  PlayCount: number
-}
+type Track = MusicTrack
 
 
 export default function AlbumDetailPage() {

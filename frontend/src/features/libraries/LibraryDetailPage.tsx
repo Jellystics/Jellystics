@@ -21,7 +21,7 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import StatCard from '@/shared/components/StatCard/StatCard'
 import ChartCard from '@/shared/components/ChartCard/ChartCard'
 import api from '@/lib/axios'
-import type { LibraryItem, LibraryStats, GenreStat } from '@/shared/types/library'
+import type { LibraryItem, LibraryStats, GenreStat, MusicTrack, MusicAlbum, MusicArtist } from '@/shared/types/library'
 import type { Activity } from '@/shared/types/activity'
 import {
   Play24Regular, Clock24Regular, Star24Regular,
@@ -37,37 +37,9 @@ import { getDateLocale } from '@/lib/dateLocale'
 const COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
 const CHART_BAR = '#60a5fa'
 
-interface Track {
-  Id: string
-  Name: string
-  Artist: string | null
-  AlbumName: string | null
-  AlbumId: string | null
-  IndexNumber: number | null
-  DiscNumber: number | null
-  RunTimeTicks: number | null
-  PlayCount: number
-}
-
-interface Album {
-  Id: string
-  Name: string
-  AlbumArtist: string | null
-  ArtistId: string | null
-  ImageTagsPrimary: string | null
-  ProductionYear: number | null
-  TrackCount: number
-  PlayCount: number
-}
-
-interface Artist {
-  Id: string
-  Name: string
-  ImageTagsPrimary: string | null
-  AlbumCount: number
-  TrackCount: number
-  PlayCount: number
-}
+type Track = MusicTrack
+type Album = MusicAlbum
+type Artist = MusicArtist
 
 
 

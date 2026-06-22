@@ -61,6 +61,38 @@ export interface ItemWatchHistory {
   IsActive: boolean
 }
 
+export interface MusicTrack {
+  Id: string
+  Name: string
+  Artist: string | null
+  AlbumName: string | null
+  AlbumId: string | null
+  IndexNumber: number | null
+  DiscNumber: number | null
+  RunTimeTicks: number | null
+  PlayCount: number
+}
+
+export interface MusicAlbum {
+  Id: string
+  Name: string
+  AlbumArtist: string | null
+  ArtistId: string | null
+  ImageTagsPrimary: string | null
+  ProductionYear: number | null
+  TrackCount: number
+  PlayCount: number
+}
+
+export interface MusicArtist {
+  Id: string
+  Name: string
+  ImageTagsPrimary: string | null
+  AlbumCount: number
+  TrackCount: number
+  PlayCount: number
+}
+
 export interface ItemDetails {
   item: LibraryItem & {
     Genres?: string[]
