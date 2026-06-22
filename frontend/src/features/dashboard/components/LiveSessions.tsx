@@ -35,10 +35,10 @@ function formatBitrate(bps?: number): string {
 function getPlayMethodChip(method?: string) {
   if (!method) return null
   const m = method.toLowerCase()
-  if (m === 'directplay') return { label: 'Direct Play', color: 'success' as const }
-  if (m === 'directstream') return { label: 'Direct Stream', color: 'info' as const }
+  if (m === 'directplay') return { label: 'Direct Play', color: 'primary' as const }
+  if (m === 'directstream') return { label: 'Direct Stream', color: 'primary' as const }
   if (m === 'transcode') return { label: 'Transcode', color: 'primary' as const }
-  return { label: method, color: 'default' as const }
+  return { label: method, color: 'primary' as const }
 }
 
 function getDeviceIcon(client?: string) {
