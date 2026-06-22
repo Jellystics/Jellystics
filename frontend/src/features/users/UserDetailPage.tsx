@@ -94,6 +94,7 @@ export default function UserDetailPage() {
   const [bingePage, setBingePage] = useState(0)
   const BINGE_PAGE_SIZE = 5
   const [watchHeatmap, setWatchHeatmap] = useState<WatchHeatmapData | null>(null)
+  const [diversity, setDiversity] = useState<any>(null)
 
   const handleWatchDaysChange = (_: React.MouseEvent<HTMLElement>, v: number | null) => {
     if (v === null) return
@@ -148,6 +149,13 @@ export default function UserDetailPage() {
     api.get(`/stats/getWatchHeatmap?days=0&userId=${id}`)
       .then((res) => setWatchHeatmap(res.data))
       .catch(() => setWatchHeatmap(null))
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    api.get(`/stats/getViewingDiversity?days=0&userId=${id}`)
+      .then((res) => setDiversity(res.data))
+      .catch(() => setDiversity(null))
   }, [id])
 
   // Lazy-load genre breakdown by media type when the genres tab is visited
@@ -542,6 +550,62 @@ export default function UserDetailPage() {
           </Grid>
         </Grid>
       </Card>
+
+      {/* Viewing Diversity */}
+      {diversity && (diversity.uniqueGenres > 0 || diversity.uniqueLibraries > 0) && (
+        <Card sx={{ mb: 3, mt: 3, p: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            {t('insights.viewingDiversity', 'Viewing Diversity')}
+          </Typography>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <StatCard
+                label={t('insights.score', 'Score')}
+                value={`${Math.round((diversity.diversityScore ?? 0) * 100)}%`}
+                icon={<Star24Regular />}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <StatCard
+                label={t('insights.genres', 'Genres')}
+                value={diversity.uniqueGenres ?? 0}
+                icon={<VideoClip24Regular />}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <StatCard
+                label={t('insights.libraries', 'Libraries')}
+                value={diversity.uniqueLibraries ?? 0}
+                icon={<Play24Regular />}
+              />
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <StatCard
+                label={t('insights.uniqueItems', 'Unique items')}
+                value={diversity.uniqueItems ?? 0}
+                icon={<Clock24Regular />}
+              />
+            </Grid>
+          </Grid>
+          {diversity.genreBreakdown?.length > 0 && (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700, mb: 1 }}>
+                {t('insights.genreBreakdown', 'Genre breakdown')}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {diversity.genreBreakdown.map((g: any) => (
+                  <Chip
+                    key={g.genre}
+                    label={`${g.genre} (${g.percent}%)`}
+                    size="small"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Card>
+      )}
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, mt: 3 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v as number)}>

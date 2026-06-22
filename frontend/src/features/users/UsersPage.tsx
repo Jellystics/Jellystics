@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Alert, Box, Typography, Avatar, Grid, Card, CardActionArea, CardContent,
   ToggleButtonGroup, ToggleButton, Skeleton, TextField, InputAdornment, IconButton, Tooltip, Stack,
-  LinearProgress, Paper,
 } from '@mui/material'
-import { alpha, useTheme } from '@mui/material/styles'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -44,7 +42,6 @@ function UserCard({ user, onClick }: { user: UserStats; onClick: () => void }) {
 export default function UsersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const theme = useTheme()
   const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [search, setSearch] = useState('')
 
@@ -52,8 +49,6 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [diversity, setDiversity] = useState<any[]>([])
-  const [diversityLoading, setDiversityLoading] = useState(true)
 
   const load = (showLoading = true) => {
     if (showLoading) setLoading(true)
@@ -69,13 +64,6 @@ export default function UsersPage() {
     return () => window.clearInterval(interval)
   }, [t])
 
-  useEffect(() => {
-    setDiversityLoading(true)
-    api.get('/stats/getViewingDiversity?days=30')
-      .then(r => setDiversity(r.data?.users ?? []))
-      .catch(() => setDiversity([]))
-      .finally(() => setDiversityLoading(false))
-  }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns: ColumnDef<UserStats, any>[] = [
@@ -225,93 +213,6 @@ export default function UsersPage() {
         />
       )}
 
-      {/* Viewing Diversity */}
-      <Paper sx={{ mt: 3, p: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          {t('insights.viewingDiversity', 'Viewing Diversity')}
-        </Typography>
-
-        {diversityLoading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} variant="rounded" height={40} />
-            ))}
-          </Box>
-        ) : diversity.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {t('common.noData', 'No data available')}
-          </Typography>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* Header */}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: '40px 1fr 2fr 80px 80px',
-                alignItems: 'center',
-                gap: 1.5,
-                px: 1.5,
-                py: 0.5,
-              }}
-            >
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>#</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{t('users.user')}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{t('insights.score', 'Score')}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textAlign: 'right' }}>{t('insights.genres', 'Genres')}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textAlign: 'right' }}>{t('stats.totalPlays', 'Plays')}</Typography>
-            </Box>
-
-            {/* Rows */}
-            {diversity.map((u, idx) => (
-              <Box
-                key={u.userId}
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '40px 1fr 2fr 80px 80px',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  px: 1.5,
-                  py: 1,
-                  borderRadius: 1,
-                  transition: 'background-color 0.15s',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.06),
-                  },
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 700 }} color="text.secondary">
-                  {idx + 1}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-                  {u.userName}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={Math.round((u.diversityScore ?? 0) * 100)}
-                    sx={{
-                      flex: 1,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                      '& .MuiLinearProgress-bar': { borderRadius: 4 },
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 36, textAlign: 'right' }}>
-                    {Math.round((u.diversityScore ?? 0) * 100)}%
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ textAlign: 'right' }}>
-                  {u.uniqueGenres ?? 0}
-                </Typography>
-                <Typography variant="body2" sx={{ textAlign: 'right' }}>
-                  {u.totalPlays ?? 0}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
-      </Paper>
     </>
   )
 }
