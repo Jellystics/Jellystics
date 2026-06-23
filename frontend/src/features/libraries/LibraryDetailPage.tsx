@@ -30,9 +30,7 @@ import { formatTicks, formatDuration } from '@/shared/utils/formatTicks'
 import { formatSize } from '@/shared/utils/formatSize'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import { getDateLocale } from '@/lib/dateLocale'
-
-const COLORS = ['#60a5fa', '#34d399', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#38bdf8', '#4ade80']
-const CHART_BAR = '#60a5fa'
+import { useChartColors } from '@/lib/chartColors'
 
 type Track = MusicTrack
 type Album = MusicAlbum
@@ -243,6 +241,7 @@ function GenreDistributionCard({ genres, loading, t }: {
   loading: boolean
   t: (k: string, fb?: string) => string
 }) {
+  const COLORS = useChartColors()
   const [pieLimit, setPieLimit] = useState<number>(8)
 
   const pieGenres = genres.slice(0, pieLimit)
@@ -860,6 +859,8 @@ export default function LibraryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const CHART_COLORS = useChartColors()
+  const CHART_BAR = CHART_COLORS[0]
   const [searchParams, setSearchParams] = useSearchParams()
 
   // view ↔ tab index mappings
@@ -1337,8 +1338,8 @@ export default function LibraryDetailPage() {
               const totalTranscodes = playMethodStats.reduce((sum, s) => sum + (s.Transcodes ?? 0), 0)
               const totalDirectPlays = playMethodStats.reduce((sum, s) => sum + (s.DirectPlays ?? 0), 0)
               const pieData = [
-                { id: 0, value: totalTranscodes, label: t('activity.transcodes', 'Transcodes'), color: COLORS[0] },
-                { id: 1, value: totalDirectPlays, label: t('activity.directPlays', 'Direct Plays'), color: COLORS[1] },
+                { id: 0, value: totalTranscodes, label: t('activity.transcodes', 'Transcodes'), color: CHART_COLORS[0] },
+                { id: 1, value: totalDirectPlays, label: t('activity.directPlays', 'Direct Plays'), color: CHART_COLORS[1] },
               ].filter((d) => d.value > 0)
               return (
                 <ChartCard title={t('library.playMethod', 'Méthode de lecture')} loading={loading} empty={pieData.length === 0} height={240}>
@@ -1497,8 +1498,8 @@ export default function LibraryDetailPage() {
                       <PieChart
                         series={[{
                           data: [
-                            { id: 0, value: unwatchedContent.summary.totalItems - unwatchedContent.summary.unwatchedItems, label: t('library.watched', 'Watched'), color: COLORS[1] },
-                            { id: 1, value: unwatchedContent.summary.unwatchedItems, label: t('library.unwatched', 'Unwatched'), color: COLORS[0] },
+                            { id: 0, value: unwatchedContent.summary.totalItems - unwatchedContent.summary.unwatchedItems, label: t('library.watched', 'Watched'), color: CHART_COLORS[1] },
+                            { id: 1, value: unwatchedContent.summary.unwatchedItems, label: t('library.unwatched', 'Unwatched'), color: CHART_COLORS[0] },
                           ].filter((d) => d.value > 0),
                           innerRadius: 35,
                           outerRadius: 80,
