@@ -2,7 +2,8 @@ export interface Activity {
   Id: string
   UserId: string
   UserName: string
-  ItemId: string
+  ItemId: string | null
+  NowPlayingItemId?: string | null
   NowPlayingItemName: string
   SeriesName?: string
   SeasonId?: string

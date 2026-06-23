@@ -31,6 +31,7 @@ import { formatSize } from '@/shared/utils/formatSize'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import { getDateLocale } from '@/lib/dateLocale'
 import { useChartColors } from '@/lib/chartColors'
+import { getActivityImageUrl } from '@/shared/utils/activityImage'
 
 type Track = MusicTrack
 type Album = MusicAlbum
@@ -741,8 +742,7 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
       cell: (info) => {
         const row = info.row.original
         const label = row.SeriesName ? `${row.SeriesName} — ${row.NowPlayingItemName}` : row.NowPlayingItemName
-        // For music tracks, ItemId has no artwork — use ParentId (AlbumId) as fallback
-        const imgId = row.ParentId ?? row.ItemId
+        const imgUrl = getActivityImageUrl(row, 80)
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box
@@ -752,21 +752,16 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
               }}
             >
               <VideoClip24Regular style={{ fontSize: 14, opacity: 0.4, position: 'absolute' }} />
-              <Box
-                component="img"
-                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(imgId)}&fillWidth=80&quality=80`}
-                alt={row.NowPlayingItemName}
-                loading="lazy"
-                onError={(e) => {
-                  // If ParentId image also fails, try ItemId directly
-                  if (row.ParentId && e.currentTarget.src.includes(encodeURIComponent(row.ParentId))) {
-                    e.currentTarget.src = `/proxy/Items/Images/Primary/?id=${encodeURIComponent(row.ItemId)}&fillWidth=80&quality=80`
-                  } else {
-                    e.currentTarget.style.display = 'none'
-                  }
-                }}
-                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+              {imgUrl && (
+                <Box
+                  component="img"
+                  src={imgUrl}
+                  alt={row.NowPlayingItemName}
+                  loading="lazy"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              )}
             </Box>
             <Typography variant="body2" noWrap title={label}>{label}</Typography>
           </Box>
