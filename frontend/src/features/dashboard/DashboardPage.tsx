@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Grid, Alert, Box } from '@mui/material'
 import {
@@ -20,6 +20,7 @@ import ActivityChart from './components/ActivityChart'
 import TopContent from './components/TopContent'
 import TopUsers from './components/TopUsers'
 import { useDashboard } from './hooks/useDashboard'
+import { useFetchWithDays } from './hooks/useFetchWithDays'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import api from '@/lib/axios'
 import { useChartColors } from '@/lib/chartColors'
@@ -41,113 +42,41 @@ export default function DashboardPage() {
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
 
   // ── Plays by hour ─────────────────────────────────────────────────────────
-  const [hourDays, setHourDays] = useState(30)
-  const [hourlyStats, setHourlyStats] = useState<HourStat[]>([])
-  const [hourLoading, setHourLoading] = useState(true)
-  useEffect(() => {
-    setHourLoading(true)
-    api.get(`/stats/getPopularHourOfDay?days=${hourDays}`)
-      .then(r => setHourlyStats(r.data ?? []))
-      .catch(() => setHourlyStats([]))
-      .finally(() => setHourLoading(false))
-  }, [hourDays])
+  const { data: hourlyStats, loading: hourLoading, days: hourDays, setDays: setHourDays } =
+    useFetchWithDays<HourStat>((d) => api.get(`/stats/getPopularHourOfDay?days=${d}`).then((r) => r.data))
 
   // ── Plays by day of week ──────────────────────────────────────────────────
-  const [dayDays, setDayDays] = useState(30)
-  const [weeklyStats, setWeeklyStats] = useState<DayStat[]>([])
-  const [dayLoading, setDayLoading] = useState(true)
-  useEffect(() => {
-    setDayLoading(true)
-    api.get(`/stats/getPopularDayOfWeek?days=${dayDays}`)
-      .then(r => setWeeklyStats(r.data ?? []))
-      .catch(() => setWeeklyStats([]))
-      .finally(() => setDayLoading(false))
-  }, [dayDays])
+  const { data: weeklyStats, loading: dayLoading, days: dayDays, setDays: setDayDays } =
+    useFetchWithDays<DayStat>((d) => api.get(`/stats/getPopularDayOfWeek?days=${d}`).then((r) => r.data))
 
   // ── Playback methods ──────────────────────────────────────────────────────
-  const [methodDays, setMethodDays] = useState(30)
-  const [playbackMethods, setPlaybackMethods] = useState<PlaybackMethod[]>([])
-  const [methodLoading, setMethodLoading] = useState(true)
-  useEffect(() => {
-    setMethodLoading(true)
-    api.get(`/stats/getMostUsedPlaybackMethod?days=${methodDays}`)
-      .then(r => setPlaybackMethods(r.data ?? []))
-      .catch(() => setPlaybackMethods([]))
-      .finally(() => setMethodLoading(false))
-  }, [methodDays])
+  const { data: playbackMethods, loading: methodLoading, days: methodDays, setDays: setMethodDays } =
+    useFetchWithDays<PlaybackMethod>((d) => api.get(`/stats/getMostUsedPlaybackMethod?days=${d}`).then((r) => r.data))
 
   // ── Top clients ───────────────────────────────────────────────────────────
-  const [clientDays, setClientDays] = useState(30)
-  const [topClients, setTopClients] = useState<ClientStat[]>([])
-  const [clientLoading, setClientLoading] = useState(true)
-  useEffect(() => {
-    setClientLoading(true)
-    api.get(`/stats/getMostUsedClients?days=${clientDays}`)
-      .then(r => setTopClients(r.data ?? []))
-      .catch(() => setTopClients([]))
-      .finally(() => setClientLoading(false))
-  }, [clientDays])
+  const { data: topClients, loading: clientLoading, days: clientDays, setDays: setClientDays } =
+    useFetchWithDays<ClientStat>((d) => api.get(`/stats/getMostUsedClients?days=${d}`).then((r) => r.data))
 
   // ── Top items ─────────────────────────────────────────────────────────────
-  const [topItemsDays, setTopItemsDays] = useState(30)
-  const [topItems, setTopItems] = useState<TopItem[]>([])
-  const [topItemsLoading, setTopItemsLoading] = useState(true)
-  useEffect(() => {
-    setTopItemsLoading(true)
-    api.get(`/stats/getMostPlayedItems?limit=20&days=${topItemsDays}`)
-      .then(r => setTopItems(r.data ?? []))
-      .catch(() => setTopItems([]))
-      .finally(() => setTopItemsLoading(false))
-  }, [topItemsDays])
+  const { data: topItems, loading: topItemsLoading, days: topItemsDays, setDays: setTopItemsDays } =
+    useFetchWithDays<TopItem>((d) => api.get(`/stats/getMostPlayedItems?limit=20&days=${d}`).then((r) => r.data))
 
   // ── Top users ─────────────────────────────────────────────────────────────
-  const [topUsersDays, setTopUsersDays] = useState(30)
-  const [topUsers, setTopUsers] = useState<TopUser[]>([])
-  const [topUsersLoading, setTopUsersLoading] = useState(true)
-  useEffect(() => {
-    setTopUsersLoading(true)
-    api.get(`/stats/getMostActiveUsers?limit=5&days=${topUsersDays}`)
-      .then(r => setTopUsers(r.data ?? []))
-      .catch(() => setTopUsers([]))
-      .finally(() => setTopUsersLoading(false))
-  }, [topUsersDays])
+  const { data: topUsers, loading: topUsersLoading, days: topUsersDays, setDays: setTopUsersDays } =
+    useFetchWithDays<TopUser>((d) => api.get(`/stats/getMostActiveUsers?limit=5&days=${d}`).then((r) => r.data))
 
   // ── Most viewed libraries ─────────────────────────────────────────────────
-  const [libsDays, setLibsDays] = useState(30)
-  const [mostViewedLibraries, setMostViewedLibraries] = useState<LibraryViewCount[]>([])
-  const [libsLoading, setLibsLoading] = useState(true)
-  useEffect(() => {
-    setLibsLoading(true)
-    api.post('/stats/getMostViewedLibraries', { days: libsDays })
-      .then(r => setMostViewedLibraries(r.data ?? []))
-      .catch(() => setMostViewedLibraries([]))
-      .finally(() => setLibsLoading(false))
-  }, [libsDays])
+  const { data: mostViewedLibraries, loading: libsLoading, days: libsDays, setDays: setLibsDays } =
+    useFetchWithDays<LibraryViewCount>((d) => api.post('/stats/getMostViewedLibraries', { days: d }).then((r) => r.data))
 
   // ── All playbacks scatter (one point per play) ───────────────────────────
   type PlaybackScatterPoint = { ts: string; duration: number; name: string; type: string }
-  const [scatterDays, setScatterDays] = useState(30)
-  const [scatterData, setScatterData] = useState<PlaybackScatterPoint[]>([])
-  const [scatterLoading, setScatterLoading] = useState(true)
-  useEffect(() => {
-    setScatterLoading(true)
-    api.get(`/stats/getPlaybacksScatter?days=${scatterDays}`)
-      .then(r => setScatterData(r.data ?? []))
-      .catch(() => setScatterData([]))
-      .finally(() => setScatterLoading(false))
-  }, [scatterDays])
+  const { data: scatterData, loading: scatterLoading, days: scatterDays, setDays: setScatterDays } =
+    useFetchWithDays<PlaybackScatterPoint>((d) => api.get(`/stats/getPlaybacksScatter?days=${d}`).then((r) => r.data))
 
   // ── Playbacks over time by library ────────────────────────────────────────
-  const [libraryDays, setLibraryDays] = useState(30)
-  const [libraryOverTime, setLibraryOverTime] = useState<LibraryDayPoint[]>([])
-  const [libraryOverTimeLoading, setLibraryOverTimeLoading] = useState(true)
-  useEffect(() => {
-    setLibraryOverTimeLoading(true)
-    api.get(`/stats/getPlaybacksByLibraryOverTime?days=${libraryDays}`)
-      .then(r => setLibraryOverTime(r.data ?? []))
-      .catch(() => setLibraryOverTime([]))
-      .finally(() => setLibraryOverTimeLoading(false))
-  }, [libraryDays])
+  const { data: libraryOverTime, loading: libraryOverTimeLoading, days: libraryDays, setDays: setLibraryDays } =
+    useFetchWithDays<LibraryDayPoint>((d) => api.get(`/stats/getPlaybacksByLibraryOverTime?days=${d}`).then((r) => r.data))
 
   // ── Stable data (no per-chart time range) ────────────────────────────────
   const { globalStats, sessions, viewsByLibraryType, loading, error, refetch } = useDashboard()
