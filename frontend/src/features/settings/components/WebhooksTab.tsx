@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import {
   Box, Card, CardContent, Button, Typography, List, ListItem,
   ListItemText, ListItemSecondaryAction, IconButton, TextField,
-  Dialog, DialogTitle, DialogContent, DialogActions, Skeleton, Chip,
+  Dialog, DialogTitle, DialogContent, DialogActions, Chip,
 } from '@mui/material'
+import SkeletonList from '@/shared/components/SkeletonList/SkeletonList'
 import { Delete24Regular, Add24Regular } from '@fluentui/react-icons'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -83,7 +84,7 @@ export default function WebhooksTab() {
           </Box>
 
           {loading ? (
-            Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={52} sx={{ mb: 1, borderRadius: 1 }} />)
+            <SkeletonList count={2} height={52} />
           ) : webhooks.length === 0 ? (
             <Typography variant="body2" color="text.secondary">{t('settings.noWebhooks')}</Typography>
           ) : (

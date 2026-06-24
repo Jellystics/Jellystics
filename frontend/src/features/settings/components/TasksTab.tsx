@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Button, Typography, Chip,
-  List, ListItem, ListItemText, Skeleton,
+  List, ListItem, ListItemText,
   Alert, LinearProgress, TextField, InputAdornment, Tooltip, Switch, FormControlLabel,
 } from '@mui/material'
+import SkeletonList from '@/shared/components/SkeletonList/SkeletonList'
 import { ArrowUpload24Regular, Document24Regular, ArrowClockwise24Regular, CheckmarkCircle24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
@@ -166,7 +167,7 @@ export default function TasksTab() {
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>{t('settings.scheduledTasks')}</Typography>
           {loading ? (
-            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="rectangular" height={80} sx={{ mb: 1, borderRadius: 1 }} />)
+            <SkeletonList count={4} height={80} />
           ) : (
             <List disablePadding>
               {tasks.map((task) => {

@@ -7,6 +7,7 @@ import {
   TablePagination, ToggleButtonGroup, ToggleButton,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
+import SkeletonList from '@/shared/components/SkeletonList/SkeletonList'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
@@ -1355,7 +1356,7 @@ export default function LibraryDetailPage() {
                   {t('library.lastPlayed', 'Derniers lus')}
                 </Typography>
                 {loading
-                  ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+                  ? <SkeletonList count={6} variant="text" spacing={0.5} />
                   : lastPlayed.length === 0
                     ? <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>{t('common.noData')}</Typography>
                     : (
@@ -1390,7 +1391,7 @@ export default function LibraryDetailPage() {
                   {t('library.timeToWatch', 'Time to Watch')}
                 </Typography>
                 {timeToWatchLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+                  <SkeletonList count={4} variant="text" spacing={0.5} />
                 ) : !timeToWatch ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>{t('common.noData')}</Typography>
                 ) : (
@@ -1473,7 +1474,7 @@ export default function LibraryDetailPage() {
                   {t('library.unwatchedContent', 'Unwatched Content')}
                 </Typography>
                 {unwatchedLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="text" sx={{ mb: 0.5 }} />)
+                  <SkeletonList count={4} variant="text" spacing={0.5} />
                 ) : !unwatchedContent ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>{t('common.noData')}</Typography>
                 ) : (
