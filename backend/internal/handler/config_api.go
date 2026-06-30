@@ -93,6 +93,7 @@ func (h *ConfigApiHandler) GetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"JF_HOST":  jfHost,
 		"settings": settings,
+		"app_url":  cfg.AppUrl,
 	})
 }
 
@@ -102,6 +103,7 @@ func (h *ConfigApiHandler) SetConfig(c *gin.Context) {
 		JFHost          string `json:"JF_HOST"`
 		JFApiKey        string `json:"JF_API_KEY"`
 		KeepLogsForDays *int   `json:"KeepLogsForDays"`
+		AppUrl          string `json:"app_url"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -120,6 +122,9 @@ func (h *ConfigApiHandler) SetConfig(c *gin.Context) {
 	if body.JFApiKey != "" {
 		cfg.JFApiKey = &body.JFApiKey
 	}
+	// app_url is always updated (even to empty string, to allow clearing it)
+	cfg.AppUrl = body.AppUrl
+
 	if body.KeepLogsForDays != nil {
 		var settings map[string]interface{}
 		if len(cfg.Settings) > 0 {
@@ -199,6 +204,7 @@ func (h *ConfigApiHandler) CreateKey(c *gin.Context) {
 		return
 	}
 	h.writeLog(c.Request.Context(), "Create API Key", "success", fmt.Sprintf("API key %q created", body.Name))
+	go h.svcs.Webhook.Fire(context.Background(), "api_key_created", map[string]any{"name": body.Name})
 	c.JSON(http.StatusOK, newKey)
 }
 
@@ -248,6 +254,7 @@ func (h *ConfigApiHandler) DeleteKey(c *gin.Context) {
 		}
 	}
 	h.writeLog(c.Request.Context(), "Delete API Key", "success", fmt.Sprintf("API key %q deleted", deletedName))
+	go h.svcs.Webhook.Fire(context.Background(), "api_key_deleted", map[string]any{"name": deletedName})
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 

@@ -25,7 +25,8 @@ import { useLogo } from '@/lib/FaviconContext'
 
 const schema = z.object({
   JellyfinUrl: z.string().url(),
-  ApiKey: z.string().min(1),
+  ApiKey: z.string(),
+  AppUrl: z.string(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -383,13 +384,14 @@ export default function ConfigTab() {
       reset({
         JellyfinUrl: data.JF_HOST ?? '',
         ApiKey: '',
+        AppUrl: data.app_url ?? '',
       })
     }).catch(() => {})
   }, [reset])
 
   const onSubmit = async (data: FormData) => {
     try {
-      await api.post('/api/setconfig', { JF_HOST: data.JellyfinUrl, JF_API_KEY: data.ApiKey })
+      await api.post('/api/setconfig', { JF_HOST: data.JellyfinUrl, JF_API_KEY: data.ApiKey, app_url: data.AppUrl })
       enqueueSnackbar(t('settings.configSaved'), { variant: 'success' })
     } catch {
       enqueueSnackbar(t('common.saveError'), { variant: 'error' })
@@ -441,6 +443,24 @@ export default function ConfigTab() {
                     size="small"
                     error={!!errors.ApiKey}
                     helperText={errors.ApiKey?.message}
+                  />
+                </Box>
+              )}
+            />
+            <Controller
+              name="AppUrl"
+              control={control}
+              render={({ field }) => (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                    Public Jellystics URL
+                  </Typography>
+                  <TextField
+                    {...field}
+                    placeholder="https://jellystics.example.com"
+                    fullWidth
+                    size="small"
+                    helperText="Used as the default bot avatar in Discord notifications"
                   />
                 </Box>
               )}

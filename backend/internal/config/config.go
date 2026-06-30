@@ -38,8 +38,8 @@ func Load() (*Config, error) {
 		Port:      getEnv("PORT", "3000"),
 		DBUrl:     dbUrl,
 		JWTSecret: secret,
-		JFHost:    os.Getenv("JF_HOST"),
-		JFApiKey:  os.Getenv("JF_API_KEY"),
+		JFHost:   os.Getenv("JF_HOST"),
+		JFApiKey: os.Getenv("JF_API_KEY"),
 	}, nil
 }
 

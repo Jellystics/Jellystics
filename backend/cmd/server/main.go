@@ -49,13 +49,18 @@ func main() {
 	syncSvc := syncsvc.New(repos, jfClient, hub)
 	taskSvc := tasksvc.New(repos, hub)
 
+	webhookSvc := webhooksvc.New(repos)
 	svcs := &service.Container{
 		Auth:    authsvc.New(repos, jfClient, cfg),
 		Sync:    syncSvc,
 		Stats:   statssvc.New(repos),
 		Task:    taskSvc,
-		Webhook: webhooksvc.New(repos),
+		Webhook: webhookSvc,
 	}
+
+	taskSvc.SetFireFunc(func(ctx context.Context, eventType string, data map[string]any) {
+		webhookSvc.Fire(ctx, eventType, data)
+	})
 
 	// Cron scheduler: dispatches tasks based on cron expressions stored in app_config.
 	dispatch := func(ctx context.Context, name string) error {
