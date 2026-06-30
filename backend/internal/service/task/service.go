@@ -20,12 +20,17 @@ const (
 	StatusRunning Status = "running"
 )
 
+// FireFunc is a callback that fires a webhook event. Set via SetFireFunc to
+// avoid circular service dependencies.
+type FireFunc func(ctx context.Context, eventType string, data map[string]any)
+
 // Service manages background tasks (full sync, session watchdog, etc.)
 type Service struct {
 	repos  *repository.Container
 	hub    *ws.Hub
 	mu     sync.Mutex
 	status Status
+	fireFn FireFunc
 }
 
 func New(repos *repository.Container, hub *ws.Hub) *Service {
@@ -34,6 +39,11 @@ func New(repos *repository.Container, hub *ws.Hub) *Service {
 		hub:    hub,
 		status: StatusIdle,
 	}
+}
+
+// SetFireFunc wires the webhook fire callback after all services are initialised.
+func (s *Service) SetFireFunc(fn FireFunc) {
+	s.fireFn = fn
 }
 
 func (s *Service) Status() Status {
@@ -54,6 +64,12 @@ func (s *Service) log(format string, args ...any) {
 	s.hub.Emit("TaskLog", msg)
 }
 
+func (s *Service) fireEvent(ctx context.Context, eventType string, data map[string]any) {
+	if s.fireFn != nil {
+		go s.fireFn(ctx, eventType, data)
+	}
+}
+
 // Run executes fn if no other task is running.
 // It inserts a jf_logging entry on start and updates it on completion (matching old Node.js behaviour).
 func (s *Service) Run(ctx context.Context, name string, fn func(context.Context) error) error {
@@ -66,6 +82,7 @@ func (s *Service) Run(ctx context.Context, name string, fn func(context.Context)
 	s.mu.Unlock()
 
 	s.log("[%s] Task started", name)
+	s.fireEvent(ctx, "task_start", map[string]any{"name": name})
 
 	// Insert start log entry into jf_logging.
 	logID := uuid.New().String()
@@ -117,12 +134,26 @@ func (s *Service) Run(ctx context.Context, name string, fn func(context.Context)
 	}
 	_ = s.repos.Log.Upsert(ctx, finalEntry)
 
+	// Fire webhook events.
+	eventData := map[string]any{
+		"name":     name,
+		"duration": fmt.Sprintf("%dms", elapsed.Milliseconds()),
+	}
+	if err != nil {
+		s.fireEvent(ctx, "task_failed", eventData)
+	} else {
+		s.fireEvent(ctx, "task_complete", eventData)
+		if name == "Backup" {
+			s.fireEvent(ctx, "backup_complete", map[string]any{"task": name})
+		}
+	}
+
 	// Emit task-specific event so the frontend SocketNotifier can show toast notifications.
 	taskEventNames := map[string]string{
-		"Full Jellyfin Sync":                          "FullSyncTask",
-		"Recently Added Sync":                         "PartialSyncTask",
-		"Backup":                                      "BackupTask",
-		"Jellyfin Playback Reporting Plugin Sync":     "PlaybackSyncTask",
+		"Full Jellyfin Sync":                      "FullSyncTask",
+		"Recently Added Sync":                     "PartialSyncTask",
+		"Backup":                                  "BackupTask",
+		"Jellyfin Playback Reporting Plugin Sync": "PlaybackSyncTask",
 	}
 	if eventName, ok := taskEventNames[name]; ok {
 		if err != nil {

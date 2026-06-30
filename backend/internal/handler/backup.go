@@ -15,6 +15,7 @@ import (
 
 	"github.com/Jellystics/Jellystics/internal/database/models"
 	"github.com/Jellystics/Jellystics/internal/repository"
+	"github.com/Jellystics/Jellystics/internal/service"
 	"github.com/Jellystics/Jellystics/internal/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -27,11 +28,12 @@ const importDir = "./data/imports"
 type BackupHandler struct {
 	repos *repository.Container
 	hub   *ws.Hub
+	svcs  *service.Container
 }
 
-func NewBackupHandler(repos *repository.Container, hub *ws.Hub) *BackupHandler {
+func NewBackupHandler(repos *repository.Container, hub *ws.Hub, svcs *service.Container) *BackupHandler {
 	_ = os.MkdirAll(backupDir, 0755)
-	return &BackupHandler{repos: repos, hub: hub}
+	return &BackupHandler{repos: repos, hub: hub, svcs: svcs}
 }
 
 func (h *BackupHandler) emitLog(msg string) {
@@ -127,6 +129,7 @@ func (h *BackupHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	go h.svcs.Webhook.Fire(context.Background(), "backup_complete", map[string]any{"file": name})
 	c.JSON(http.StatusOK, gin.H{"name": name, "message": "Backup completed successfully"})
 }
 
