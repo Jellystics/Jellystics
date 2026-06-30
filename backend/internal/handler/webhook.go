@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jellystics/Jellystics/internal/database/models"
 	"github.com/Jellystics/Jellystics/internal/service"
+	webhooksvc "github.com/Jellystics/Jellystics/internal/service/webhook"
 	"github.com/gin-gonic/gin"
 )
 
@@ -89,69 +90,7 @@ func (h *WebhookHandler) Test(c *gin.Context) {
 		return
 	}
 
-	var testPayload map[string]any
-	_ = c.ShouldBindJSON(&testPayload)
-	if testPayload == nil {
-		testPayload = map[string]any{}
-	}
-
-	// Build trigger-specific test data (mirrors old JS webhook test logic).
-	var payload any
-	isDiscord := isDiscordURL(wh.Url)
-
-	if isDiscord {
-		payload = map[string]any{
-			"content": "Test webhook from Jellystics",
-			"embeds": []any{map[string]any{
-				"title":       "Discord test notification",
-				"description": "This is a test notification of the Jellystics Discord webhook",
-				"color":       3447003,
-				"fields": []any{
-					map[string]any{"name": "Webhook type", "value": wh.TriggerType, "inline": true},
-					map[string]any{"name": "ID", "value": strconv.Itoa(wh.Id), "inline": true},
-				},
-				"timestamp": time.Now().UTC().Format(time.RFC3339),
-			}},
-		}
-	} else if wh.TriggerType == "event" && wh.EventType != nil {
-		switch *wh.EventType {
-		case "playback_started":
-			payload = map[string]any{
-				"event":       "playback_started",
-				"triggeredAt": time.Now().UTC().Format(time.RFC3339),
-				"sessionInfo": map[string]any{
-					"userId": "test-user-id", "deviceName": "Test Device",
-					"clientName": "Test Client", "mediaType": "Movie", "mediaName": "Test Movie",
-					"startTime": time.Now().UTC().Format(time.RFC3339),
-				},
-			}
-		case "playback_ended":
-			payload = map[string]any{
-				"event":       "playback_ended",
-				"triggeredAt": time.Now().UTC().Format(time.RFC3339),
-				"sessionInfo": map[string]any{
-					"userId": "test-user-id", "deviceName": "Test Device",
-					"mediaName": "Test Movie", "playbackDuration": 3600,
-				},
-			}
-		case "media_recently_added":
-			payload = map[string]any{
-				"event":       "media_recently_added",
-				"triggeredAt": time.Now().UTC().Format(time.RFC3339),
-				"mediaItem": map[string]any{
-					"id": "test-item-id", "name": "Test Media", "type": "Movie",
-					"addedDate": time.Now().UTC().Format(time.RFC3339),
-				},
-			}
-		default:
-			payload = map[string]any{"event": *wh.EventType, "triggeredAt": time.Now().UTC().Format(time.RFC3339)}
-		}
-	} else {
-		payload = map[string]any{
-			"event":       "test",
-			"triggeredAt": time.Now().UTC().Format(time.RFC3339),
-		}
-	}
+	payload := h.svcs.Webhook.BuildTestPayload(c.Request.Context(), wh)
 
 	if err := fireWebhookHTTP(c.Request.Context(), wh, payload); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while executing webhook: " + err.Error()})
@@ -205,7 +144,7 @@ func (h *WebhookHandler) EventStatus(c *gin.Context) {
 		return
 	}
 
-	eventTypes := []string{"playback_started", "playback_ended", "media_recently_added"}
+	eventTypes := webhooksvc.AllEventTypes
 	result := map[string]any{}
 
 	for _, et := range eventTypes {
@@ -239,10 +178,9 @@ func (h *WebhookHandler) EventStatus(c *gin.Context) {
 // Enables or disables all webhooks of a specific event type.
 func (h *WebhookHandler) ToggleEvent(c *gin.Context) {
 	eventType := c.Param("eventType")
-	validTypes := map[string]bool{
-		"playback_started":     true,
-		"playback_ended":       true,
-		"media_recently_added": true,
+	validTypes := make(map[string]bool, len(webhooksvc.AllEventTypes))
+	for _, t := range webhooksvc.AllEventTypes {
+		validTypes[t] = true
 	}
 	if !validTypes[eventType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event type"})

@@ -16,6 +16,7 @@ type AppConfig struct {
 	RequireLogin  bool           `gorm:"column:REQUIRE_LOGIN;not null;default:false"`
 	Settings      datatypes.JSON `gorm:"column:settings;not null;default:'{}'"`
 	ApiKeys       datatypes.JSON `gorm:"column:api_keys;not null;default:'[]'"`
+	AppUrl        string         `gorm:"column:app_url;not null;default:''"`
 }
 
 func (AppConfig) TableName() string { return "app_config" }
@@ -261,21 +262,24 @@ func (JFLogging) TableName() string { return "jf_logging" }
 
 // Webhook mirrors the webhooks table.
 type Webhook struct {
-	Id              int            `gorm:"column:id;primaryKey;autoIncrement"`
-	Name            string         `gorm:"column:name;not null"`
-	Url             string         `gorm:"column:url;not null"`
-	Method          string         `gorm:"column:method;default:POST"`
-	TriggerType     string         `gorm:"column:trigger_type;not null"`
-	EventType       *string        `gorm:"column:event_type"`
-	Schedule        *string        `gorm:"column:schedule"`
-	Enabled         bool           `gorm:"column:enabled;default:true"`
-	Headers         datatypes.JSON `gorm:"column:headers;default:'{}'"`
-	Payload         datatypes.JSON `gorm:"column:payload;default:'{}'"`
-	RetryOnFailure  bool           `gorm:"column:retry_on_failure;default:false"`
-	MaxRetries      int            `gorm:"column:max_retries;default:3"`
-	LastTriggered   *time.Time     `gorm:"column:last_triggered"`
-	CreatedAt       time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	Id             int            `gorm:"column:id;primaryKey;autoIncrement"                    json:"id"`
+	Name           string         `gorm:"column:name;not null"                                  json:"name"`
+	Url            string         `gorm:"column:url;not null"                                   json:"url"`
+	Method         string         `gorm:"column:method;default:POST"                            json:"method"`
+	TriggerType    string         `gorm:"column:trigger_type;not null"                          json:"trigger_type"`
+	EventType      *string        `gorm:"column:event_type"                                     json:"event_type"`
+	Schedule       *string        `gorm:"column:schedule"                                       json:"schedule"`
+	Enabled        bool           `gorm:"column:enabled;default:true"                           json:"enabled"`
+	Headers        datatypes.JSON `gorm:"column:headers;default:'{}'"                         json:"headers"`
+	Payload        datatypes.JSON `gorm:"column:payload;default:'{}'"                         json:"payload"`
+	RetryOnFailure bool           `gorm:"column:retry_on_failure;default:false"                 json:"retry_on_failure"`
+	MaxRetries     int            `gorm:"column:max_retries;default:3"                          json:"max_retries"`
+	LastTriggered  *time.Time     `gorm:"column:last_triggered"                                 json:"last_triggered"`
+	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime"                      json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime"                      json:"updated_at"`
+	BotUsername    string         `gorm:"column:bot_username;not null;default:jellystics_bot"   json:"bot_username"`
+	BotAvatarUrl   string         `gorm:"column:bot_avatar_url;not null;default:''"           json:"bot_avatar_url"`
+	DiscordEvents  datatypes.JSON `gorm:"column:discord_events;not null;default:'[]'"         json:"discord_events"`
 }
 
 func (Webhook) TableName() string { return "webhooks" }

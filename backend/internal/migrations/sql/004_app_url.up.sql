@@ -1,0 +1,2 @@
+ALTER TABLE app_config
+  ADD COLUMN IF NOT EXISTS app_url text NOT NULL DEFAULT '';
