@@ -274,6 +274,30 @@ func (h *AdminApiHandler) GetItemDetails(c *gin.Context) {
 		return
 	}
 
+	// 4. Try jf_music_tracks
+	var tracks []map[string]interface{}
+	h.db.Raw(`
+		SELECT
+			t.*,
+			t.archived,
+			i."PrimaryImageHash",
+			i."ParentId",
+			(SELECT "Name" FROM jf_libraries l WHERE l."Id" = t."LibraryId") AS "LibraryName"
+		FROM jf_music_tracks t
+		LEFT JOIN jf_library_items i ON i."Id" = t."AlbumId"
+		WHERE t."Id" = ?`, id).Scan(&tracks)
+
+	if len(tracks) > 0 {
+		stats := queryStats(`"EpisodeId" = ?`, id)
+		for i := range tracks {
+			tracks[i]["LastActivityDate"] = stats.LastActivityDate
+			tracks[i]["times_played"] = stats.TimesPlayed
+			tracks[i]["total_play_time"] = stats.TotalPlayTime
+		}
+		c.JSON(http.StatusOK, tracks)
+		return
+	}
+
 	c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
 }
 
@@ -680,7 +704,9 @@ func buildHistoryWhere(params historyQueryParams, extraWhere string, extraArgs [
 		clauses = append(clauses, `LOWER(
 			CASE
 				WHEN a."SeriesName" IS NULL THEN a."NowPlayingItemName"
-				ELSE CONCAT(a."SeriesName", ' : S', a."SeasonNumber", 'E', a."EpisodeNumber", ' - ', a."NowPlayingItemName")
+				WHEN a."SeasonNumber" IS NOT NULL AND a."EpisodeNumber" IS NOT NULL
+					THEN CONCAT(a."SeriesName", ' : S', a."SeasonNumber", 'E', a."EpisodeNumber", ' - ', a."NowPlayingItemName")
+				ELSE CONCAT(a."SeriesName", ' - ', a."NowPlayingItemName")
 			END
 		) LIKE ?`)
 		args = append(args, "%"+strings.ToLower(params.Search)+"%")
@@ -802,7 +828,9 @@ func (h *AdminApiHandler) runHistoryQuery(
 			a."ParentId",
 			CASE
 				WHEN a."SeriesName" IS NULL THEN a."NowPlayingItemName"
-				ELSE CONCAT(a."SeriesName", ' : S', a."SeasonNumber", 'E', a."EpisodeNumber", ' - ', a."NowPlayingItemName")
+				WHEN a."SeasonNumber" IS NOT NULL AND a."EpisodeNumber" IS NOT NULL
+					THEN CONCAT(a."SeriesName", ' : S', a."SeasonNumber", 'E', a."EpisodeNumber", ' - ', a."NowPlayingItemName")
+				ELSE CONCAT(a."SeriesName", ' - ', a."NowPlayingItemName")
 			END AS "FullName"
 		%s
 		ORDER BY %s
@@ -983,14 +1011,15 @@ func (h *AdminApiHandler) GetActivityTimeLine(c *gin.Context) {
 			DATE(a."ActivityDateInserted"::timestamptz) AS date,
 			COUNT(a."Id") AS total_plays,
 			COALESCE(SUM(a."PlaybackDuration"), 0) AS total_time,
-			i."ParentId" AS library_id,
+			COALESCE(i."ParentId", mt."LibraryId") AS library_id,
 			l."Name" AS library_name
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
-		LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"
+		LEFT JOIN jf_libraries l ON l."Id" = COALESCE(i."ParentId", mt."LibraryId")
 		WHERE a."UserId" = ?
-			AND i."ParentId" IN ?
-		GROUP BY DATE(a."ActivityDateInserted"::timestamptz), i."ParentId", l."Name"
+			AND COALESCE(i."ParentId", mt."LibraryId") IN ?
+		GROUP BY DATE(a."ActivityDateInserted"::timestamptz), COALESCE(i."ParentId", mt."LibraryId"), l."Name"
 		ORDER BY date ASC
 	`, body.UserId, body.Libraries).Scan(&rows).Error
 

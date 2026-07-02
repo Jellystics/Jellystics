@@ -189,6 +189,10 @@ type SessionItem struct {
 	SeriesId     *string       `json:"SeriesId"`
 	Container    *string       `json:"Container"`
 	MediaStreams  []MediaStream `json:"MediaStreams"`
+	// Music fields
+	AlbumId      *string       `json:"AlbumId"`
+	AlbumArtist  *string       `json:"AlbumArtist"`
+	Album        *string       `json:"Album"`
 }
 
 type PlayState struct {

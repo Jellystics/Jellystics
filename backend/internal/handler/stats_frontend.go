@@ -121,6 +121,9 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 		if s.NowPlayingItem.SeriesId != nil && *s.NowPlayingItem.SeriesId != "" {
 			itemIds[*s.NowPlayingItem.SeriesId] = struct{}{}
 		}
+		if s.NowPlayingItem.AlbumId != nil && *s.NowPlayingItem.AlbumId != "" {
+			itemIds[*s.NowPlayingItem.AlbumId] = struct{}{}
+		}
 	}
 	ids := make([]string, 0, len(itemIds))
 	for id := range itemIds {
@@ -135,7 +138,11 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 	}
 	var libRows []LibRow
 	if len(ids) > 0 {
-		h.db.Raw(`SELECT "Id", "ParentId", "Type", "Genres" FROM jf_library_items WHERE "Id" IN ?`, ids).Scan(&libRows)
+		h.db.Raw(`
+			SELECT "Id", "ParentId", "Type", "Genres" FROM jf_library_items WHERE "Id" IN ?
+			UNION ALL
+			SELECT "Id", "LibraryId" AS "ParentId", 'Audio' AS "Type", "Genres" FROM jf_music_tracks WHERE "Id" IN ?
+		`, ids, ids).Scan(&libRows)
 	}
 
 	now := time.Now()
@@ -145,6 +152,8 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 		lookupId := item.Id
 		if item.SeriesId != nil && *item.SeriesId != "" {
 			lookupId = *item.SeriesId
+		} else if item.AlbumId != nil && *item.AlbumId != "" {
+			lookupId = *item.AlbumId
 		}
 
 		var libItem *LibRow
@@ -163,6 +172,8 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 		itemType := "Unknown"
 		if item.SeriesId != nil && *item.SeriesId != "" {
 			itemType = "Series"
+		} else if item.AlbumId != nil && *item.AlbumId != "" {
+			itemType = "Audio"
 		} else if libItem != nil {
 			itemType = libItem.Type
 		}
@@ -186,11 +197,15 @@ func (h *StatsFrontendHandler) getLiveActivity(ctx context.Context) []liveSessio
 		episodeId := ""
 		if item.SeriesId != nil && *item.SeriesId != "" {
 			episodeId = item.Id
+		} else if item.AlbumId != nil && *item.AlbumId != "" {
+			episodeId = item.Id
 		}
 
 		itemName := item.Name
 		if item.SeriesName != nil && *item.SeriesName != "" {
 			itemName = *item.SeriesName
+		} else if item.Album != nil && *item.Album != "" {
+			itemName = *item.Album
 		}
 
 		ls := liveSession{
@@ -273,10 +288,12 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		  COUNT(*)::int AS "PlayCount",
 		  CASE
 		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
+		    WHEN mt."Id" IS NOT NULL THEN 'Audio'
 		    ELSE COALESCE(i."Type", 'Unknown')
 		  END AS "Type"
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"
 		WHERE 1=1
 	`
 	baseSQLDays := `
@@ -286,10 +303,12 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		  COUNT(*)::int AS "PlayCount",
 		  CASE
 		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
+		    WHEN mt."Id" IS NOT NULL THEN 'Audio'
 		    ELSE COALESCE(i."Type", 'Unknown')
 		  END AS "Type"
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"
 		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
 	`
 	suffix := ` GROUP BY a."NowPlayingItemId", 2, 4 ORDER BY "PlayCount" DESC LIMIT ?`
@@ -300,7 +319,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		case "Series":
 			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, limit).Scan(&dbItems)
 		case "Audio":
-			h.db.Raw(baseSQL+` AND i."Type" = 'Audio'`+suffix, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND mt."Id" IS NOT NULL`+suffix, limit).Scan(&dbItems)
 		case "Movie":
 			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, limit).Scan(&dbItems)
 		case "all":
@@ -314,7 +333,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		case "Series":
 			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, daysArg, limit).Scan(&dbItems)
 		case "Audio":
-			h.db.Raw(baseSQL+` AND i."Type" = 'Audio'`+suffix, daysArg, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND mt."Id" IS NOT NULL`+suffix, daysArg, limit).Scan(&dbItems)
 		case "Movie":
 			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, daysArg, limit).Scan(&dbItems)
 		case "all":
