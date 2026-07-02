@@ -517,7 +517,7 @@ func (r *webhookRepo) Delete(ctx context.Context, id int) error {
 type statsRepo struct{ db *gorm.DB }
 
 func (r *statsRepo) RefreshViews(ctx context.Context) error {
-	return nil
+	return r.db.WithContext(ctx).Exec(`CALL ju_update_library_stats_data()`).Error
 }
 
 func (r *statsRepo) GetGlobalStats(ctx context.Context) (*GlobalStats, error) {
