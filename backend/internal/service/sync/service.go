@@ -752,22 +752,94 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 			isPaused = sess.PlayState.IsPaused
 		}
 
-		// Preserve accumulated watch time from existing entry.
+		// Preserve accumulated watch time and detect media switches.
 		var watchedSeconds int64
+		var activityId string
+
 		if prev, exists := wdMap[sess.Id]; exists {
-			watchedSeconds = prev.WatchedSeconds
-			if prev.LastTickAt != nil && !isPaused {
-				delta := int64(now.Sub(*prev.LastTickAt).Seconds())
-				if delta > maxTickDelta {
-					delta = maxTickDelta
+			// Detect media switch.
+			prevItemKey := ""
+			if prev.NowPlayingItemId != nil {
+				prevItemKey = *prev.NowPlayingItemId
+			}
+			if prev.EpisodeId != nil {
+				prevItemKey += "|" + *prev.EpisodeId
+			}
+			newItemKey := nowPlayingItemId
+			if episodeId != nil {
+				newItemKey += "|" + *episodeId
+			}
+
+			if prevItemKey != "" && prevItemKey != newItemKey {
+				// Item changed — promote old entry, reset counters.
+				oldDuration := prev.WatchedSeconds
+				if prev.LastTickAt != nil && (prev.IsPaused == nil || !*prev.IsPaused) {
+					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
+					if delta > maxTickDelta {
+						delta = maxTickDelta
+					}
+					if delta > 0 {
+						oldDuration += delta
+					}
 				}
-				if delta > 0 {
-					watchedSeconds += delta
+				if oldDuration >= minPlaybackSeconds {
+					oldActId := prev.Id
+					if prev.ActivityId != nil {
+						oldActId = *prev.ActivityId
+					}
+					_ = s.repos.Playback.Upsert(ctx, []models.JFPlaybackActivity{{
+						Id:                   oldActId,
+						IsPaused:             prev.IsPaused,
+						UserId:               prev.UserId,
+						UserName:             prev.UserName,
+						Client:               prev.Client,
+						DeviceName:           prev.DeviceName,
+						DeviceId:             prev.DeviceId,
+						ApplicationVersion:   prev.ApplicationVersion,
+						NowPlayingItemId:     prev.NowPlayingItemId,
+						NowPlayingItemName:   prev.NowPlayingItemName,
+						EpisodeId:            prev.EpisodeId,
+						SeasonId:             prev.SeasonId,
+						SeriesName:           prev.SeriesName,
+						PlaybackDuration:     &oldDuration,
+						PlayMethod:           prev.PlayMethod,
+						ActivityDateInserted: prev.ActivityDateInserted,
+						MediaStreams:          prev.MediaStreams,
+						TranscodingInfo:      prev.TranscodingInfo,
+						PlayState:            prev.PlayState,
+						OriginalContainer:    prev.OriginalContainer,
+						RemoteEndPoint:       prev.RemoteEndPoint,
+						ServerId:             prev.ServerId,
+						Source:               "watchdog",
+					}})
+				}
+				watchedSeconds = 0
+				activityId = uuid.New().String()
+			} else {
+				// Same item — keep accumulating.
+				watchedSeconds = prev.WatchedSeconds
+				if prev.LastTickAt != nil && !isPaused {
+					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
+					if delta > maxTickDelta {
+						delta = maxTickDelta
+					}
+					if delta > 0 {
+						watchedSeconds += delta
+					}
+				}
+				if prev.ActivityId != nil {
+					activityId = *prev.ActivityId
+				} else {
+					activityId = uuid.New().String()
+				}
+				// Preserve original start time.
+				if prev.ActivityDateInserted != nil {
+					nowStr = *prev.ActivityDateInserted
 				}
 			}
+		} else {
+			activityId = uuid.New().String()
 		}
-
-		activityId := uuid.New().String()
 
 		entry := models.JFActivityWatchdog{
 			Id:                   sess.Id,
