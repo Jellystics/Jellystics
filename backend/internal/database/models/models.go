@@ -224,6 +224,8 @@ type JFActivityWatchdog struct {
 	OriginalContainer    *string        `gorm:"column:OriginalContainer"`
 	RemoteEndPoint       *string        `gorm:"column:RemoteEndPoint"`
 	ServerId             *string        `gorm:"column:ServerId"`
+	WatchedSeconds       int64          `gorm:"column:WatchedSeconds;not null;default:0"`
+	LastTickAt           *time.Time     `gorm:"column:LastTickAt"`
 }
 
 func (JFActivityWatchdog) TableName() string { return "jf_activity_watchdog" }

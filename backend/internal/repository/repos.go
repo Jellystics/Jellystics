@@ -374,6 +374,7 @@ func (r *watchdogRepo) Upsert(ctx context.Context, entries []models.JFActivityWa
 				"EpisodeId", "SeasonId", "SeriesName", "PlaybackDuration", "PlayMethod",
 				"ActivityDateInserted", "MediaStreams", "TranscodingInfo", "PlayState",
 				"OriginalContainer", "RemoteEndPoint", "ServerId",
+				"WatchedSeconds", "LastTickAt",
 			}),
 		}).
 		CreateInBatches(entries, 500).Error
@@ -439,11 +440,11 @@ func (r *pluginDataRepo) MergeIntoPlaybackActivity(ctx context.Context) error {
 			p."ClientName",
 			p."DeviceName",
 			NULL, NULL,
-			COALESCE(e."SeriesId", p."ItemId"),
+			COALESCE(e."SeriesId", mt."AlbumId", p."ItemId"),
 			p."ItemName",
 			e."SeasonId",
-			s."Name",
-			e."Id",
+			COALESCE(s."Name", mt."AlbumName"),
+			CASE WHEN e."Id" IS NOT NULL OR mt."Id" IS NOT NULL THEN p."ItemId" ELSE NULL END,
 			p."PlayDuration",
 			p."DateCreated",
 			p."PlaybackMethod",
@@ -453,6 +454,7 @@ func (r *pluginDataRepo) MergeIntoPlaybackActivity(ctx context.Context) error {
 		LEFT JOIN jf_users u ON u."Id" = p."UserId"
 		LEFT JOIN jf_library_episodes e ON e."Id" = p."ItemId" OR e."EpisodeId" = p."ItemId"
 		LEFT JOIN jf_library_items s ON s."Id" = e."SeriesId"
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = p."ItemId"
 		ON CONFLICT ("Id") DO NOTHING
 	`).Error
 }

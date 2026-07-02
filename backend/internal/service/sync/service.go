@@ -59,11 +59,12 @@ func (s *Service) refreshClient(ctx context.Context) error {
 const (
 	ticksPerSecond     = 10_000_000 // Jellyfin PositionTicks are 100-nanosecond intervals
 	minPlaybackSeconds = 30         // ignore sessions shorter than 30 s
+	maxTickDelta       = 15         // cap per-tick increment to avoid jumps after missed ticks
 )
 
 // SessionTick is called every ~10 s. It:
 //  1. Fetches live Jellyfin sessions and broadcasts them via WebSocket.
-//  2. Upserts active sessions to jf_activity_watchdog.
+//  2. Upserts active sessions to jf_activity_watchdog, accumulating real watch time.
 //  3. Detects sessions that have ended and promotes them to jf_playback_activity.
 func (s *Service) SessionTick(ctx context.Context) {
 	if err := s.refreshClient(ctx); err != nil {
@@ -78,7 +79,18 @@ func (s *Service) SessionTick(ctx context.Context) {
 	// 1. Broadcast to frontend
 	s.hub.Emit("sessions", sessions)
 
+	// Load existing watchdog entries so we can accumulate WatchedSeconds.
+	existingWatchdog, err := s.repos.Watchdog.List(ctx)
+	if err != nil {
+		return
+	}
+	wdMap := make(map[string]models.JFActivityWatchdog, len(existingWatchdog))
+	for _, wd := range existingWatchdog {
+		wdMap[wd.Id] = wd
+	}
+
 	// 2. Build watchdog entries for currently active sessions
+	now := time.Now()
 	liveIDs := make(map[string]struct{}, len(sessions))
 	entries := make([]models.JFActivityWatchdog, 0)
 	for _, sess := range sessions {
@@ -87,15 +99,46 @@ func (s *Service) SessionTick(ctx context.Context) {
 		}
 		liveIDs[sess.Id] = struct{}{}
 
-		activityId := uuid.New().String()
 		nowPlayingItemId := sess.NowPlayingItem.Id
 		var episodeId *string
+		seriesName := sess.NowPlayingItem.SeriesName
+		seasonId := sess.NowPlayingItem.SeasonId
+
 		if sess.NowPlayingItem.SeriesId != nil && *sess.NowPlayingItem.SeriesId != "" {
+			// TV show: parent = series, child = episode
 			nowPlayingItemId = *sess.NowPlayingItem.SeriesId
 			episodeId = &sess.NowPlayingItem.Id
+		} else if sess.NowPlayingItem.AlbumId != nil && *sess.NowPlayingItem.AlbumId != "" {
+			// Music track: parent = album, child = track
+			nowPlayingItemId = *sess.NowPlayingItem.AlbumId
+			episodeId = &sess.NowPlayingItem.Id
+			seriesName = sess.NowPlayingItem.Album
+			seasonId = nil
 		}
 
-		now := time.Now().Format("2006-01-02 15:04:05.000-07:00")
+		isPaused := false
+		if sess.PlayState != nil {
+			isPaused = sess.PlayState.IsPaused
+		}
+
+		// Calculate accumulated real watch time.
+		var watchedSeconds int64
+		if prev, exists := wdMap[sess.Id]; exists {
+			watchedSeconds = prev.WatchedSeconds
+			// Only accumulate if NOT paused and we have a previous tick timestamp.
+			if prev.LastTickAt != nil && !isPaused {
+				delta := int64(now.Sub(*prev.LastTickAt).Seconds())
+				if delta > maxTickDelta {
+					delta = maxTickDelta
+				}
+				if delta > 0 {
+					watchedSeconds += delta
+				}
+			}
+		}
+
+		activityId := uuid.New().String()
+		nowStr := now.Format("2006-01-02 15:04:05.000-07:00")
 		entry := models.JFActivityWatchdog{
 			Id:                   sess.Id,
 			ActivityId:           &activityId,
@@ -108,16 +151,17 @@ func (s *Service) SessionTick(ctx context.Context) {
 			NowPlayingItemId:     &nowPlayingItemId,
 			NowPlayingItemName:   &sess.NowPlayingItem.Name,
 			EpisodeId:            episodeId,
-			SeasonId:             sess.NowPlayingItem.SeasonId,
-			SeriesName:           sess.NowPlayingItem.SeriesName,
-			ActivityDateInserted: &now,
+			SeasonId:             seasonId,
+			SeriesName:           seriesName,
+			ActivityDateInserted: &nowStr,
 			RemoteEndPoint:       sess.RemoteEndPoint,
 			ServerId:             sess.ServerId,
+			WatchedSeconds:       watchedSeconds,
+			LastTickAt:           &now,
 		}
 		if sess.PlayState != nil {
-			entry.IsPaused = &sess.PlayState.IsPaused
+			entry.IsPaused = &isPaused
 			entry.PlayMethod = sess.PlayState.PlayMethod
-			// Store raw PositionTicks; ActivityMonitor converts to seconds on promotion.
 			entry.PlaybackDuration = sess.PlayState.PositionTicks
 		}
 		entries = append(entries, entry)
@@ -127,23 +171,17 @@ func (s *Service) SessionTick(ctx context.Context) {
 	}
 
 	// 3. Promote finished sessions (in watchdog but no longer live)
-	allWatchdog, err := s.repos.Watchdog.List(ctx)
-	if err != nil {
-		return
-	}
 	type promotion struct {
 		sessionID string
 		activity  models.JFPlaybackActivity
 	}
 	var promotions []promotion
-	for _, wd := range allWatchdog {
+	for _, wd := range existingWatchdog {
 		if _, alive := liveIDs[wd.Id]; alive {
 			continue
 		}
-		var durationSecs int64
-		if wd.PlaybackDuration != nil {
-			durationSecs = *wd.PlaybackDuration / ticksPerSecond
-		}
+		// Use accumulated real watch time instead of PositionTicks.
+		durationSecs := wd.WatchedSeconds
 		if durationSecs < minPlaybackSeconds {
 			_ = s.repos.Watchdog.Delete(ctx, wd.Id)
 			continue
@@ -153,7 +191,7 @@ func (s *Service) SessionTick(ctx context.Context) {
 			actId = *wd.ActivityId
 		}
 		promotions = append(promotions, promotion{
-			sessionID: wd.Id, // Jellyfin session ID — watchdog PK
+			sessionID: wd.Id,
 			activity: models.JFPlaybackActivity{
 				Id:                   actId,
 				IsPaused:             wd.IsPaused,
@@ -581,6 +619,8 @@ func (s *Service) SyncGenericLibrary(ctx context.Context, libraryId string) erro
 }
 
 // SyncSessions fetches active sessions and updates the watchdog table.
+// This is called manually from tasks; it preserves existing WatchedSeconds
+// and sets LastTickAt so the next SessionTick can accumulate properly.
 func (s *Service) SyncSessions(ctx context.Context) error {
 	if err := s.refreshClient(ctx); err != nil {
 		return err
@@ -589,20 +629,59 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Load existing watchdog to preserve WatchedSeconds.
+	existingWatchdog, err := s.repos.Watchdog.List(ctx)
+	if err != nil {
+		return err
+	}
+	wdMap := make(map[string]models.JFActivityWatchdog, len(existingWatchdog))
+	for _, wd := range existingWatchdog {
+		wdMap[wd.Id] = wd
+	}
+
+	now := time.Now()
 	entries := make([]models.JFActivityWatchdog, 0)
 	for _, sess := range sessions {
 		if sess.NowPlayingItem == nil {
 			continue
 		}
 
-		now := time.Now().Format("2006-01-02 15:04:05.000-07:00")
+		nowStr := now.Format("2006-01-02 15:04:05.000-07:00")
 
-		// Mirror JS watchdog mapping: if SeriesId is set, NowPlayingItemId = SeriesId, EpisodeId = item.Id
 		nowPlayingItemId := sess.NowPlayingItem.Id
 		var episodeId *string
+		seriesName := sess.NowPlayingItem.SeriesName
+		seasonId := sess.NowPlayingItem.SeasonId
+
 		if sess.NowPlayingItem.SeriesId != nil && *sess.NowPlayingItem.SeriesId != "" {
 			nowPlayingItemId = *sess.NowPlayingItem.SeriesId
 			episodeId = &sess.NowPlayingItem.Id
+		} else if sess.NowPlayingItem.AlbumId != nil && *sess.NowPlayingItem.AlbumId != "" {
+			nowPlayingItemId = *sess.NowPlayingItem.AlbumId
+			episodeId = &sess.NowPlayingItem.Id
+			seriesName = sess.NowPlayingItem.Album
+			seasonId = nil
+		}
+
+		isPaused := false
+		if sess.PlayState != nil {
+			isPaused = sess.PlayState.IsPaused
+		}
+
+		// Preserve accumulated watch time from existing entry.
+		var watchedSeconds int64
+		if prev, exists := wdMap[sess.Id]; exists {
+			watchedSeconds = prev.WatchedSeconds
+			if prev.LastTickAt != nil && !isPaused {
+				delta := int64(now.Sub(*prev.LastTickAt).Seconds())
+				if delta > maxTickDelta {
+					delta = maxTickDelta
+				}
+				if delta > 0 {
+					watchedSeconds += delta
+				}
+			}
 		}
 
 		activityId := uuid.New().String()
@@ -619,45 +698,42 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 			NowPlayingItemId:     &nowPlayingItemId,
 			NowPlayingItemName:   &sess.NowPlayingItem.Name,
 			EpisodeId:            episodeId,
-			SeasonId:             sess.NowPlayingItem.SeasonId,
-			SeriesName:           sess.NowPlayingItem.SeriesName,
-			ActivityDateInserted: &now,
+			SeasonId:             seasonId,
+			SeriesName:           seriesName,
+			ActivityDateInserted: &nowStr,
 			RemoteEndPoint:       sess.RemoteEndPoint,
 			ServerId:             sess.ServerId,
+			WatchedSeconds:       watchedSeconds,
+			LastTickAt:           &now,
 		}
 
 		if sess.PlayState != nil {
-			entry.IsPaused = &sess.PlayState.IsPaused
+			entry.IsPaused = &isPaused
 			entry.PlayMethod = sess.PlayState.PlayMethod
 		}
 
-		// PlaybackDuration – use PositionTicks from PlayState if available
 		if sess.PlayState != nil && sess.PlayState.PositionTicks != nil {
 			entry.PlaybackDuration = sess.PlayState.PositionTicks
 		}
 
-		// MediaStreams from the NowPlayingItem
 		if len(sess.NowPlayingItem.MediaStreams) > 0 {
 			if b, err := json.Marshal(sess.NowPlayingItem.MediaStreams); err == nil {
 				entry.MediaStreams = datatypes.JSON(b)
 			}
 		}
 
-		// TranscodingInfo
 		if sess.TranscodingInfo != nil {
 			if b, err := json.Marshal(sess.TranscodingInfo); err == nil {
 				entry.TranscodingInfo = datatypes.JSON(b)
 			}
 		}
 
-		// PlayState as JSON
 		if sess.PlayState != nil {
 			if b, err := json.Marshal(sess.PlayState); err == nil {
 				entry.PlayState = datatypes.JSON(b)
 			}
 		}
 
-		// OriginalContainer from NowPlayingItem.Container
 		entry.OriginalContainer = sess.NowPlayingItem.Container
 
 		entries = append(entries, entry)
