@@ -6,14 +6,13 @@ import {
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { TableSimple24Regular, Grid24Regular, Search20Regular, ArrowSync24Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateOnly, formatDateTime } from '@/shared/utils/formatDate'
 
 const col = createColumnHelper<UserStats>()
 
@@ -105,19 +104,11 @@ export default function UsersPage() {
     }),
     col.accessor('FirstSeen', {
       header: t('users.firstSeen', 'Premier visionnage'),
-      cell: (i) => {
-        const v = i.getValue() as string | undefined
-        if (!v) return '—'
-        try { return format(parseISO(v), 'dd/MM/yyyy', { locale: getDateLocale() }) } catch { return v }
-      },
+      cell: (i) => formatDateOnly(i.getValue() as string | undefined),
     }),
     col.accessor('LastSeen', {
       header: t('users.lastSeen'),
-      cell: (i) => {
-        const v = i.getValue() as string | undefined
-        if (!v) return '—'
-        try { return format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return v }
-      },
+      cell: (i) => formatDateTime(i.getValue() as string | undefined),
     }),
   ]
 

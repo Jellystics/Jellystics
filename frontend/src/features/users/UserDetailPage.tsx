@@ -5,7 +5,6 @@ import {
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { LineChart } from '@mui/x-charts/LineChart'
 import { BarChart } from '@mui/x-charts/BarChart'
@@ -24,7 +23,7 @@ type GenreRow = { genre: string; plays: number; duration: number }
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { ticksToMinutes } from '@/shared/utils/formatTicks'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
 
@@ -217,7 +216,7 @@ export default function UserDetailPage() {
     col.accessor('PlayMethod', { header: t('activity.method'), cell: (i) => (i.getValue() as string | undefined) ?? '—' }),
     col.accessor('ActivityDateInserted', {
       header: t('activity.date'),
-      cell: (i) => { try { return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return i.getValue() as string } },
+      cell: (i) => formatDateTime(i.getValue() as string),
     }),
     col.accessor('PlayDuration', {
       header: t('activity.duration'),
@@ -278,7 +277,7 @@ export default function UserDetailPage() {
             {loading ? <Skeleton width={120} height={28} /> : <Typography variant="h6" sx={{ fontWeight: 700 }}>{username}</Typography>}
             {loading ? <Skeleton width={180} height={20} /> : (
               <Typography variant="body2" color="text.secondary">
-                {t('users.lastSeen')}: {userStats?.LastSeen ? format(parseISO(userStats.LastSeen), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) : '—'}
+                {t('users.lastSeen')}: {formatDateTime(userStats?.LastSeen)}
               </Typography>
             )}
           </Box>
@@ -732,7 +731,7 @@ export default function UserDetailPage() {
                         </Typography>
                       )}
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {(() => { try { return format(parseISO(item.ActivityDateInserted), 'dd/MM/yy', { locale: getDateLocale() }) } catch { return '—' } })()}
+                        {formatDateOnly(item.ActivityDateInserted)}
                         {' · '}{durationLabel}
                       </Typography>
                     </CardContent>

@@ -13,3 +13,7 @@ export function formatWatchTime(minutes: number | null | undefined): string {
   if (hours === 0) return `${mins}${m}`
   return mins > 0 ? `${hours}${h} ${mins}${m}` : `${hours}${h}`
 }
+
+export function formatSecondsToWatchTime(seconds: number | null | undefined): string {
+  return formatWatchTime(seconds ? Math.floor(seconds / 60) : 0)
+}

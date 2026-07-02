@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
-import { format, parseISO } from 'date-fns'
+import { formatDateTime } from '@/shared/utils/formatDate'
 import SkeletonList from '@/shared/components/SkeletonList/SkeletonList'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
 import api from '@/lib/axios'
@@ -246,7 +246,7 @@ function WebhookCard({
 
             {webhook.last_triggered && (
               <Typography variant="caption" color="text.disabled">
-                Last triggered: {format(parseISO(webhook.last_triggered), 'dd/MM/yyyy HH:mm')}
+                Last triggered: {formatDateTime(webhook.last_triggered)}
               </Typography>
             )}
           </Box>

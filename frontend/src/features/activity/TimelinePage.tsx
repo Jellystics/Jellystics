@@ -16,6 +16,7 @@ import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { TimelineEntry } from '@/shared/types/activity'
 import { getDateLocale } from '@/lib/dateLocale'
+import { formatSecondsToWatchTime } from '@/shared/utils/formatWatchTime'
 import { useChartColors } from '@/lib/chartColors'
 
 export default function TimelinePage() {
@@ -230,11 +231,7 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
               <Typography variant="body2" color="text.secondary">{t('common.noData')}</Typography>
             ) : (
               selectedEntries.map((e, i) => {
-                const h = Math.floor(e.Duration / 3600)
-                const m = Math.floor((e.Duration % 3600) / 60)
-                const dur = h > 0
-                  ? `${h}${t('time.hourShort')} ${m}${t('time.minuteShort')}`
-                  : `${m}${t('time.minuteShort')}`
+                const dur = formatSecondsToWatchTime(e.Duration)
                 const startLabel = e.StartTime
                   ? format(parseISO(e.StartTime), 'HH:mm')
                   : ''

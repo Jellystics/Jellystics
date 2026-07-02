@@ -4,7 +4,6 @@ import {
   Alert, Box, Card, CardContent, Chip, Grid, Skeleton, Typography,
 } from '@mui/material'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft24Regular, Clock24Regular, People24Regular,
@@ -16,18 +15,13 @@ import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTab
 import api from '@/lib/axios'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import type { ItemDetails, ItemWatchHistory, ItemWatchUser } from '@/shared/types/library'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime } from '@/shared/utils/formatDate'
 
 const userCol = createColumnHelper<ItemWatchUser>()
 const historyCol = createColumnHelper<ItemWatchHistory>()
 
 function posterUrl(itemId: string, fallbackId?: string): string {
   return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(fallbackId ?? itemId)}&fillWidth=420&quality=95`
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return '—'
-  try { return format(parseISO(value), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return value }
 }
 
 export default function ItemDetailPage() {
@@ -87,7 +81,7 @@ export default function ItemDetailPage() {
     }),
     userCol.accessor('PlayCount', { header: t('common.plays') }),
     userCol.accessor('TotalWatchTime', { header: t('stats.watchTime'), cell: (info) => formatWatchTime(info.getValue()) }),
-    userCol.accessor('LastWatched', { header: t('users.lastSeen'), cell: (info) => formatDate(info.getValue()) }),
+    userCol.accessor('LastWatched', { header: t('users.lastSeen'), cell: (info) => formatDateTime(info.getValue()) }),
   ]
 
   const historyColumns: ColumnDef<ItemWatchHistory, any>[] = [
@@ -119,7 +113,7 @@ export default function ItemDetailPage() {
         )
       },
     }),
-    historyCol.accessor('ActivityDateInserted', { header: t('activity.date'), cell: (info) => formatDate(info.getValue()) }),
+    historyCol.accessor('ActivityDateInserted', { header: t('activity.date'), cell: (info) => formatDateTime(info.getValue()) }),
     historyCol.accessor('PlaybackDuration', { header: t('activity.duration'), cell: (info) => formatWatchTime(info.getValue()) }),
     historyCol.accessor('Client', { header: t('activity.client'), cell: (info) => info.getValue() ?? '—' }),
     historyCol.accessor('DeviceName', { header: t('activity.device'), cell: (info) => info.getValue() ?? '—' }),
@@ -231,7 +225,7 @@ export default function ItemDetailPage() {
                     {item.Genres?.map((genre) => <Chip key={genre} label={genre} size="small" variant="outlined" />)}
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    {t('item.lastWatched')}: {formatDate(details?.stats.LastWatched)}
+                    {t('item.lastWatched')}: {formatDateTime(details?.stats.LastWatched)}
                   </Typography>
                   {item.Path && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, wordBreak: 'break-all' }}>

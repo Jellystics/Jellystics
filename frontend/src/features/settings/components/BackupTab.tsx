@@ -6,11 +6,10 @@ import { Delete24Regular, ArrowDownload24Regular, MoreVertical24Regular } from '
 import { createColumnHelper } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
-import { format, parseISO } from 'date-fns'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
 import DataTable from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime } from '@/shared/utils/formatDate'
 
 interface BackupFile {
   name: string
@@ -101,7 +100,7 @@ export default function BackupTab() {
     col.accessor('createdAt', {
       header: t('activity.date'),
       cell: (i) => {
-        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return i.getValue() }
+        return formatDateTime(i.getValue())
       },
     }),
     col.accessor('size', {

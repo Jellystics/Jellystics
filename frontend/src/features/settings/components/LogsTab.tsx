@@ -3,11 +3,10 @@ import {
   Box, Card, CardContent, Chip, Typography, Alert,
 } from '@mui/material'
 import { createColumnHelper } from '@tanstack/react-table'
-import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTimeSeconds } from '@/shared/utils/formatDate'
 
 interface LogEntry {
   id: number
@@ -75,7 +74,7 @@ export default function LogsTab() {
     col.accessor('timestamp', {
       header: t('activity.date'),
       cell: (i) => {
-        try { return format(parseISO(i.getValue()), 'dd/MM/yyyy HH:mm:ss', { locale: getDateLocale() }) } catch { return i.getValue() }
+        return formatDateTimeSeconds(i.getValue())
       },
     }),
     col.accessor('task', {

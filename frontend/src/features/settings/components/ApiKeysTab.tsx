@@ -9,13 +9,12 @@ import { createColumnHelper } from '@tanstack/react-table'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { format, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { useSnackbar } from 'notistack'
 import ConfirmDialog from '@/shared/components/ConfirmDialog/ConfirmDialog'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime } from '@/shared/utils/formatDate'
 
 interface ApiKey {
   name: string
@@ -90,9 +89,7 @@ export default function ApiKeysTab() {
     col.accessor('createdAt', {
       header: t('activity.date'),
       cell: (i) => {
-        const v = i.getValue()
-        if (!v) return '—'
-        try { return format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() }) } catch { return v }
+        return formatDateTime(i.getValue())
       },
     }),
     col.accessor('key', {

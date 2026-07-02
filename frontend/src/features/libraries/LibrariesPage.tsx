@@ -6,13 +6,12 @@ import {
 } from '@fluentui/react-icons'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import type { Library } from '@/shared/types/library'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatSize } from '@/shared/utils/formatSize'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateOnly } from '@/shared/utils/formatDate'
 
 // Cache des item IDs utilisés pour les fonds de carte (5 min TTL)
 const SAMPLE_TTL = 5 * 60 * 1000
@@ -134,7 +133,7 @@ function LibraryCard({ lib, sampleItemId, onClick }: { lib: Library; sampleItemI
                 {
                   label: 'Last Activity',
                   value: lib.LastActivity
-                    ? (() => { try { return format(parseISO(lib.LastActivity), 'dd/MM/yyyy', { locale: getDateLocale() }) } catch { return lib.LastActivity } })()
+                    ? formatDateOnly(lib.LastActivity)
                     : '—',
                 },
               ].map(({ label, value }) => (

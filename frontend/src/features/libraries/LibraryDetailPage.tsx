@@ -10,7 +10,6 @@ import {
 import SkeletonList from '@/shared/components/SkeletonList/SkeletonList'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { alpha } from '@mui/material/styles'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { LineChart } from '@mui/x-charts/LineChart'
@@ -30,7 +29,7 @@ import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatTicks, formatDuration } from '@/shared/utils/formatTicks'
 import { formatSize } from '@/shared/utils/formatSize'
 import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTable'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
 
@@ -789,16 +788,11 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
     actColHelper.accessor('ActivityDateInserted', {
       header: t('activity.date', 'Date'),
       cell: (info) => {
-        const v = info.getValue()
-        try {
-          return (
-            <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
-              {format(parseISO(v), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() })}
-            </Typography>
-          )
-        } catch {
-          return <Typography variant="body2">{v}</Typography>
-        }
+        return (
+          <Typography variant="body2" sx={{ whiteSpace: 'nowrap' }}>
+            {formatDateTime(info.getValue())}
+          </Typography>
+        )
       },
     }),
     actColHelper.accessor('PlayDuration', {
@@ -924,10 +918,8 @@ export default function LibraryDetailPage() {
         const raw: Activity[] = historyRes.value.data?.results ?? []
         const byDate: Record<string, number> = {}
         raw.forEach((row) => {
-          try {
-            const day = format(parseISO(row.ActivityDateInserted), 'dd/MM/yyyy')
-            byDate[day] = (byDate[day] ?? 0) + 1
-          } catch { /* ignore */ }
+          const day = formatDateOnly(row.ActivityDateInserted)
+          if (day !== '—') byDate[day] = (byDate[day] ?? 0) + 1
         })
         setHistoryData(Object.entries(byDate).map(([date, plays]) => ({ date, plays })).sort((a, b) => a.date.localeCompare(b.date)))
         setActivityHistory(raw)
@@ -1362,8 +1354,7 @@ export default function LibraryDetailPage() {
                     : (
                       <List dense disablePadding>
                         {lastPlayed.map((row, i) => {
-                          let dateStr = row.ActivityDateInserted
-                          try { dateStr = format(parseISO(row.ActivityDateInserted), 'dd/MM/yyyy HH:mm') } catch { /* keep raw */ }
+                          const dateStr = formatDateTime(row.ActivityDateInserted)
                           return (
                             <ListItem key={i} disablePadding sx={{ py: 0.5 }}>
                               <ListItemText

@@ -4,13 +4,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createColumnHelper } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { VideoClip24Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import DataTable, { type FilterDef, type FilterState } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
-import { getDateLocale } from '@/lib/dateLocale'
+import { formatDateTime } from '@/shared/utils/formatDate'
 import { formatDuration, ticksToMinutes } from '@/shared/utils/formatTicks'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
 
@@ -216,13 +215,7 @@ export default function ActivityPage() {
     }),
     col.accessor('ActivityDateInserted', {
       header: t('activity.date'),
-      cell: (i) => {
-        try {
-          return format(parseISO(i.getValue() as string), 'dd/MM/yyyy HH:mm', { locale: getDateLocale() })
-        } catch {
-          return i.getValue() as string
-        }
-      },
+      cell: (i) => formatDateTime(i.getValue() as string),
     }),
     col.accessor('PlayDuration', {
       header: t('activity.duration'),
