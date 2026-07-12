@@ -23,6 +23,7 @@ type GenreRow = { genre: string; plays: number; duration: number }
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { ticksToMinutes } from '@/shared/utils/formatTicks'
+import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
 import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
@@ -267,7 +268,7 @@ export default function UserDetailPage() {
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {loading ? <Skeleton variant="circular" width={56} height={56} /> : (
             <Avatar
-              src={`/proxy/Users/Images/Primary/?id=${id}&fillWidth=112&quality=90`}
+              src={getUserImageUrl(id!, 112)}
               sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}
             >
               {username.charAt(0).toUpperCase()}
@@ -525,7 +526,7 @@ export default function UserDetailPage() {
                   >
                     <Box
                       component="img"
-                      src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(s.seriesId)}&fillWidth=60&quality=80`}
+                      src={getItemImageUrl(s.seriesId, 60, 80)}
                       sx={{ width: 40, height: 56, borderRadius: 0.5, objectFit: 'cover', flexShrink: 0, bgcolor: 'action.hover' }}
                       onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
                     />
@@ -716,7 +717,7 @@ export default function UserDetailPage() {
                   >
                     <CardMedia
                       component="img"
-                      src={`/proxy/Items/Images/Primary/?id=${itemId}&fillWidth=300&quality=80`}
+                      src={getItemImageUrl(itemId, 300, 80)}
                       alt={item.NowPlayingItemName}
                       sx={{ aspectRatio: '2/3', objectFit: 'cover' }}
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}

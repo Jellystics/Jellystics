@@ -20,8 +20,10 @@ import { formatDateTime } from '@/shared/utils/formatDate'
 const userCol = createColumnHelper<ItemWatchUser>()
 const historyCol = createColumnHelper<ItemWatchHistory>()
 
+import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
+
 function posterUrl(itemId: string, fallbackId?: string): string {
-  return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(fallbackId ?? itemId)}&fillWidth=420&quality=95`
+  return getItemImageUrl(fallbackId ?? itemId, 420, 95)
 }
 
 export default function ItemDetailPage() {
@@ -68,7 +70,7 @@ export default function ItemDetailPage() {
               </Box>
               <Box
                 component="img"
-                src={`/proxy/Users/${UserId}/Images/Primary?fillWidth=56&quality=80`}
+                src={getUserImageUrl(UserId, 56, 80)}
                 onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
                 sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
               />
@@ -103,7 +105,7 @@ export default function ItemDetailPage() {
               </Box>
               <Box
                 component="img"
-                src={`/proxy/Users/${UserId}/Images/Primary?fillWidth=56&quality=80`}
+                src={getUserImageUrl(UserId, 56, 80)}
                 onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
                 sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
               />

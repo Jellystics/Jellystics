@@ -17,6 +17,7 @@ import api from '@/lib/axios'
 import type { TimelineEntry } from '@/shared/types/activity'
 import { getDateLocale } from '@/lib/dateLocale'
 import { formatSecondsToWatchTime } from '@/shared/utils/formatWatchTime'
+import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
 import { useChartColors } from '@/lib/chartColors'
 
 export default function TimelinePage() {
@@ -188,7 +189,7 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                             }}
                           >
                             <img
-                              src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(e.ItemId)}&fillWidth=48&quality=70`}
+                              src={getItemImageUrl(e.ItemId, 48, 70)}
                               alt=""
                               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                               onError={(ev) => { ev.currentTarget.style.display = 'none' }}
@@ -257,7 +258,7 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                       }}
                     >
                       <img
-                        src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(e.ItemId)}&fillWidth=72&quality=85`}
+                        src={getItemImageUrl(e.ItemId, 72, 85)}
                         alt={e.ItemName}
                         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(ev) => { ev.currentTarget.style.display = 'none' }}
@@ -275,7 +276,7 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
                         <Avatar
-                          src={`/proxy/Users/Images/Primary/?id=${e.UserId}&fillWidth=32&quality=90`}
+                          src={getUserImageUrl(e.UserId, 32)}
                           sx={{ width: 16, height: 16, bgcolor: 'primary.main', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}
                           onClick={() => navigate(`/users/${e.UserId}?view=history`)}
                         >

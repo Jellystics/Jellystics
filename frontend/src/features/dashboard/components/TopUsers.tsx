@@ -6,6 +6,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
+import { getUserImageUrl } from '@/shared/utils/imageUrl'
 
 interface TopUser { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 interface TopUsersProps { users: TopUser[]; loading: boolean; action?: ReactNode }
@@ -36,7 +37,7 @@ export default function TopUsers({ users, loading, action }: TopUsersProps) {
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, mr: 1 }}>{i + 1}</Typography>
                 <ListItemAvatar sx={{ minWidth: 44 }}>
                   <Avatar
-                    src={`/proxy/Users/Images/Primary/?id=${user.UserId}&fillWidth=64&quality=90`}
+                    src={getUserImageUrl(user.UserId)}
                     sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}
                   >
                     {user.UserName.charAt(0).toUpperCase()}

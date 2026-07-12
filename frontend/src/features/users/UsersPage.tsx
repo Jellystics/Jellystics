@@ -13,6 +13,7 @@ import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatDateOnly, formatDateTime } from '@/shared/utils/formatDate'
+import { getUserImageUrl } from '@/shared/utils/imageUrl'
 
 const col = createColumnHelper<UserStats>()
 
@@ -24,7 +25,7 @@ function UserCard({ user, onClick }: { user: UserStats; onClick: () => void }) {
       <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 3, gap: 1.5 }}>
           <Avatar
-            src={`/proxy/Users/Images/Primary/?id=${user.UserId}&fillWidth=200&quality=90`}
+            src={getUserImageUrl(user.UserId, 200)}
             sx={{ width: 96, height: 96, bgcolor: 'primary.main', fontSize: 36, fontWeight: 700 }}
           >
             {user.UserName.charAt(0).toUpperCase()}
@@ -74,7 +75,7 @@ export default function UsersPage() {
           onClick={() => navigate(`/users/${i.row.original.UserId}?view=history`)}
         >
           <Avatar
-            src={`/proxy/Users/Images/Primary/?id=${i.row.original.UserId}&fillWidth=56&quality=90`}
+            src={getUserImageUrl(i.row.original.UserId, 56)}
             sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12, fontWeight: 700 }}
           >
             {(i.getValue() as string).charAt(0).toUpperCase()}

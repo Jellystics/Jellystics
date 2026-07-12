@@ -1,3 +1,5 @@
+import { getUserImageUrl } from '@/shared/utils/imageUrl'
+
 function parseJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const payload = token.split('.')[1]
@@ -15,7 +17,7 @@ export function useCurrentUser() {
   const userId = (payload?.userId as string | undefined) ?? ''
 
   const avatarUrl = userId
-    ? `/proxy/Users/Images/Primary/?id=${userId}&fillWidth=100&quality=90`
+    ? getUserImageUrl(userId, 100)
     : ''
 
   return { username, userId, avatarUrl }

@@ -7,6 +7,7 @@ import {
 import { VideoClip24Regular, MusicNote224Regular, Library24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import { getItemImageUrl } from '@/shared/utils/imageUrl'
 
 interface TopItem { Id: string; Name: string; PlayCount: number; Type: string }
 interface TopContentProps { items: TopItem[]; loading: boolean; timeRangeSelector?: ReactNode }
@@ -116,7 +117,7 @@ export default function TopContent({ items, loading, timeRangeSelector }: TopCon
                 </Box>
                 {/* Poster image on top — hides itself on error, revealing fallback */}
                 <img
-                  src={`/proxy/Items/Images/Primary/?id=${item.Id}&fillWidth=72&quality=85`}
+                  src={getItemImageUrl(item.Id, 72, 85)}
                   alt={item.Name}
                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={(e) => { e.currentTarget.style.display = 'none' }}

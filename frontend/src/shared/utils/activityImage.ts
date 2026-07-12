@@ -1,4 +1,5 @@
 import type { Activity } from '@/shared/types/activity'
+import { getItemImageUrl } from './imageUrl'
 
 /**
  * Returns the Jellyfin item ID to use for the activity row's media poster.
@@ -22,5 +23,5 @@ export function getActivityImageUrl(
 ): string | null {
   const id = getActivityImageId(row)
   if (!id) return null
-  return `/proxy/Items/Images/Primary/?id=${encodeURIComponent(id)}&fillWidth=${fillWidth}&quality=80`
+  return getItemImageUrl(id, fillWidth, 80)
 }

@@ -32,6 +32,7 @@ import DataTable, { type FilterDef } from '@/shared/components/DataTable/DataTab
 import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
+import { getItemImageUrl } from '@/shared/utils/imageUrl'
 
 type Track = MusicTrack
 type Album = MusicAlbum
@@ -110,7 +111,7 @@ function AlbumGrid({ albums, libraryId, loading, navigate, t }: {
                   <MusicNote224Regular style={{ fontSize: 44, opacity: 0.45 }} />
                   <Box
                     component="img"
-                    src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(album.Id)}&fillWidth=360&quality=90`}
+                    src={getItemImageUrl(album.Id, 360)}
                     alt={album.Name}
                     loading="lazy"
                     onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -437,7 +438,7 @@ function ItemsGridView({ items, loading, navigate, libraryId, t, cols = 6 }: {
                     <VideoClip24Regular style={{ fontSize: 44, opacity: 0.45 }} />
                     <Box
                       component="img"
-                      src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=360&quality=90`}
+                      src={getItemImageUrl(item.Id, 360)}
                       alt={item.Name}
                       loading="lazy"
                       onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -533,7 +534,7 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
             <VideoClip24Regular style={{ fontSize: 16, opacity: 0.35, position: 'absolute' }} />
             <Box
               component="img"
-              src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(item.Id)}&fillWidth=80&quality=80`}
+              src={getItemImageUrl(item.Id, 80, 80)}
               alt={item.Name}
               loading="lazy"
               onError={(e) => { e.currentTarget.style.display = 'none' }}
@@ -649,7 +650,7 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
               <Box
                 component="img"
                 key={hovered.Id}
-                src={`/proxy/Items/Images/Primary/?id=${encodeURIComponent(hovered.Id)}&fillWidth=400&quality=90`}
+                src={getItemImageUrl(hovered.Id, 400)}
                 alt={hovered.Name}
                 onError={(e) => { e.currentTarget.style.display = 'none' }}
                 sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 200ms' }}

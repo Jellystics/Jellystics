@@ -12,6 +12,7 @@ import type { Library } from '@/shared/types/library'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatSize } from '@/shared/utils/formatSize'
 import { formatDateOnly } from '@/shared/utils/formatDate'
+import { getItemImageUrl, getBackdropImageUrl } from '@/shared/utils/imageUrl'
 
 // Cache des item IDs utilisés pour les fonds de carte (5 min TTL)
 const SAMPLE_TTL = 5 * 60 * 1000
@@ -38,9 +39,9 @@ function LibraryCard({ lib, sampleItemId, onClick }: { lib: Library; sampleItemI
   // Try item backdrop first, then item primary, then give up (shows solid bg)
   const bgSrc = sampleItemId
     ? (!backdropFailed
-        ? `/proxy/Items/Images/Backdrop/?id=${encodeURIComponent(sampleItemId)}&fillWidth=900&quality=70`
+        ? getBackdropImageUrl(sampleItemId)
         : !primaryFailed
-          ? `/proxy/Items/Images/Primary/?id=${encodeURIComponent(sampleItemId)}&fillWidth=900&quality=70`
+          ? getItemImageUrl(sampleItemId, 900, 70)
           : null)
     : null
 

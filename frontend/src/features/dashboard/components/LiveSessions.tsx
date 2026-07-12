@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { useSocket } from '@/shared/hooks/useSocket'
 import type { Session } from '@/shared/types/activity'
 import { formatDuration } from '@/shared/utils/formatTicks'
+import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
 
 interface LiveSessionsProps {
   initialSessions: Session[]
@@ -138,7 +139,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
                   }}
                 >
                   <img
-                    src={`/proxy/Items/Images/Primary/?id=${posterItemId}&fillWidth=104&quality=85`}
+                    src={getItemImageUrl(posterItemId, 104, 85)}
                     alt={item.Name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
@@ -150,7 +151,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
                   {/* User row */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                     <Avatar
-                      src={`/proxy/Users/Images/Primary/?id=${session.UserId}&fillWidth=48&quality=85`}
+                      src={getUserImageUrl(session.UserId, 48, 85)}
                       sx={{ width: 20, height: 20, bgcolor: 'primary.main', fontSize: 10 }}
                     >
                       <PersonCircle24Regular style={{ fontSize: 12 }} />

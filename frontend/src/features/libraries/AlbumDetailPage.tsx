@@ -8,6 +8,7 @@ import { MusicNote224Regular, Play24Regular, ArrowLeft24Regular } from '@fluentu
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import api from '@/lib/axios'
 import { formatTicks } from '@/shared/utils/formatTicks'
+import { getItemImageUrl } from '@/shared/utils/imageUrl'
 import type { MusicTrack } from '@/shared/types/library'
 
 type Track = MusicTrack
@@ -70,7 +71,7 @@ export default function AlbumDetailPage() {
           {albumId && (
             <Box
               component="img"
-              src={`/proxy/Items/Images/Primary/?id=${albumId}&fillWidth=400&quality=90`}
+              src={getItemImageUrl(albumId!, 400)}
               alt={albumName}
               onError={(e) => { e.currentTarget.style.display = 'none' }}
               sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
