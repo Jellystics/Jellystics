@@ -62,6 +62,67 @@ const (
 	maxTickDelta       = 15         // cap per-tick increment to avoid jumps after missed ticks
 )
 
+// watchIncrement computes how many seconds of *real* playback to add for one tick.
+//
+// It prefers the change in the media position (PositionTicks): the position is
+// frozen while paused or buffering, so pause time is never counted — regardless
+// of whether the IsPaused snapshot happened to catch the pause at the tick edge.
+// The increment is clamped to the wall-clock elapsed time so that seeking forward
+// does not count skipped content as watched, and capped at maxTickDelta to absorb
+// missed ticks / restarts.
+//
+// When the position is unavailable (e.g. live TV, or the very first tick of a
+// session before a baseline exists) it falls back to wall-clock time gated by the
+// IsPaused flag.
+//
+// curPos is the current PositionTicks for the same item as prev (nil if unknown).
+func watchIncrement(prev models.JFActivityWatchdog, isPaused bool, curPos *int64, now time.Time) int64 {
+	if prev.LastTickAt == nil {
+		return 0
+	}
+	wall := int64(now.Sub(*prev.LastTickAt).Seconds())
+	if wall <= 0 {
+		return 0
+	}
+
+	// Position-based accounting (accurate: excludes pause & buffering).
+	if curPos != nil && prev.PlaybackDuration != nil {
+		posDelta := (*curPos - *prev.PlaybackDuration) / ticksPerSecond
+		if posDelta <= 0 {
+			return 0 // paused, buffering, or seeked backward → no real progress
+		}
+		inc := posDelta
+		if inc > wall {
+			inc = wall // seeked forward: only count time actually elapsed
+		}
+		if inc > maxTickDelta {
+			inc = maxTickDelta
+		}
+		return inc
+	}
+
+	// Fallback: no position info. Use wall-clock, gated by the pause flag.
+	if isPaused {
+		return 0
+	}
+	if wall > maxTickDelta {
+		wall = maxTickDelta
+	}
+	return wall
+}
+
+// itemKey builds a stable identity for the currently playing media so that a
+// session switching to a different item can be detected. Music tracks and TV
+// episodes are identified by parent|child (album|track, series|episode); movies
+// and everything else only have the parent id.
+func itemKey(nowPlayingItemId string, episodeId *string) string {
+	key := nowPlayingItemId
+	if episodeId != nil {
+		key += "|" + *episodeId
+	}
+	return key
+}
+
 // SessionTick is called every ~10 s. It:
 //  1. Fetches live Jellyfin sessions and broadcasts them via WebSocket.
 //  2. Upserts active sessions to jf_activity_watchdog, accumulating real watch time.
@@ -119,8 +180,10 @@ func (s *Service) SessionTick(ctx context.Context) {
 		}
 
 		isPaused := false
+		var curPos *int64
 		if sess.PlayState != nil {
 			isPaused = sess.PlayState.IsPaused
+			curPos = sess.PlayState.PositionTicks
 		}
 
 		// Calculate accumulated real watch time.
@@ -130,30 +193,13 @@ func (s *Service) SessionTick(ctx context.Context) {
 
 		if prev, exists := wdMap[sess.Id]; exists {
 			// Detect media switch: same session, different item.
-			prevItemKey := ""
-			if prev.NowPlayingItemId != nil {
-				prevItemKey = *prev.NowPlayingItemId
-			}
-			if prev.EpisodeId != nil {
-				prevItemKey += "|" + *prev.EpisodeId
-			}
-			newItemKey := nowPlayingItemId
-			if episodeId != nil {
-				newItemKey += "|" + *episodeId
-			}
+			prevItemKey := itemKey(deref(prev.NowPlayingItemId), prev.EpisodeId)
+			newItemKey := itemKey(nowPlayingItemId, episodeId)
 
 			if prevItemKey != "" && prevItemKey != newItemKey {
 				// Item changed — promote the old watchdog entry before starting fresh.
-				oldDuration := prev.WatchedSeconds
-				if prev.LastTickAt != nil && (prev.IsPaused == nil || !*prev.IsPaused) {
-					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
-					if delta > maxTickDelta {
-						delta = maxTickDelta
-					}
-					if delta > 0 {
-						oldDuration += delta
-					}
-				}
+				prevPaused := prev.IsPaused != nil && *prev.IsPaused
+				oldDuration := prev.WatchedSeconds + watchIncrement(prev, prevPaused, nil, now)
 				if oldDuration >= minPlaybackSeconds {
 					oldActId := prev.Id
 					if prev.ActivityId != nil {
@@ -189,17 +235,8 @@ func (s *Service) SessionTick(ctx context.Context) {
 				watchedSeconds = 0
 				activityId = uuid.New().String()
 			} else {
-				// Same item — keep accumulating.
-				watchedSeconds = prev.WatchedSeconds
-				if prev.LastTickAt != nil && !isPaused {
-					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
-					if delta > maxTickDelta {
-						delta = maxTickDelta
-					}
-					if delta > 0 {
-						watchedSeconds += delta
-					}
-				}
+				// Same item — keep accumulating real watch time.
+				watchedSeconds = prev.WatchedSeconds + watchIncrement(prev, isPaused, curPos, now)
 				// Preserve the original ActivityId and start time.
 				if prev.ActivityId != nil {
 					activityId = *prev.ActivityId
@@ -241,6 +278,23 @@ func (s *Service) SessionTick(ctx context.Context) {
 			entry.PlayMethod = sess.PlayState.PlayMethod
 			entry.PlaybackDuration = sess.PlayState.PositionTicks
 		}
+		// Persist media metadata so promoted rows carry it (parity with SyncSessions).
+		if len(sess.NowPlayingItem.MediaStreams) > 0 {
+			if b, err := json.Marshal(sess.NowPlayingItem.MediaStreams); err == nil {
+				entry.MediaStreams = datatypes.JSON(b)
+			}
+		}
+		if sess.TranscodingInfo != nil {
+			if b, err := json.Marshal(sess.TranscodingInfo); err == nil {
+				entry.TranscodingInfo = datatypes.JSON(b)
+			}
+		}
+		if sess.PlayState != nil {
+			if b, err := json.Marshal(sess.PlayState); err == nil {
+				entry.PlayState = datatypes.JSON(b)
+			}
+		}
+		entry.OriginalContainer = sess.NowPlayingItem.Container
 		entries = append(entries, entry)
 	}
 	// Promote items from media switches.
@@ -748,8 +802,10 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 		}
 
 		isPaused := false
+		var curPos *int64
 		if sess.PlayState != nil {
 			isPaused = sess.PlayState.IsPaused
+			curPos = sess.PlayState.PositionTicks
 		}
 
 		// Preserve accumulated watch time and detect media switches.
@@ -758,30 +814,13 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 
 		if prev, exists := wdMap[sess.Id]; exists {
 			// Detect media switch.
-			prevItemKey := ""
-			if prev.NowPlayingItemId != nil {
-				prevItemKey = *prev.NowPlayingItemId
-			}
-			if prev.EpisodeId != nil {
-				prevItemKey += "|" + *prev.EpisodeId
-			}
-			newItemKey := nowPlayingItemId
-			if episodeId != nil {
-				newItemKey += "|" + *episodeId
-			}
+			prevItemKey := itemKey(deref(prev.NowPlayingItemId), prev.EpisodeId)
+			newItemKey := itemKey(nowPlayingItemId, episodeId)
 
 			if prevItemKey != "" && prevItemKey != newItemKey {
 				// Item changed — promote old entry, reset counters.
-				oldDuration := prev.WatchedSeconds
-				if prev.LastTickAt != nil && (prev.IsPaused == nil || !*prev.IsPaused) {
-					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
-					if delta > maxTickDelta {
-						delta = maxTickDelta
-					}
-					if delta > 0 {
-						oldDuration += delta
-					}
-				}
+				prevPaused := prev.IsPaused != nil && *prev.IsPaused
+				oldDuration := prev.WatchedSeconds + watchIncrement(prev, prevPaused, nil, now)
 				if oldDuration >= minPlaybackSeconds {
 					oldActId := prev.Id
 					if prev.ActivityId != nil {
@@ -816,17 +855,8 @@ func (s *Service) SyncSessions(ctx context.Context) error {
 				watchedSeconds = 0
 				activityId = uuid.New().String()
 			} else {
-				// Same item — keep accumulating.
-				watchedSeconds = prev.WatchedSeconds
-				if prev.LastTickAt != nil && !isPaused {
-					delta := int64(now.Sub(*prev.LastTickAt).Seconds())
-					if delta > maxTickDelta {
-						delta = maxTickDelta
-					}
-					if delta > 0 {
-						watchedSeconds += delta
-					}
-				}
+				// Same item — keep accumulating real watch time.
+				watchedSeconds = prev.WatchedSeconds + watchIncrement(prev, isPaused, curPos, now)
 				if prev.ActivityId != nil {
 					activityId = *prev.ActivityId
 				} else {
@@ -1189,8 +1219,9 @@ func genresJSON(genres []string) datatypes.JSON {
 func titleCase(s string) string {
 	words := strings.Fields(s)
 	for i, w := range words {
-		if len(w) > 0 {
-			words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
+		r := []rune(w)
+		if len(r) > 0 {
+			words[i] = strings.ToUpper(string(r[0])) + strings.ToLower(string(r[1:]))
 		}
 	}
 	return strings.Join(words, " ")
@@ -1212,7 +1243,7 @@ func deref(s *string) string {
 
 // mapEpisode converts a jellyfin.Item of type Episode into a JFLibraryEpisode and optional JFItemInfo.
 func mapEpisode(item jellyfin.Item) (models.JFLibraryEpisode, *models.JFItemInfo) {
-	backdrop := item.Backdrop()
+	backdrop := item.ParentBackdrop()
 	primary := item.PrimaryHash()
 	ep := models.JFLibraryEpisode{
 		Id:                      item.Id,
@@ -1247,7 +1278,7 @@ func mapEpisode(item jellyfin.Item) (models.JFLibraryEpisode, *models.JFItemInfo
 
 // mapSeason converts a jellyfin.Item of type Season into a JFLibrarySeason.
 func mapSeason(item jellyfin.Item) models.JFLibrarySeason {
-	backdrop := item.Backdrop()
+	backdrop := item.ParentBackdrop()
 	return models.JFLibrarySeason{
 		Id:                      item.Id,
 		Name:                    &item.Name,
