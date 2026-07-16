@@ -10,7 +10,7 @@ import { getItemImageUrl } from './imageUrl'
  */
 export function getActivityImageId(row: Pick<Activity, 'ItemId' | 'NowPlayingItemId' | 'ParentId' | 'NowPlayingItemType'>): string | null {
   const itemId = row.NowPlayingItemId ?? row.ItemId
-  if (row.NowPlayingItemType === 'Audio') return row.ParentId ?? itemId ?? null
+  if (row.NowPlayingItemType === 'Audio') return itemId ?? null
   return itemId ?? null
 }
 
