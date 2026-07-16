@@ -97,7 +97,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
             const totalTicks = item.RunTimeTicks
             const progress = positionTicks && totalTicks ? Math.min((positionTicks / totalTicks) * 100, 100) : 0
             const isPaused = session.PlayState?.IsPaused ?? false
-            const playMethod = session.PlayState?.PlayMethod ?? item.MediaType
+            const playMethod = session.PlayState?.PlayMethod ?? 'Unknown'
             const methodChip = getPlayMethodChip(playMethod)
             const epLabel = episodeLabel(item)
             const posterItemId = item.SeriesId || item.AlbumId || item.Id

@@ -382,6 +382,7 @@
     "searchHistory": "Search history..."
   },
   "status": {
+    "status": "Status",
     "playing": "Playing",
     "finished": "Finished",
     "nowPlaying": "Now playing"

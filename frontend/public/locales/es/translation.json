@@ -382,6 +382,7 @@
     "searchHistory": "Buscar en el historial..."
   },
   "status": {
+    "status": "Estado",
     "playing": "Reproduciendo",
     "finished": "Terminado",
     "nowPlaying": "Reproduciendo ahora"

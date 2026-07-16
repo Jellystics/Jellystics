@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createColumnHelper } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { VideoClip24Regular } from '@fluentui/react-icons'
+import { VideoClip24Regular, MusicNote224Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import DataTable, { type FilterDef, type FilterState } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
@@ -185,7 +185,10 @@ export default function ActivityPage() {
                 justifyContent: 'center',
               }}
             >
-              <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
+              {row.NowPlayingItemType === 'Audio'
+                ? <MusicNote224Regular style={{ opacity: 0.4, fontSize: 16 }} />
+                : <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
+              }
               {getActivityImageUrl(row, 90) && (
                 <Box
                   component="img"

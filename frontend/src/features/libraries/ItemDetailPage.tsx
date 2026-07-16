@@ -121,7 +121,7 @@ export default function ItemDetailPage() {
     historyCol.accessor('DeviceName', { header: t('activity.device'), cell: (info) => info.getValue() ?? '—' }),
     historyCol.accessor('PlayMethod', { header: t('activity.method'), cell: (info) => info.getValue() ?? '—' }),
     historyCol.accessor('IsActive', {
-      header: t('activity.method'),
+      header: t('status.status'),
       cell: (info) => info.getValue()
         ? <Chip label={t('status.playing')} size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
         : <Chip label={t('status.finished')} size="small" sx={{ height: 20, fontSize: 11 }} />,

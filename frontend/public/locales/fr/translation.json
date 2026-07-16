@@ -382,6 +382,7 @@
     "searchHistory": "Rechercher dans l'historique..."
   },
   "status": {
+    "status": "Statut",
     "playing": "En cours",
     "finished": "Terminé",
     "nowPlaying": "Lecture en cours"
