@@ -22,9 +22,10 @@ import type { LibraryItem, LibraryStats, GenreStat, MusicTrack, MusicAlbum, Musi
 import type { Activity } from '@/shared/types/activity'
 import {
   Play24Regular, Clock24Regular, Star24Regular,
-  Search20Regular, VideoClip24Regular, MusicNote224Regular,
+  Search20Regular,
   Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular, ArrowSync24Regular,
 } from '@fluentui/react-icons'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatTicks, formatDuration } from '@/shared/utils/formatTicks'
 import { formatSize } from '@/shared/utils/formatSize'
@@ -524,23 +525,7 @@ function ItemsTableView({ items, loading, navigate, libraryId, t }: {
       cell: (info) => {
         const item = info.row.original
         return (
-          <Box
-            sx={{
-              width: 36, height: 52, borderRadius: 1, overflow: 'hidden',
-              bgcolor: 'rgba(255,255,255,0.06)', flexShrink: 0, position: 'relative',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <VideoClip24Regular style={{ fontSize: 16, opacity: 0.35, position: 'absolute' }} />
-            <Box
-              component="img"
-              src={getItemImageUrl(item.Id, 80, 80)}
-              alt={item.Name}
-              loading="lazy"
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
-              sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </Box>
+          <MediaPoster src={getItemImageUrl(item.Id, 80, 80)} alt={item.Name} type={item.Type} />
         )
       },
     }),

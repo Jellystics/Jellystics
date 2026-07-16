@@ -11,7 +11,8 @@ import { useTranslation } from 'react-i18next'
 import { useSocket } from '@/shared/hooks/useSocket'
 import type { Session } from '@/shared/types/activity'
 import { formatDuration } from '@/shared/utils/formatTicks'
-import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
+import { getUserImageUrl } from '@/shared/utils/imageUrl'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 
 interface LiveSessionsProps {
   initialSessions: Session[]
@@ -128,23 +129,7 @@ export default function LiveSessions({ initialSessions, loading }: LiveSessionsP
                 }}
               >
                 {/* Media poster */}
-                <Box
-                  sx={{
-                    flexShrink: 0,
-                    width: 52,
-                    height: 78,
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    bgcolor: 'action.hover',
-                  }}
-                >
-                  <img
-                    src={getItemImageUrl(posterItemId, 104, 85)}
-                    alt={item.Name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                  />
-                </Box>
+                <MediaPoster src={getItemImageUrl(posterItemId, 104, 85)} alt={item.Name} type={item.Type} width={52} height={78} sx={{ bgcolor: 'action.hover' }} />
 
                 {/* Main content */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>

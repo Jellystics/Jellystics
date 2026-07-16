@@ -11,6 +11,7 @@ import type { WatchStatOverTime, HourStat, DayStat, PlayMethodStat, ClientStat }
 import { Play24Regular, Clock24Regular, CheckmarkCircle24Regular, DismissCircle24Regular, DataPie24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getItemImageUrl } from '@/shared/utils/imageUrl'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import { useChartColors } from '@/lib/chartColors'
 import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
@@ -386,24 +387,7 @@ export default function StatisticsPage() {
                     </Typography>
                   </Box>
 
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      width: 36,
-                      height: 52,
-                      borderRadius: 1,
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                      bgcolor: 'rgba(128,128,128,0.1)',
-                    }}
-                  >
-                    <img
-                      src={getItemImageUrl(item.Id, 72, 85)}
-                      alt={item.Name}
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                    />
-                  </Box>
+                  <MediaPoster src={getItemImageUrl(item.Id, 72, 85)} alt={item.Name} type={item.Type} sx={{ bgcolor: 'rgba(128,128,128,0.1)' }} />
 
                   <Chip
                     label={`${item.PlayCount} ${t('common.plays')}`}

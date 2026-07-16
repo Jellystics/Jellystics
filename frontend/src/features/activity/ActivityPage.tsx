@@ -4,9 +4,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createColumnHelper } from '@tanstack/react-table'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { VideoClip24Regular, MusicNote224Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
 import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 import DataTable, { type FilterDef, type FilterState } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
@@ -139,33 +139,7 @@ export default function ActivityPage() {
             onClick={(e) => { e.stopPropagation(); navigate(`/items/${row.ItemId}`) }}
             sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .itemname': { textDecoration: 'underline' } }}
           >
-            <Box
-              sx={{
-                width: 45,
-                height: 30,
-                borderRadius: 0.75,
-                overflow: 'hidden',
-                bgcolor: 'rgba(255,255,255,0.06)',
-                flexShrink: 0,
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {row.NowPlayingItemType === 'Audio'
-                ? <MusicNote224Regular style={{ opacity: 0.4, fontSize: 16 }} />
-                : <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
-              }
-              {getActivityImageUrl(row, 90) && (
-                <Box
-                  component="img"
-                  src={getActivityImageUrl(row, 90)!}
-                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
-                  sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              )}
-            </Box>
+            <MediaPoster src={getActivityImageUrl(row, 90)} type={row.NowPlayingItemType} width={45} height={30} sx={{ borderRadius: 0.75 }} />
             <span className="itemname">{label}</span>
           </Box>
         )

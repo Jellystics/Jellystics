@@ -4,21 +4,15 @@ import {
   Card, CardContent, CardHeader, Typography, Chip, Skeleton, Box,
   ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
-import { VideoClip24Regular, MusicNote224Regular, Library24Regular } from '@fluentui/react-icons'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { getItemImageUrl } from '@/shared/utils/imageUrl'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 
 interface TopItem { Id: string; Name: string; PlayCount: number; Type: string }
 interface TopContentProps { items: TopItem[]; loading: boolean; timeRangeSelector?: ReactNode }
 
 type TypeFilter = 'all' | 'Movie' | 'Series' | 'Audio'
-
-function TypeFallback({ type }: { type: string }) {
-  if (type === 'Audio') return <MusicNote224Regular style={{ fontSize: 18, opacity: 0.5 }} />
-  if (type === 'Episode' || type === 'Series') return <VideoClip24Regular style={{ fontSize: 18, opacity: 0.5 }} />
-  return <Library24Regular style={{ fontSize: 18, opacity: 0.5 }} />
-}
 
 export default function TopContent({ items, loading, timeRangeSelector }: TopContentProps) {
   const { t } = useTranslation()
@@ -100,29 +94,7 @@ export default function TopContent({ items, loading, timeRangeSelector }: TopCon
               </Typography>
 
               {/* Poster */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  width: 36,
-                  height: 52,
-                  borderRadius: 1,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                }}
-              >
-                {/* Fallback icon underneath */}
-                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TypeFallback type={item.Type} />
-                </Box>
-                {/* Poster image on top — hides itself on error, revealing fallback */}
-                <img
-                  src={getItemImageUrl(item.Id, 72, 85)}
-                  alt={item.Name}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
-                />
-              </Box>
+              <MediaPoster src={getItemImageUrl(item.Id, 72, 85)} alt={item.Name} type={item.Type} />
 
               {/* Title + type */}
               <Box sx={{ flex: 1, minWidth: 0 }}>
