@@ -26,6 +26,7 @@ import {
   Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular, ArrowSync24Regular,
 } from '@fluentui/react-icons'
 import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatTicks, formatDuration } from '@/shared/utils/formatTicks'
 import { formatSize } from '@/shared/utils/formatSize'
@@ -700,24 +701,7 @@ function LibraryActivityTab({ data, loading, onRefresh, t }: {
         const row = info.row.original
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-                bgcolor: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-              }}
-            >
-              <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 11, lineHeight: 1, position: 'absolute' }}>
-                {row.UserName.slice(0, 2).toUpperCase()}
-              </Typography>
-              <Box
-                component="img"
-                src={`/proxy/Users/${encodeURIComponent(row.UserId)}/Images/Primary?fillWidth=32&quality=80`}
-                alt={row.UserName}
-                loading="lazy"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
-                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </Box>
+            <UserAvatar userId={row.UserId} userName={row.UserName} size={32} />
             <Typography variant="body2" noWrap>{row.UserName}</Typography>
           </Box>
         )

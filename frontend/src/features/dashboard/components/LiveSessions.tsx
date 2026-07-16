@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { useSocket } from '@/shared/hooks/useSocket'
 import type { Session } from '@/shared/types/activity'
 import { formatDuration } from '@/shared/utils/formatTicks'
-import { getUserImageUrl } from '@/shared/utils/imageUrl'
+import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
 import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 
 interface LiveSessionsProps {

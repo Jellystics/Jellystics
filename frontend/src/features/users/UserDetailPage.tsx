@@ -24,6 +24,7 @@ import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, Arrow
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { ticksToMinutes } from '@/shared/utils/formatTicks'
 import { getItemImageUrl } from '@/shared/utils/imageUrl'
+import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
@@ -194,21 +195,7 @@ export default function UserDetailPage() {
             onClick={(e) => { e.stopPropagation(); navigate(`/items/${row.ItemId}`) }}
             sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .itemname': { textDecoration: 'underline' } }}
           >
-            <Box sx={{
-              width: 45, height: 30, borderRadius: 0.75, overflow: 'hidden', flexShrink: 0,
-              bgcolor: 'rgba(255,255,255,0.06)', position: 'relative',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <VideoClip24Regular style={{ opacity: 0.4, fontSize: 16 }} />
-              {getActivityImageUrl(row, 90) && (
-                <Box
-                  component="img"
-                  src={getActivityImageUrl(row, 90)!}
-                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
-                  sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              )}
-            </Box>
+            <MediaPoster src={getActivityImageUrl(row, 90)} type={row.NowPlayingItemType} width={45} height={30} sx={{ borderRadius: 0.75 }} />
             <Typography className="itemname" variant="body2" noWrap title={label}>{label}</Typography>
           </Box>
         )
