@@ -203,8 +203,9 @@ func (c *Client) GetItem(ctx context.Context, id string, fields []string) (*Item
 	if len(fields) > 0 {
 		q.Set("Fields", strings.Join(fields, ","))
 	}
+	q.Set("Ids", id)
 	var res ItemsResponse
-	err := c.get(ctx, fmt.Sprintf("/Items?Ids=%s", id), q, &res)
+	err := c.get(ctx, "/Items", q, &res)
 	if err != nil {
 		return nil, err
 	}
