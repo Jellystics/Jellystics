@@ -287,8 +287,8 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		  COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
 		  COUNT(*)::int AS "PlayCount",
 		  CASE
-		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
 		    WHEN mt."Id" IS NOT NULL THEN 'Audio'
+		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
 		    ELSE COALESCE(i."Type", 'Unknown')
 		  END AS "Type"
 		FROM jf_playback_activity a
@@ -302,8 +302,8 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		  COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
 		  COUNT(*)::int AS "PlayCount",
 		  CASE
-		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
 		    WHEN mt."Id" IS NOT NULL THEN 'Audio'
+		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Series'
 		    ELSE COALESCE(i."Type", 'Unknown')
 		  END AS "Type"
 		FROM jf_playback_activity a
@@ -1005,6 +1005,7 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		  a."NowPlayingItemId" AS "ItemId",
 		  a."NowPlayingItemName",
 		  CASE
+		    WHEN mt."Id" IS NOT NULL THEN 'Audio'
 		    WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Episode'
 		    ELSE COALESCE(i."Type", 'Unknown')
 		  END AS "NowPlayingItemType",
@@ -1018,7 +1019,8 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		  a."ActivityDateInserted",
 		  a."RemoteEndPoint"
 		FROM jf_playback_activity a
-		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"`
+		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"`
 
 	var wheres []string
 	var args   []interface{}
@@ -1040,7 +1042,7 @@ func (h *StatsFrontendHandler) GetAllUserActivity(c *gin.Context) {
 		for _, v := range methods { args = append(args, v) }
 	}
 	if len(mediaTypes) > 0 {
-		expr := `CASE WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Episode' ELSE COALESCE(i."Type", 'Unknown') END`
+		expr := `CASE WHEN mt."Id" IS NOT NULL THEN 'Audio' WHEN a."SeriesName" IS NOT NULL AND a."SeriesName" <> '' THEN 'Episode' ELSE COALESCE(i."Type", 'Unknown') END`
 		wheres = append(wheres, inClause(expr, len(mediaTypes)))
 		for _, v := range mediaTypes { args = append(args, v) }
 	}
