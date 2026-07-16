@@ -564,8 +564,6 @@ func TestGetInstalledPlugins_HTTPError(t *testing.T) {
 // NOT sent as its own query param). This test asserts the CORRECT behavior and
 // is guarded with t.Skip so the package stays green while documenting the bug.
 func TestGetItem_Success(t *testing.T) {
-	t.Skip("BUG: GetItem builds path '/Items?Ids={id}' and ALSO passes a Fields url.Values; get() joins them with '?', producing a double-'?' URL (/Items?Ids=item-9?Fields=...). The server then parses Ids as 'item-9?Fields=Genres,Overview' and the Fields param is never sent separately, so Jellyfin would look up an item whose id literally contains the query string and return nothing. Fix: set Ids via the url.Values (q.Set(\"Ids\", id)) and call get(ctx, \"/Items\", q, &res) instead of embedding Ids in the path.")
-
 	var gotRawQuery, gotIds, gotFields string
 	c, _ := newTestClient(t, "k", func(w http.ResponseWriter, r *http.Request) {
 		gotRawQuery = r.URL.RawQuery
