@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
-  Grid, Alert, Box, Typography, Tabs, Tab, Avatar, Chip, Tooltip, Pagination,
+  Grid, Alert, Box, Typography, Tabs, Tab, Chip, Tooltip, Pagination,
   Card, CardContent, Skeleton, CardMedia, ToggleButtonGroup, ToggleButton, Fade,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +23,8 @@ type GenreRow = { genre: string; plays: number; duration: number }
 import { Play24Regular, Clock24Regular, Star24Regular, VideoClip24Regular, ArrowLeft24Regular } from '@fluentui/react-icons'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { ticksToMinutes } from '@/shared/utils/formatTicks'
-import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
+import { getItemImageUrl } from '@/shared/utils/imageUrl'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
@@ -267,12 +268,7 @@ export default function UserDetailPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {loading ? <Skeleton variant="circular" width={56} height={56} /> : (
-            <Avatar
-              src={getUserImageUrl(id!, 112)}
-              sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontSize: 22, fontWeight: 700 }}
-            >
-              {username.charAt(0).toUpperCase()}
-            </Avatar>
+            <UserAvatar userId={id!} userName={username} size={56} />
           )}
           <Box>
             {loading ? <Skeleton width={120} height={28} /> : <Typography variant="h6" sx={{ fontWeight: 700 }}>{username}</Typography>}

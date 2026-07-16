@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  Alert, Box, Card, CardContent, Typography, IconButton, Chip, Avatar, Skeleton,
+  Alert, Box, Card, CardContent, Typography, IconButton, Chip, Skeleton,
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import {
@@ -17,7 +17,8 @@ import api from '@/lib/axios'
 import type { TimelineEntry } from '@/shared/types/activity'
 import { getDateLocale } from '@/lib/dateLocale'
 import { formatSecondsToWatchTime } from '@/shared/utils/formatWatchTime'
-import { getItemImageUrl, getUserImageUrl } from '@/shared/utils/imageUrl'
+import { getItemImageUrl } from '@/shared/utils/imageUrl'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 import { useChartColors } from '@/lib/chartColors'
 
 export default function TimelinePage() {
@@ -275,13 +276,12 @@ const selectedKey = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null
                         {e.ItemName}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                        <Avatar
-                          src={getUserImageUrl(e.UserId, 32)}
-                          sx={{ width: 16, height: 16, bgcolor: 'primary.main', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}
-                          onClick={() => navigate(`/users/${e.UserId}?view=history`)}
-                        >
-                          {e.UserName?.charAt(0)?.toUpperCase()}
-                        </Avatar>
+                        <UserAvatar
+                          userId={e.UserId}
+                          userName={e.UserName ?? ''}
+                          size={16}
+                          sx={{ cursor: 'pointer' }}
+                        />
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
                           <Box
                             component="span"

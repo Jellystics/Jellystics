@@ -6,6 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { VideoClip24Regular, MusicNote224Regular } from '@fluentui/react-icons'
 import PageHeader from '@/shared/components/PageHeader/PageHeader'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 import DataTable, { type FilterDef, type FilterState } from '@/shared/components/DataTable/DataTable'
 import api from '@/lib/axios'
 import type { Activity } from '@/shared/types/activity'
@@ -122,40 +123,7 @@ export default function ActivityPage() {
             onClick={(e) => { e.stopPropagation(); navigate(`/users/${UserId}`) }}
             sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .username': { textDecoration: 'underline' } }}
           >
-            <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
-              {/* Fallback always rendered behind */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: '50%',
-                  bgcolor: 'primary.main',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'primary.contrastText',
-                }}
-              >
-                {UserName?.[0]?.toUpperCase()}
-              </Box>
-              <Box
-                component="img"
-                src={`/proxy/Users/${UserId}/Images/Primary?fillWidth=32&quality=80`}
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                }}
-              />
-            </Box>
+            <UserAvatar userId={UserId} userName={UserName} size={32} />
             <span className="username">{UserName}</span>
           </Box>
         )

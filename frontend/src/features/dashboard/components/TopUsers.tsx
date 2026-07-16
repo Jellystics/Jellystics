@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 import {
   Card, CardContent, CardHeader, List, ListItem, ListItemText,
-  ListItemAvatar, Avatar, Chip, Skeleton, Box, Typography,
+  ListItemAvatar, Chip, Skeleton, Box, Typography,
 } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
-import { getUserImageUrl } from '@/shared/utils/imageUrl'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 
 interface TopUser { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 interface TopUsersProps { users: TopUser[]; loading: boolean; action?: ReactNode }
@@ -36,12 +36,7 @@ export default function TopUsers({ users, loading, action }: TopUsersProps) {
               >
                 <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, mr: 1 }}>{i + 1}</Typography>
                 <ListItemAvatar sx={{ minWidth: 44 }}>
-                  <Avatar
-                    src={getUserImageUrl(user.UserId)}
-                    sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13, fontWeight: 700 }}
-                  >
-                    {user.UserName.charAt(0).toUpperCase()}
-                  </Avatar>
+                  <UserAvatar userId={user.UserId} userName={user.UserName} size={32} />
                 </ListItemAvatar>
                 <ListItemText
                   primary={<Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>{user.UserName}</Typography>}

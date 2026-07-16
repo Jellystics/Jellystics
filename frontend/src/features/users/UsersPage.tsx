@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  Alert, Box, Typography, Avatar, Grid, Card, CardActionArea, CardContent,
+  Alert, Box, Typography, Grid, Card, CardActionArea, CardContent,
   ToggleButtonGroup, ToggleButton, Skeleton, TextField, InputAdornment, IconButton, Tooltip, Stack,
 } from '@mui/material'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
@@ -13,7 +13,7 @@ import api from '@/lib/axios'
 import type { UserStats } from '@/shared/types/user'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { formatDateOnly, formatDateTime } from '@/shared/utils/formatDate'
-import { getUserImageUrl } from '@/shared/utils/imageUrl'
+import UserAvatar from '@/shared/components/UserAvatar/UserAvatar'
 
 const col = createColumnHelper<UserStats>()
 
@@ -24,12 +24,7 @@ function UserCard({ user, onClick }: { user: UserStats; onClick: () => void }) {
     <Card sx={{ height: '100%' }}>
       <CardActionArea onClick={onClick} sx={{ height: '100%' }}>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 3, gap: 1.5 }}>
-          <Avatar
-            src={getUserImageUrl(user.UserId, 200)}
-            sx={{ width: 96, height: 96, bgcolor: 'primary.main', fontSize: 36, fontWeight: 700 }}
-          >
-            {user.UserName.charAt(0).toUpperCase()}
-          </Avatar>
+          <UserAvatar userId={user.UserId} userName={user.UserName} size={96} />
           <Typography variant="body1" noWrap sx={{ maxWidth: '100%', fontWeight: 700 }}>
             {user.UserName}
           </Typography>
@@ -74,12 +69,7 @@ export default function UsersPage() {
           sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
           onClick={() => navigate(`/users/${i.row.original.UserId}?view=history`)}
         >
-          <Avatar
-            src={getUserImageUrl(i.row.original.UserId, 56)}
-            sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: 12, fontWeight: 700 }}
-          >
-            {(i.getValue() as string).charAt(0).toUpperCase()}
-          </Avatar>
+          <UserAvatar userId={i.row.original.UserId} userName={i.getValue() as string} size={28} />
           <Typography variant="body2" sx={{ fontWeight: 500 }} color="primary.main">
             {i.getValue() as string}
           </Typography>
