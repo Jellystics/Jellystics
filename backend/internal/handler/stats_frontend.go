@@ -1848,10 +1848,11 @@ func (h *StatsFrontendHandler) GetLibraryTracks(c *gin.Context) {
 		  COALESCE(pc.play_count, 0)::int AS "PlayCount"
 		FROM jf_music_tracks t
 		LEFT JOIN (
-		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+		  SELECT "EpisodeId" AS track_id, COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
-		  GROUP BY "NowPlayingItemId"
-		) pc ON pc."NowPlayingItemId" = t."Id"
+		  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" <> ''
+		  GROUP BY "EpisodeId"
+		) pc ON pc.track_id = t."Id"
 		WHERE t."LibraryId" = ?
 		  AND t.archived = false
 		ORDER BY
@@ -1904,10 +1905,11 @@ func (h *StatsFrontendHandler) GetLibraryAlbums(c *gin.Context) {
 		FROM jf_library_items album
 		LEFT JOIN jf_music_tracks t ON t."AlbumId" = album."Id" AND t.archived = false
 		LEFT JOIN (
-		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+		  SELECT "EpisodeId" AS track_id, COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
-		  GROUP BY "NowPlayingItemId"
-		) pc ON pc."NowPlayingItemId" = t."Id"
+		  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" <> ''
+		  GROUP BY "EpisodeId"
+		) pc ON pc.track_id = t."Id"
 		WHERE album."ParentId" = ?
 		  AND album.archived = false
 		  AND album."Type" = 'MusicAlbum'
@@ -1952,10 +1954,11 @@ func (h *StatsFrontendHandler) GetLibraryArtists(c *gin.Context) {
 		FROM jf_music_tracks t
 		LEFT JOIN jf_music_artists ar ON ar."Id" = t."ArtistId"
 		LEFT JOIN (
-		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+		  SELECT "EpisodeId" AS track_id, COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
-		  GROUP BY "NowPlayingItemId"
-		) pc ON pc."NowPlayingItemId" = t."Id"
+		  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" <> ''
+		  GROUP BY "EpisodeId"
+		) pc ON pc.track_id = t."Id"
 		WHERE t."LibraryId" = ?
 		  AND t.archived = false
 		GROUP BY COALESCE(t."ArtistId", ''), COALESCE(t."AlbumArtist", 'Unknown'), ar."ImageTagsPrimary"
@@ -2004,10 +2007,11 @@ func (h *StatsFrontendHandler) GetArtistAlbums(c *gin.Context) {
 		FROM jf_music_tracks t
 		LEFT JOIN jf_library_items album ON album."Id" = t."AlbumId" AND album.archived = false
 		LEFT JOIN (
-		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+		  SELECT "EpisodeId" AS track_id, COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
-		  GROUP BY "NowPlayingItemId"
-		) pc ON pc."NowPlayingItemId" = t."Id"
+		  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" <> ''
+		  GROUP BY "EpisodeId"
+		) pc ON pc.track_id = t."Id"
 		WHERE t."ArtistId" = ?
 		  AND t."LibraryId" = ?
 		  AND t.archived = false
@@ -2058,10 +2062,11 @@ func (h *StatsFrontendHandler) GetAlbumTracks(c *gin.Context) {
 		  COALESCE(pc.play_count, 0)::int AS "PlayCount"
 		FROM jf_music_tracks t
 		LEFT JOIN (
-		  SELECT "NowPlayingItemId", COUNT(*)::int AS play_count
+		  SELECT "EpisodeId" AS track_id, COUNT(*)::int AS play_count
 		  FROM jf_playback_activity
-		  GROUP BY "NowPlayingItemId"
-		) pc ON pc."NowPlayingItemId" = t."Id"
+		  WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" <> ''
+		  GROUP BY "EpisodeId"
+		) pc ON pc.track_id = t."Id"
 		WHERE t."AlbumId" = ?
 		  AND t.archived = false
 		ORDER BY t."DiscNumber" NULLS LAST, t."IndexNumber" NULLS LAST, t."Name"
@@ -2724,7 +2729,7 @@ func (h *StatsFrontendHandler) GetPlaybackMethodStats(c *gin.Context) {
 	h.db.Raw(`
 		SELECT a."PlayMethod" AS "Name", count(a."PlayMethod") AS "Count"
 		FROM jf_playback_activity a
-		WHERE a."ActivityDateInserted" BETWEEN CURRENT_DATE - MAKE_INTERVAL(days => ?) AND NOW()
+		WHERE a."ActivityDateInserted"::timestamptz BETWEEN CURRENT_DATE - MAKE_INTERVAL(days => ?) AND NOW()
 		GROUP BY a."PlayMethod"
 		ORDER BY (count(*)) DESC
 	`, days).Scan(&rows)
@@ -3595,18 +3600,20 @@ func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
 		SELECT
 			a."PlaybackDuration",
 			CASE
+				WHEN mt."Id" IS NOT NULL
+					THEN 'Audio'
 				WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
 					THEN 'Episode'
-				WHEN COALESCE(i."Type", '') = 'Audio'
-					THEN 'Audio'
 				ELSE 'Movie'
 			END AS item_type,
 			LEAST(
 				a."PlaybackDuration"::float
 				/ NULLIF(
 					COALESCE(
-						CASE WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
-							THEN e."RunTimeTicks"
+						CASE
+							WHEN mt."Id" IS NOT NULL THEN mt."RunTimeTicks"
+							WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
+								THEN e."RunTimeTicks"
 							ELSE i."RunTimeTicks"
 						END,
 						0
@@ -3618,10 +3625,13 @@ func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i    ON i."Id" = a."NowPlayingItemId"
 		LEFT JOIN jf_library_episodes e ON e."Id" = a."EpisodeId"
+		LEFT JOIN jf_music_tracks mt    ON mt."Id" = a."EpisodeId"
 		` + where + `
 			AND COALESCE(
-				CASE WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
-					THEN e."RunTimeTicks"
+				CASE
+					WHEN mt."Id" IS NOT NULL THEN mt."RunTimeTicks"
+					WHEN a."EpisodeId" IS NOT NULL AND a."EpisodeId" <> ''
+						THEN e."RunTimeTicks"
 					ELSE i."RunTimeTicks"
 				END,
 				0
