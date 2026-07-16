@@ -1863,7 +1863,6 @@ func (h *StatsFrontendHandler) GetLibraryTracks(c *gin.Context) {
 		  t."DiscNumber" NULLS LAST,
 		  t."IndexNumber" NULLS LAST,
 		  t."Name" ASC
-		LIMIT 5000
 	`, libraryId).Scan(&rows)
 
 	if rows == nil {
