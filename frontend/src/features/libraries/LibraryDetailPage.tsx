@@ -22,7 +22,7 @@ import type { LibraryItem, LibraryStats, GenreStat, MusicTrack, MusicAlbum, Musi
 import type { Activity } from '@/shared/types/activity'
 import {
   Play24Regular, Clock24Regular, Star24Regular,
-  Search20Regular,
+  Search20Regular, VideoClip24Regular, MusicNote224Regular,
   Person24Regular, ArrowLeft24Regular, Grid24Regular, TableSimple24Regular, ArrowSync24Regular,
 } from '@fluentui/react-icons'
 import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
@@ -46,7 +46,7 @@ type Artist = MusicArtist
 type HistoryPoint = { date: string; plays: number }
 type ItemWithStats = { Name: string; times_played: number; total_play_time: number }
 type PlayMethodStat = { Key: string; Transcodes: number; DirectPlays: number }
-type LastPlayedRow = { NowPlayingItemName: string; ActivityDateInserted: string; UserName: string }
+type LastPlayedRow = { NowPlayingItemId?: string; NowPlayingItemName: string; ActivityDateInserted: string; UserName: string }
 
 type TimeToWatchData = {
   avgDaysToWatch: number
@@ -165,6 +165,18 @@ function TracksTable({ tracks, loading, navigate, libraryId, t }: {
   t: (k: string, fb?: string) => string
 }) {
   const columns = useMemo(() => [
+    colHelper.display({
+      id: 'poster',
+      size: 44,
+      header: () => null,
+      meta: { hideFromColumnsMenu: true },
+      cell: (info) => {
+        const row = info.row.original
+        return row.AlbumId
+          ? <MediaPoster src={getItemImageUrl(row.AlbumId, 56, 80)} alt={row.AlbumName ?? ''} type="Audio" width={28} height={28} sx={{ borderRadius: '50%' }} />
+          : null
+      },
+    }),
     colHelper.accessor('IndexNumber', {
       header: '#',
       cell: (info) => (
@@ -1086,11 +1098,19 @@ export default function LibraryDetailPage() {
                         <Box
                           sx={{
                             width: 40, height: 40, borderRadius: '50%',
-                            bgcolor: 'rgba(255,255,255,0.07)',
+                            bgcolor: 'rgba(255,255,255,0.07)', overflow: 'hidden', position: 'relative',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                           }}
                         >
                           <Person24Regular style={{ fontSize: 20, opacity: 0.6 }} />
+                          {artist.ImageTagsPrimary && (
+                            <Box
+                              component="img"
+                              src={getItemImageUrl(artist.Id, 80, 80)}
+                              onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none' }}
+                              sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          )}
                         </Box>
                         <ListItemText
                           primary={artist.Name}
@@ -1242,6 +1262,9 @@ export default function LibraryDetailPage() {
                         >
                           {i + 1}
                         </Typography>
+                        {track.AlbumId && (
+                          <MediaPoster src={getItemImageUrl(track.AlbumId, 72, 85)} alt={track.AlbumName ?? ''} type="Audio" width={32} height={32} sx={{ borderRadius: '50%' }} />
+                        )}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>{track.Name}</Typography>
                           <Typography variant="caption" color="text.secondary" noWrap>
@@ -1326,7 +1349,15 @@ export default function LibraryDetailPage() {
                         {lastPlayed.map((row, i) => {
                           const dateStr = formatDateTime(row.ActivityDateInserted)
                           return (
-                            <ListItem key={i} disablePadding sx={{ py: 0.5 }}>
+                            <ListItem
+                              key={i}
+                              disablePadding
+                              sx={{ py: 0.5, gap: 1.5, cursor: row.NowPlayingItemId ? 'pointer' : 'default', borderRadius: 1, '&:hover': row.NowPlayingItemId ? { bgcolor: 'action.hover' } : {} }}
+                              onClick={() => row.NowPlayingItemId && navigate(`/items/${row.NowPlayingItemId}`)}
+                            >
+                              {row.NowPlayingItemId && (
+                                <MediaPoster src={getItemImageUrl(row.NowPlayingItemId, 56, 80)} width={28} height={40} />
+                              )}
                               <ListItemText
                                 primary={row.NowPlayingItemName}
                                 secondary={`${row.UserName} — ${dateStr}`}
@@ -1388,7 +1419,8 @@ export default function LibraryDetailPage() {
                         </Typography>
                         <List dense disablePadding>
                           {timeToWatch.fastestItems.slice(0, 5).map((item) => (
-                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25, gap: 1, cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} onClick={() => navigate(`/items/${item.id}`)}>
+                              <MediaPoster src={getItemImageUrl(item.id, 48, 80)} type={item.type} width={24} height={34} />
                               <ListItemText
                                 primary={item.name}
                                 secondary={`${item.daysToWatch} ${t('library.days', 'days')}`}
@@ -1407,7 +1439,8 @@ export default function LibraryDetailPage() {
                         </Typography>
                         <List dense disablePadding>
                           {timeToWatch.slowestItems.slice(0, 5).map((item) => (
-                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25, gap: 1, cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} onClick={() => navigate(`/items/${item.id}`)}>
+                              <MediaPoster src={getItemImageUrl(item.id, 48, 80)} type={item.type} width={24} height={34} />
                               <ListItemText
                                 primary={item.name}
                                 secondary={`${item.daysToWatch} ${t('library.days', 'days')}`}
@@ -1475,7 +1508,8 @@ export default function LibraryDetailPage() {
                         </Typography>
                         <List dense disablePadding>
                           {unwatchedContent.items.results.map((item) => (
-                            <ListItem key={item.id} disablePadding sx={{ py: 0.25 }}>
+                            <ListItem key={item.id} disablePadding sx={{ py: 0.25, gap: 1, cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} onClick={() => navigate(`/items/${item.id}`)}>
+                              <MediaPoster src={getItemImageUrl(item.id, 48, 80)} type={item.type} width={24} height={34} />
                               <ListItemText
                                 primary={item.name}
                                 secondary={item.type}

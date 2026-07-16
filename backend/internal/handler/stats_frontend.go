@@ -2217,6 +2217,7 @@ func (h *StatsFrontendHandler) GetLibraryLastPlayed(c *gin.Context) {
 		Id                   *string `json:"Id"`
 		UserId               *string `json:"UserId"`
 		UserName             *string `json:"UserName"`
+		NowPlayingItemId     *string `json:"NowPlayingItemId"`
 		NowPlayingItemName   *string `json:"NowPlayingItemName"`
 		SeriesName           *string `json:"SeriesName"`
 		Client               *string `json:"Client"`
@@ -2228,7 +2229,7 @@ func (h *StatsFrontendHandler) GetLibraryLastPlayed(c *gin.Context) {
 	var rows []Row
 	h.db.Raw(`
 		SELECT
-		  a."Id", a."UserId", a."UserName", a."NowPlayingItemName", a."SeriesName",
+		  a."Id", a."UserId", a."UserName", a."NowPlayingItemId", a."NowPlayingItemName", a."SeriesName",
 		  a."Client", a."PlayMethod", a."ActivityDateInserted",
 		  FLOOR(COALESCE(a."PlaybackDuration", 0) / 60.0)::int AS "PlaybackDuration",
 		  COALESCE(i."Type", mt."Id"::text) AS "ItemType"
