@@ -196,8 +196,8 @@ func (h *TasksApiHandler) ImportBackup(c *gin.Context) {
 		deviceName := strings.TrimSpace(parts[7])
 		playDurationStr := strings.TrimSpace(parts[8])
 
-		playDuration, _ := strconv.ParseInt(playDurationStr, 10, 64)
-		playDurationSecs := playDuration / 10_000_000 // ticks to seconds
+		// PlaybackReporting plugin PlayDuration is already in seconds.
+		playDurationSecs, _ := strconv.ParseInt(playDurationStr, 10, 64)
 
 		// Generate an ID based on content
 		id := fmt.Sprintf("import-%s-%s-%s", userId, itemId, dateCreated)
