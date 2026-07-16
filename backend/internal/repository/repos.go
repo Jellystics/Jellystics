@@ -647,7 +647,7 @@ func (r *statsRepo) GetMostPlayedArtists(ctx context.Context, libraryId string, 
 			COUNT(a."Id")::bigint AS times_played
 		FROM jf_music_artists ar
 		JOIN jf_music_tracks t ON t."ArtistId" = ar."Id"
-		JOIN jf_playback_activity a ON a."NowPlayingItemId" = t."Id"
+		JOIN jf_playback_activity a ON a."EpisodeId" = t."Id"
 		WHERE ar."LibraryId" = ? AND ar.archived = false
 		GROUP BY ar."Id", ar."Name"
 		ORDER BY times_played DESC
@@ -659,13 +659,15 @@ func (r *statsRepo) GetMostPlayedArtists(ctx context.Context, libraryId string, 
 func (r *statsRepo) GetMostPlayedAlbums(ctx context.Context, libraryId, artistId string, limit int) ([]AlbumPlayStat, error) {
 	var out []AlbumPlayStat
 	q := r.db.WithContext(ctx)
+	// Album plays are recorded as playback rows whose NowPlayingItemId is the
+	// album id (each track play maps parent=AlbumId, child=trackId). Count them
+	// directly on the album to avoid multiplying by the track count.
 	sql := `
 		SELECT
 			i."Id" AS album_id, i."Name" AS album_name,
 			COUNT(a."Id")::bigint AS times_played
 		FROM jf_library_items i
-		JOIN jf_music_tracks t ON t."AlbumId" = i."Id"
-		JOIN jf_playback_activity a ON a."NowPlayingItemId" = t."Id"
+		JOIN jf_playback_activity a ON a."NowPlayingItemId" = i."Id"
 		WHERE i."Type" = 'MusicAlbum' AND i.archived = false
 	`
 	args := []any{}
@@ -674,7 +676,10 @@ func (r *statsRepo) GetMostPlayedAlbums(ctx context.Context, libraryId, artistId
 		args = append(args, libraryId)
 	}
 	if artistId != "" {
-		sql += ` AND t."ArtistId" = ?`
+		sql += ` AND EXISTS (
+			SELECT 1 FROM jf_music_tracks t
+			WHERE t."AlbumId" = i."Id" AND t."ArtistId" = ?
+		)`
 		args = append(args, artistId)
 	}
 	sql += ` GROUP BY i."Id", i."Name" ORDER BY times_played DESC LIMIT ?`
@@ -688,7 +693,7 @@ func (r *statsRepo) GetMostPlayedTracks(ctx context.Context, libraryId, albumId 
 			t."Id" AS track_id, t."Name" AS track_name, t."AlbumName" AS album_name,
 			COUNT(a."Id")::bigint AS times_played
 		FROM jf_music_tracks t
-		JOIN jf_playback_activity a ON a."NowPlayingItemId" = t."Id"
+		JOIN jf_playback_activity a ON a."EpisodeId" = t."Id"
 		WHERE t.archived = false
 	`
 	args := []any{}
