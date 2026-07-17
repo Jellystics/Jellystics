@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/Jellystics/Jellystics/internal/config"
 	"github.com/Jellystics/Jellystics/internal/handler"
@@ -269,7 +270,9 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 // If no API keys are configured, the endpoint is public (bootstrapping convenience).
 func metricsAuth(repos *repository.Container) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		cfg, err := repos.Config.Get(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		cfg, err := repos.Config.Get(ctx)
 		if err != nil {
 			c.AbortWithStatus(503)
 			return

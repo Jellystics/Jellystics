@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Jellystics/Jellystics/internal/repository"
 	"github.com/prometheus/client_golang/prometheus"
@@ -121,7 +122,8 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// ── Global stats ──────────────────────────────────────────────────────────
 	if gs, err := c.repos.Stats.GetGlobalStats(ctx); err == nil {
@@ -144,12 +146,22 @@ func (c *MetricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	// ── Per-library stats ─────────────────────────────────────────────────────
-	if libs, err := c.repos.Stats.GetMostViewedLibraries(ctx, 100); err == nil {
-		for _, l := range libs {
-			ch <- prometheus.MustNewConstMetric(c.playsByLibrary, prometheus.CounterValue, float64(l.TotalPlays), l.Name)
-		}
-	} else {
-		log.Printf("metrics: GetMostViewedLibraries: %v", err)
+	type libRow struct {
+		Name       string
+		TotalPlays int
+	}
+	var libRows []libRow
+	c.db.WithContext(ctx).Raw(`
+		SELECT l."Name" AS name, COUNT(a."Id")::int AS total_plays
+		FROM jf_playback_activity a
+		JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId" AND i.archived = false
+		JOIN jf_libraries l ON l."Id" = i."ParentId" AND l.archived = false
+		GROUP BY l."Name"
+		ORDER BY total_plays DESC
+		LIMIT 100
+	`).Scan(&libRows)
+	for _, l := range libRows {
+		ch <- prometheus.MustNewConstMetric(c.playsByLibrary, prometheus.CounterValue, float64(l.TotalPlays), l.Name)
 	}
 
 	// ── Media type (raw SQL) ──────────────────────────────────────────────────
