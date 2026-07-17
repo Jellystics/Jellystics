@@ -1,18 +1,23 @@
 import { ToggleButtonGroup, ToggleButton } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { differenceInDays, startOfDay } from 'date-fns'
+import { useDateRange } from '@/lib/dateRange'
 
-interface Props {
-  value: number
-  onChange: (days: number) => void
-}
-
-export default function TimeRangeSelector({ value, onChange }: Props) {
+export default function TimeRangeSelector() {
   const { t } = useTranslation()
+  const { from, to, setPreset } = useDateRange()
+
+  // Derive which toggle is active: compute full-day diff to match preset values
+  const diffDays = differenceInDays(startOfDay(to), startOfDay(from))
+  // 0 = "All time" preset (from = 2000-01-01), otherwise match 7/30/90
+  const isAllTime = from.getFullYear() <= 2000
+  const value = isAllTime ? 0 : [7, 30, 90].includes(diffDays) ? diffDays : null
+
   return (
     <ToggleButtonGroup
       value={value}
       exclusive
-      onChange={(_, v) => { if (v !== null) onChange(v) }}
+      onChange={(_, v) => { if (v !== null) setPreset(v as number) }}
       size="small"
       sx={{ height: 32 }}
     >

@@ -15,6 +15,7 @@ import MediaPoster from '@/shared/components/MediaPoster/MediaPoster'
 import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricToggle/MetricToggle'
 import { useChartColors } from '@/lib/chartColors'
 import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
+import { useDateRange, fmtDate } from '@/lib/dateRange'
 
 type ActiveUser = { UserId: string; UserName: string; TotalPlays: number; TotalWatchTime: number }
 type PlayedItem = { Id: string; Name: string; PlayCount: number; Type: string }
@@ -23,6 +24,10 @@ export default function StatisticsPage() {
   const CHART_COLORS = useChartColors()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { from, to } = useDateRange()
+
+  const fromStr = fmtDate(from)
+  const toStr = fmtDate(to)
 
   const [refreshKey, setRefreshKey] = useState(0)
   const refresh = () => setRefreshKey(k => k + 1)
@@ -40,90 +45,83 @@ export default function StatisticsPage() {
   }, [refreshKey])
 
   // ── Plays over time ─────────────────────────────────────────────────────
-  const [overTimeDays, setOverTimeDays] = useState(30)
   const [overTime, setOverTime] = useState<WatchStatOverTime[]>([])
   const [overTimeLoading, setOverTimeLoading] = useState(true)
   const [overTimeMetric, setOverTimeMetric] = useState<ActivityMetric>('count')
 
   useEffect(() => {
     setOverTimeLoading(true)
-    api.get(`/stats/getWatchStatisticsOverTime?days=${overTimeDays}`)
+    api.get(`/stats/getWatchStatisticsOverTime?from=${fromStr}&to=${toStr}`)
       .then(r => setOverTime(r.data ?? []))
       .catch(() => setOverTime([]))
       .finally(() => setOverTimeLoading(false))
-  }, [overTimeDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Plays by hour ───────────────────────────────────────────────────────
-  const [hourDays, setHourDays] = useState(30)
   const [byHour, setByHour] = useState<HourStat[]>([])
   const [hourLoading, setHourLoading] = useState(true)
   const [hourMetric, setHourMetric] = useState<ActivityMetric>('count')
 
   useEffect(() => {
     setHourLoading(true)
-    api.get(`/stats/getPopularHourOfDay?days=${hourDays}`)
+    api.get(`/stats/getPopularHourOfDay?from=${fromStr}&to=${toStr}`)
       .then(r => setByHour(r.data ?? []))
       .catch(() => setByHour([]))
       .finally(() => setHourLoading(false))
-  }, [hourDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Plays by day of week ────────────────────────────────────────────────
-  const [dayDays, setDayDays] = useState(30)
   const [byDay, setByDay] = useState<DayStat[]>([])
   const [dayLoading, setDayLoading] = useState(true)
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
 
   useEffect(() => {
     setDayLoading(true)
-    api.get(`/stats/getPopularDayOfWeek?days=${dayDays}`)
+    api.get(`/stats/getPopularDayOfWeek?from=${fromStr}&to=${toStr}`)
       .then(r => setByDay(r.data ?? []))
       .catch(() => setByDay([]))
       .finally(() => setDayLoading(false))
-  }, [dayDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Playback method ─────────────────────────────────────────────────────
-  const [methodDays, setMethodDays] = useState(30)
   const [byMethod, setByMethod] = useState<PlayMethodStat[]>([])
   const [methodLoading, setMethodLoading] = useState(true)
   const [methodMetric, setMethodMetric] = useState<ActivityMetric>('count')
 
   useEffect(() => {
     setMethodLoading(true)
-    api.get(`/stats/getMostUsedPlaybackMethod?days=${methodDays}`)
+    api.get(`/stats/getMostUsedPlaybackMethod?from=${fromStr}&to=${toStr}`)
       .then(r => setByMethod(r.data ?? []))
       .catch(() => setByMethod([]))
       .finally(() => setMethodLoading(false))
-  }, [methodDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Top clients ─────────────────────────────────────────────────────────
-  const [clientDays, setClientDays] = useState(30)
   const [byClient, setByClient] = useState<ClientStat[]>([])
   const [clientLoading, setClientLoading] = useState(true)
   const [clientMetric, setClientMetric] = useState<ActivityMetric>('count')
 
   useEffect(() => {
     setClientLoading(true)
-    api.get(`/stats/getMostUsedClients?days=${clientDays}`)
+    api.get(`/stats/getMostUsedClients?from=${fromStr}&to=${toStr}`)
       .then(r => setByClient(r.data ?? []))
       .catch(() => setByClient([]))
       .finally(() => setClientLoading(false))
-  }, [clientDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Most active users ───────────────────────────────────────────────────
-  const [usersDays, setUsersDays] = useState(30)
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
   const [usersLoading, setUsersLoading] = useState(true)
 
   useEffect(() => {
     setUsersLoading(true)
-    api.get(`/stats/getMostActiveUsers?limit=8&days=${usersDays}`)
+    api.get(`/stats/getMostActiveUsers?limit=8&from=${fromStr}&to=${toStr}`)
       .then(r => setActiveUsers((r.data ?? []).slice(0, 8)))
       .catch(() => setActiveUsers([]))
       .finally(() => setUsersLoading(false))
-  }, [usersDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Top items ───────────────────────────────────────────────────────────
-  const [itemsDays, setItemsDays] = useState(30)
   const [topItems, setTopItems] = useState<PlayedItem[]>([])
   const [topItemsPage, setTopItemsPage] = useState(0)
   const TOP_ITEMS_PAGE_SIZE = 5
@@ -131,24 +129,23 @@ export default function StatisticsPage() {
 
   useEffect(() => {
     setItemsLoading(true)
-    api.get(`/stats/getMostPlayedItems?limit=10&days=${itemsDays}`)
+    api.get(`/stats/getMostPlayedItems?limit=10&from=${fromStr}&to=${toStr}`)
       .then(r => { setTopItems((r.data ?? []).slice(0, 10)); setTopItemsPage(0) })
       .catch(() => setTopItems([]))
       .finally(() => setItemsLoading(false))
-  }, [itemsDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   // ── Completion rate ──────────────────────────────────────────────────
-  const [completionDays, setCompletionDays] = useState(30)
   const [completion, setCompletion] = useState<any>(null)
   const [completionLoading, setCompletionLoading] = useState(true)
 
   useEffect(() => {
     setCompletionLoading(true)
-    api.get(`/stats/getCompletionRate?days=${completionDays}`)
+    api.get(`/stats/getCompletionRate?from=${fromStr}&to=${toStr}`)
       .then(r => setCompletion(r.data))
       .catch(() => setCompletion(null))
       .finally(() => setCompletionLoading(false))
-  }, [completionDays, refreshKey])
+  }, [fromStr, toStr, refreshKey])
 
   const hourData = Array.from({ length: 24 }, (_, h) => ({
     hour: `${String(h).padStart(2, '0')}${t('time.hourShort')}`,
@@ -209,7 +206,7 @@ export default function StatisticsPage() {
             empty={overTime.length === 0}
             height={240}
             action={chartAction(
-              <TimeRangeSelector value={overTimeDays} onChange={setOverTimeDays} />,
+              <TimeRangeSelector />,
               <MetricToggle value={overTimeMetric} onChange={setOverTimeMetric} />,
             )}
           >
@@ -233,7 +230,7 @@ export default function StatisticsPage() {
             empty={byHour.length === 0}
             height={220}
             action={chartAction(
-              <TimeRangeSelector value={hourDays} onChange={setHourDays} />,
+              <TimeRangeSelector />,
               <MetricToggle value={hourMetric} onChange={setHourMetric} />,
             )}
           >
@@ -254,7 +251,7 @@ export default function StatisticsPage() {
             empty={byDay.length === 0}
             height={220}
             action={chartAction(
-              <TimeRangeSelector value={dayDays} onChange={setDayDays} />,
+              <TimeRangeSelector />,
               <MetricToggle value={dayMetric} onChange={setDayMetric} />,
             )}
           >
@@ -278,7 +275,7 @@ export default function StatisticsPage() {
             empty={byMethod.length === 0}
             height={280}
             action={chartAction(
-              <TimeRangeSelector value={methodDays} onChange={setMethodDays} />,
+              <TimeRangeSelector />,
               <MetricToggle value={methodMetric} onChange={setMethodMetric} />,
             )}
           >
@@ -299,7 +296,7 @@ export default function StatisticsPage() {
             empty={byClient.length === 0}
             height={280}
             action={chartAction(
-              <TimeRangeSelector value={clientDays} onChange={setClientDays} />,
+              <TimeRangeSelector />,
               <MetricToggle value={clientMetric} onChange={setClientMetric} />,
             )}
           >
@@ -324,7 +321,7 @@ export default function StatisticsPage() {
             loading={usersLoading}
             empty={activeUsers.length === 0}
             height={220}
-            action={<TimeRangeSelector value={usersDays} onChange={setUsersDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               xAxis={[{ data: activeUsers.map((d) => d.UserName), scaleType: 'band' }]}
@@ -345,7 +342,7 @@ export default function StatisticsPage() {
             loading={itemsLoading}
             empty={topItems.length === 0}
             height="auto"
-            action={<TimeRangeSelector value={itemsDays} onChange={setItemsDays} />}
+            action={<TimeRangeSelector />}
           >
             <Box sx={{ pt: 0.5 }}>
               {topItems
@@ -450,7 +447,7 @@ export default function StatisticsPage() {
             loading={completionLoading}
             empty={!completion?.distribution?.length}
             height={280}
-            action={<TimeRangeSelector value={completionDays} onChange={setCompletionDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               xAxis={[{ data: (completion?.distribution ?? []).map((d: any) => d.bucket), scaleType: 'band' }]}
@@ -468,7 +465,7 @@ export default function StatisticsPage() {
             loading={completionLoading}
             empty={!completion?.byType?.length}
             height={280}
-            action={<TimeRangeSelector value={completionDays} onChange={setCompletionDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               layout="horizontal"

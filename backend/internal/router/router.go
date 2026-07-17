@@ -1,6 +1,9 @@
 package router
 
 import (
+	"context"
+	"encoding/json"
+
 	"github.com/Jellystics/Jellystics/internal/config"
 	"github.com/Jellystics/Jellystics/internal/handler"
 	"github.com/Jellystics/Jellystics/internal/middleware"
@@ -9,6 +12,8 @@ import (
 	"github.com/Jellystics/Jellystics/internal/service/scheduler"
 	"github.com/Jellystics/Jellystics/internal/ws"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/gorm"
 )
 
@@ -48,6 +53,14 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 	r.Any("/socket.io/*path", func(c *gin.Context) {
 		hub.ServeHTTP(c.Writer, c.Request)
 	})
+
+	// ── Prometheus metrics ────────────────────────────────────────────────────
+	// Requires a valid Jellystics API key (Authorization: Bearer <key>).
+	// Keys are managed via Settings → API Keys in the dashboard.
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(handler.NewMetricsCollector(repos, db))
+	metricsHandler := gin.WrapH(promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	r.GET("/metrics", metricsAuth(repos), metricsHandler)
 
 	// ── Image proxy (public, no auth) ─────────────────────────────────────────
 	// getSessions/getAdminUsers/getRecentlyAdded are dispatched inside Proxy().
@@ -249,4 +262,39 @@ func New(svcs *service.Container, repos *repository.Container, hub *ws.Hub, db *
 	}
 
 	return r
+}
+
+// metricsAuth enforces bearer-token auth on /metrics using the app's API keys.
+// The caller must send: Authorization: Bearer <api-key>
+// If no API keys are configured, the endpoint is public (bootstrapping convenience).
+func metricsAuth(repos *repository.Container) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg, err := repos.Config.Get(context.Background())
+		if err != nil {
+			c.AbortWithStatus(503)
+			return
+		}
+
+		var keys []map[string]string
+		if len(cfg.ApiKeys) > 0 {
+			_ = json.Unmarshal(cfg.ApiKeys, &keys)
+		}
+
+		auth := c.GetHeader("Authorization")
+		const prefix = "Bearer "
+		if len(auth) <= len(prefix) || auth[:len(prefix)] != prefix {
+			c.Header("WWW-Authenticate", "Bearer")
+			c.AbortWithStatus(401)
+			return
+		}
+		token := auth[len(prefix):]
+		for _, k := range keys {
+			if k["key"] == token {
+				c.Next()
+				return
+			}
+		}
+		c.Header("WWW-Authenticate", "Bearer")
+		c.AbortWithStatus(401)
+	}
 }

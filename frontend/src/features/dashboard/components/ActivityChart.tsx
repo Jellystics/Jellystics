@@ -9,6 +9,7 @@ import MetricToggle, { type ActivityMetric } from '@/shared/components/MetricTog
 import TimeRangeSelector from '@/shared/components/TimeRangeSelector/TimeRangeSelector'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import { getDateLocale } from '@/lib/dateLocale'
+import { useDateRange, fmtDate } from '@/lib/dateRange'
 import api from '@/lib/axios'
 import { ChartMultiple24Regular } from '@fluentui/react-icons'
 import { useChartColors } from '@/lib/chartColors'
@@ -25,7 +26,7 @@ export default function ActivityChart() {
   const COLOR_PLAYS = chartColors[0]
   const COLOR_DURATION = chartColors[1]
   const { t } = useTranslation()
-  const [days, setDays] = useState(30)
+  const { from, to } = useDateRange()
   const [metric, setMetric] = useState<ActivityMetric>('count')
   const [combined, setCombined] = useState(false)
   const [data, setData] = useState<ActivityPoint[]>([])
@@ -34,11 +35,11 @@ export default function ActivityChart() {
   useEffect(() => {
     setLoading(true)
     api
-      .get(`/stats/getWatchStatisticsOverTime?days=${days}`)
+      .get(`/stats/getWatchStatisticsOverTime?from=${fmtDate(from)}&to=${fmtDate(to)}`)
       .then((r) => setData(Array.isArray(r.data) ? r.data : []))
       .catch(() => setData([]))
       .finally(() => setLoading(false))
-  }, [days])
+  }, [from, to])
 
   const labels = data.map((d) => format(parseISO(d.date), 'MMM d', { locale: getDateLocale() }))
   const playsValues = data.map((d) => d.plays)
@@ -49,7 +50,7 @@ export default function ActivityChart() {
   const actions = (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' }, gap: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <TimeRangeSelector value={days} onChange={setDays} />
+        <TimeRangeSelector />
         <Tooltip title={combined ? t('dashboard.singleView', 'Vue simple') : t('dashboard.combinedView', 'Vue combinée')}>
           <IconButton
             size="small"

@@ -1,30 +1,39 @@
 import { useState } from 'react'
 import { Box, Button, ButtonGroup, Popover, Stack, Typography } from '@mui/material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import { differenceInDays, startOfDay, subDays } from 'date-fns'
+import { differenceInDays, startOfDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
+import { useDateRange } from '@/lib/dateRange'
 
 const PRESETS = [7, 14, 30, 90]
 
-interface TimeRangePickerProps {
-  value: number
-  onChange: (days: number) => void
-}
-
-export default function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
+export default function TimeRangePicker() {
   const { t } = useTranslation()
+  const { from, to, setRange, setPreset } = useDateRange()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-  const [from, setFrom] = useState<Date | null>(subDays(new Date(), 29))
-  const [to, setTo] = useState<Date | null>(new Date())
+  const [localFrom, setLocalFrom] = useState<Date | null>(from)
+  const [localTo, setLocalTo] = useState<Date | null>(to)
 
-  const isPreset = PRESETS.includes(value)
+  // Determine which preset is active (if any)
+  const activeDays = (() => {
+    const d = differenceInDays(startOfDay(to), startOfDay(from))
+    return PRESETS.includes(d) ? d : -1
+  })()
+
+  const handleOpenCustom = (e: React.MouseEvent<HTMLElement>) => {
+    setLocalFrom(from)
+    setLocalTo(to)
+    setAnchorEl(e.currentTarget)
+  }
 
   const handleApply = () => {
-    if (!from || !to) return
-    const d = differenceInDays(startOfDay(to), startOfDay(from)) + 1
-    if (d > 0) onChange(d)
+    if (!localFrom || !localTo) return
+    const d = differenceInDays(startOfDay(localTo), startOfDay(localFrom))
+    if (d > 0) setRange(localFrom, localTo)
     setAnchorEl(null)
   }
+
+  const isCustomActive = anchorEl !== null || activeDays === -1
 
   return (
     <Box>
@@ -32,10 +41,10 @@ export default function TimeRangePicker({ value, onChange }: TimeRangePickerProp
         {PRESETS.map((d) => (
           <Button
             key={d}
-            variant={value === d && !anchorEl ? 'contained' : 'outlined'}
+            variant={activeDays === d && !anchorEl ? 'contained' : 'outlined'}
             onClick={() => {
               setAnchorEl(null)
-              onChange(d)
+              setPreset(d)
             }}
             sx={{ minWidth: 40, textTransform: 'none', fontSize: 12, px: 1.25 }}
           >
@@ -43,8 +52,8 @@ export default function TimeRangePicker({ value, onChange }: TimeRangePickerProp
           </Button>
         ))}
         <Button
-          variant={!isPreset || !!anchorEl ? 'contained' : 'outlined'}
-          onClick={(e) => setAnchorEl(e.currentTarget)}
+          variant={isCustomActive ? 'contained' : 'outlined'}
+          onClick={handleOpenCustom}
           sx={{ textTransform: 'none', fontSize: 12, px: 1.25 }}
         >
           {t('timeRange.custom')}
@@ -66,16 +75,16 @@ export default function TimeRangePicker({ value, onChange }: TimeRangePickerProp
           <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
             <DatePicker
               label={t('timeRange.from')}
-              value={from}
-              onChange={setFrom}
-              maxDate={to ?? new Date()}
+              value={localFrom}
+              onChange={setLocalFrom}
+              maxDate={localTo ?? new Date()}
               slotProps={{ textField: { size: 'small', fullWidth: true } }}
             />
             <DatePicker
               label={t('timeRange.to')}
-              value={to}
-              onChange={setTo}
-              minDate={from ?? undefined}
+              value={localTo}
+              onChange={setLocalTo}
+              minDate={localFrom ?? undefined}
               disableFuture
               slotProps={{ textField: { size: 'small', fullWidth: true } }}
             />
@@ -88,7 +97,7 @@ export default function TimeRangePicker({ value, onChange }: TimeRangePickerProp
               size="small"
               variant="contained"
               onClick={handleApply}
-              disabled={!from || !to}
+              disabled={!localFrom || !localTo}
             >
               {t('timeRange.apply')}
             </Button>

@@ -12,6 +12,7 @@ import { buildTheme, getThemeMode, setThemeMode } from '@/lib/theme'
 import { ThemeModeContext, type ThemeMode } from '@/lib/ThemeModeContext'
 import { PaletteProvider } from '@/lib/PaletteContext'
 import { FaviconProvider } from '@/lib/FaviconContext'
+import { DateRangeProvider } from '@/lib/dateRange'
 import { applyStoredFavicon } from '@/lib/favicon'
 import { router } from '@/lib/router'
 import '@/lib/i18n'
@@ -133,7 +134,9 @@ export default function App() {
   return (
     <FaviconProvider>
       <PaletteProvider>
-        <ThemedApp />
+        <DateRangeProvider>
+          <ThemedApp />
+        </DateRangeProvider>
       </PaletteProvider>
     </FaviconProvider>
   )

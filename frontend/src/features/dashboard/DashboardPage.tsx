@@ -20,7 +20,7 @@ import ActivityChart from './components/ActivityChart'
 import TopContent from './components/TopContent'
 import TopUsers from './components/TopUsers'
 import { useDashboard } from './hooks/useDashboard'
-import { useFetchWithDays } from './hooks/useFetchWithDays'
+import { useFetchWithRange } from './hooks/useFetchWithRange'
 import { formatWatchTime } from '@/shared/utils/formatWatchTime'
 import api from '@/lib/axios'
 import { useChartColors } from '@/lib/chartColors'
@@ -42,41 +42,41 @@ export default function DashboardPage() {
   const [dayMetric, setDayMetric] = useState<ActivityMetric>('count')
 
   // ── Plays by hour ─────────────────────────────────────────────────────────
-  const { data: hourlyStats, loading: hourLoading, days: hourDays, setDays: setHourDays } =
-    useFetchWithDays<HourStat>((d) => api.get(`/stats/getPopularHourOfDay?days=${d}`).then((r) => r.data))
+  const { data: hourlyStats, loading: hourLoading } =
+    useFetchWithRange<HourStat>((from, to) => api.get(`/stats/getPopularHourOfDay?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Plays by day of week ──────────────────────────────────────────────────
-  const { data: weeklyStats, loading: dayLoading, days: dayDays, setDays: setDayDays } =
-    useFetchWithDays<DayStat>((d) => api.get(`/stats/getPopularDayOfWeek?days=${d}`).then((r) => r.data))
+  const { data: weeklyStats, loading: dayLoading } =
+    useFetchWithRange<DayStat>((from, to) => api.get(`/stats/getPopularDayOfWeek?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Playback methods ──────────────────────────────────────────────────────
-  const { data: playbackMethods, loading: methodLoading, days: methodDays, setDays: setMethodDays } =
-    useFetchWithDays<PlaybackMethod>((d) => api.get(`/stats/getMostUsedPlaybackMethod?days=${d}`).then((r) => r.data))
+  const { data: playbackMethods, loading: methodLoading } =
+    useFetchWithRange<PlaybackMethod>((from, to) => api.get(`/stats/getMostUsedPlaybackMethod?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Top clients ───────────────────────────────────────────────────────────
-  const { data: topClients, loading: clientLoading, days: clientDays, setDays: setClientDays } =
-    useFetchWithDays<ClientStat>((d) => api.get(`/stats/getMostUsedClients?days=${d}`).then((r) => r.data))
+  const { data: topClients, loading: clientLoading } =
+    useFetchWithRange<ClientStat>((from, to) => api.get(`/stats/getMostUsedClients?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Top items ─────────────────────────────────────────────────────────────
-  const { data: topItems, loading: topItemsLoading, days: topItemsDays, setDays: setTopItemsDays } =
-    useFetchWithDays<TopItem>((d) => api.get(`/stats/getMostPlayedItems?limit=20&days=${d}`).then((r) => r.data))
+  const { data: topItems, loading: topItemsLoading } =
+    useFetchWithRange<TopItem>((from, to) => api.get(`/stats/getMostPlayedItems?limit=20&from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Top users ─────────────────────────────────────────────────────────────
-  const { data: topUsers, loading: topUsersLoading, days: topUsersDays, setDays: setTopUsersDays } =
-    useFetchWithDays<TopUser>((d) => api.get(`/stats/getMostActiveUsers?limit=5&days=${d}`).then((r) => r.data))
+  const { data: topUsers, loading: topUsersLoading } =
+    useFetchWithRange<TopUser>((from, to) => api.get(`/stats/getMostActiveUsers?limit=5&from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Most viewed libraries ─────────────────────────────────────────────────
-  const { data: mostViewedLibraries, loading: libsLoading, days: libsDays, setDays: setLibsDays } =
-    useFetchWithDays<LibraryViewCount>((d) => api.post('/stats/getMostViewedLibraries', { days: d }).then((r) => r.data))
+  const { data: mostViewedLibraries, loading: libsLoading } =
+    useFetchWithRange<LibraryViewCount>((from, to) => api.post('/stats/getMostViewedLibraries', { from, to }).then((r) => r.data))
 
   // ── All playbacks scatter (one point per play) ───────────────────────────
   type PlaybackScatterPoint = { ts: string; duration: number; name: string; type: string }
-  const { data: scatterData, loading: scatterLoading, days: scatterDays, setDays: setScatterDays } =
-    useFetchWithDays<PlaybackScatterPoint>((d) => api.get(`/stats/getPlaybacksScatter?days=${d}`).then((r) => r.data))
+  const { data: scatterData, loading: scatterLoading } =
+    useFetchWithRange<PlaybackScatterPoint>((from, to) => api.get(`/stats/getPlaybacksScatter?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Playbacks over time by library ────────────────────────────────────────
-  const { data: libraryOverTime, loading: libraryOverTimeLoading, days: libraryDays, setDays: setLibraryDays } =
-    useFetchWithDays<LibraryDayPoint>((d) => api.get(`/stats/getPlaybacksByLibraryOverTime?days=${d}`).then((r) => r.data))
+  const { data: libraryOverTime, loading: libraryOverTimeLoading } =
+    useFetchWithRange<LibraryDayPoint>((from, to) => api.get(`/stats/getPlaybacksByLibraryOverTime?from=${from}&to=${to}`).then((r) => r.data))
 
   // ── Stable data (no per-chart time range) ────────────────────────────────
   const { globalStats, sessions, viewsByLibraryType, loading, error, refetch } = useDashboard()
@@ -182,9 +182,9 @@ export default function DashboardPage() {
   const libMargin = useMemo(() => libBarLabels.length ? Math.max(...libBarLabels.map(l => l.length)) * 7 + 16 : 80, [libBarLabels])
   const clientMargin = useMemo(() => clientNames.length ? Math.max(...clientNames.map(l => l.length)) * 7 + 16 : 80, [clientNames])
 
-  const chartAction = (selector: ReactNode, toggle?: ReactNode) => (
+  const chartAction = (toggle?: ReactNode) => (
     <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-end', sm: 'center' } }}>
-      {selector}
+      <TimeRangeSelector />
       {toggle}
     </Box>
   )
@@ -234,10 +234,7 @@ export default function DashboardPage() {
             loading={hourLoading}
             empty={!hourLoading && hourlyStats.length === 0}
             height={220}
-            action={chartAction(
-              <TimeRangeSelector value={hourDays} onChange={setHourDays} />,
-              <MetricToggle value={hourMetric} onChange={setHourMetric} />,
-            )}
+            action={chartAction(<MetricToggle value={hourMetric} onChange={setHourMetric} />)}
           >
             <BarChart
               xAxis={[{ data: hourLabels, scaleType: 'band' }]}
@@ -255,10 +252,7 @@ export default function DashboardPage() {
             loading={dayLoading}
             empty={!dayLoading && weeklyStats.length === 0}
             height={220}
-            action={chartAction(
-              <TimeRangeSelector value={dayDays} onChange={setDayDays} />,
-              <MetricToggle value={dayMetric} onChange={setDayMetric} />,
-            )}
+            action={chartAction(<MetricToggle value={dayMetric} onChange={setDayMetric} />)}
           >
             <BarChart
               xAxis={[{ data: dayLabels, scaleType: 'band' }]}
@@ -278,14 +272,14 @@ export default function DashboardPage() {
           <TopContent
             items={topItems}
             loading={topItemsLoading}
-            timeRangeSelector={<TimeRangeSelector value={topItemsDays} onChange={setTopItemsDays} />}
+            timeRangeSelector={<TimeRangeSelector />}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TopUsers
             users={topUsers}
             loading={topUsersLoading}
-            action={<TimeRangeSelector value={topUsersDays} onChange={setTopUsersDays} />}
+            action={<TimeRangeSelector />}
           />
         </Grid>
       </Grid>
@@ -313,7 +307,7 @@ export default function DashboardPage() {
             loading={libsLoading}
             empty={!libsLoading && mostViewedLibraries.length === 0}
             height={260}
-            action={<TimeRangeSelector value={libsDays} onChange={setLibsDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               layout="horizontal"
@@ -333,7 +327,7 @@ export default function DashboardPage() {
             loading={methodLoading}
             empty={!methodLoading && methodData.length === 0}
             height={260}
-            action={<TimeRangeSelector value={methodDays} onChange={setMethodDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               xAxis={[{ data: playbackMethods.map(m => m.method), scaleType: 'band' }]}
@@ -355,7 +349,7 @@ export default function DashboardPage() {
             loading={clientLoading}
             empty={!clientLoading && topClients.length === 0}
             height={260}
-            action={<TimeRangeSelector value={clientDays} onChange={setClientDays} />}
+            action={<TimeRangeSelector />}
           >
             <BarChart
               layout="horizontal"
@@ -379,7 +373,7 @@ export default function DashboardPage() {
             loading={scatterLoading}
             empty={!scatterLoading && scatterSeries.length === 0}
             height={300}
-            action={<TimeRangeSelector value={scatterDays} onChange={setScatterDays} />}
+            action={<TimeRangeSelector />}
           >
             <ScatterChart
               series={scatterSeries}
@@ -402,7 +396,7 @@ export default function DashboardPage() {
             loading={libraryOverTimeLoading}
             empty={!libraryOverTimeLoading && librarySeries.length === 0}
             height={320}
-            action={<TimeRangeSelector value={libraryDays} onChange={setLibraryDays} />}
+            action={<TimeRangeSelector />}
           >
             <ScatterChart
               series={librarySeries}

@@ -32,26 +32,53 @@ func NewStatsFrontendHandler(db *gorm.DB, repos *repository.Container) *StatsFro
 // Helpers
 // ---------------------------------------------------------------------------
 
+// TimeRange holds parsed from/to for SQL queries.
+type TimeRange struct {
+	From    time.Time
+	To      time.Time
+	AllTime bool
+}
+
+// parseTimeRange parses ?from=YYYY-MM-DD&to=YYYY-MM-DD query params.
+// Defaults to last 30 days if neither is provided.
+// from=all or from=0 means all time.
+func parseTimeRange(c *gin.Context) TimeRange {
+	fromStr := c.Query("from")
+	toStr := c.Query("to")
+
+	if fromStr == "all" || fromStr == "0" {
+		return TimeRange{AllTime: true}
+	}
+
+	to := time.Now()
+	from := to.AddDate(0, 0, -30)
+
+	if fromStr != "" {
+		if t, err := time.Parse("2006-01-02", fromStr); err == nil {
+			from = t
+		} else if t, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			from = t
+		}
+	}
+	if toStr != "" {
+		if t, err := time.Parse("2006-01-02", toStr); err == nil {
+			// end of day
+			to = time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.UTC)
+		} else if t, err := time.Parse(time.RFC3339, toStr); err == nil {
+			to = t
+		}
+	}
+
+	return TimeRange{From: from, To: to}
+}
+
+// Keep parseDays for pagination only (size, page, limit params — NOT time filtering)
 func parseDays(value string, fallback int) int {
 	n, err := strconv.Atoi(value)
 	if err != nil || n <= 0 {
 		return fallback
 	}
 	return n
-}
-
-// parseDaysAllTime returns (days, allTime).
-// days=0 → allTime=true; days=N → allTime=false, days=N; invalid → fallback, false.
-func parseDaysAllTime(c *gin.Context, fallback int) (int, bool) {
-	val := c.DefaultQuery("days", strconv.Itoa(fallback))
-	if val == "0" {
-		return 0, true
-	}
-	n, err := strconv.Atoi(val)
-	if err != nil || n <= 0 {
-		return fallback, false
-	}
-	return n, false
 }
 
 type pageResult struct {
@@ -270,8 +297,7 @@ func (h *StatsFrontendHandler) GetGlobalStats(c *gin.Context) {
 func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 	itemType := c.DefaultQuery("type", "all")
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 
 	type Item struct {
 		Id        string `json:"Id"`
@@ -296,7 +322,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"
 		WHERE 1=1
 	`
-	baseSQLDays := `
+	baseSQLRange := `
 		SELECT
 		  a."NowPlayingItemId" AS "Id",
 		  COALESCE(NULLIF(a."SeriesName", ''), a."NowPlayingItemName") AS "Name",
@@ -309,11 +335,11 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 		FROM jf_playback_activity a
 		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
 		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."EpisodeId"
-		WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+		WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 	`
 	suffix := ` GROUP BY a."NowPlayingItemId", 2, 4 ORDER BY "PlayCount" DESC LIMIT ?`
 
-	if allTime {
+	if tr.AllTime {
 		baseSQL := baseSQLAllTime
 		switch itemType {
 		case "Series":
@@ -328,18 +354,18 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 			h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, itemType, limit).Scan(&dbItems)
 		}
 	} else {
-		baseSQL := baseSQLDays
+		baseSQL := baseSQLRange
 		switch itemType {
 		case "Series":
-			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, daysArg, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND a."SeriesName" IS NOT NULL AND a."SeriesName" <> ''`+suffix, tr.From, tr.To, limit).Scan(&dbItems)
 		case "Audio":
-			h.db.Raw(baseSQL+` AND mt."Id" IS NOT NULL`+suffix, daysArg, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND mt."Id" IS NOT NULL`+suffix, tr.From, tr.To, limit).Scan(&dbItems)
 		case "Movie":
-			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, daysArg, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND COALESCE(i."Type", '') IN ('Movie', 'Video')`+suffix, tr.From, tr.To, limit).Scan(&dbItems)
 		case "all":
-			h.db.Raw(baseSQL+suffix, daysArg, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+suffix, tr.From, tr.To, limit).Scan(&dbItems)
 		default:
-			h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, daysArg, itemType, limit).Scan(&dbItems)
+			h.db.Raw(baseSQL+` AND i."Type" = ?`+suffix, tr.From, tr.To, itemType, limit).Scan(&dbItems)
 		}
 	}
 
@@ -385,8 +411,7 @@ func (h *StatsFrontendHandler) GetMostPlayedItems(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 	limit := parseDays(c.DefaultQuery("limit", "5"), 5)
 
 	type UserRow struct {
@@ -396,7 +421,7 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 		TotalWatchTime int    `json:"TotalWatchTime"`
 	}
 	var dbRows []UserRow
-	if allTime {
+	if tr.AllTime {
 		h.db.Raw(`
 			SELECT
 			  a."UserId",
@@ -416,11 +441,11 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 			  FLOOR(COALESCE(SUM(a."PlaybackDuration"), 0) / 60.0)::int AS "TotalWatchTime"
 			FROM jf_playback_activity a
 			LEFT JOIN jf_users u ON u."Id" = a."UserId"
-			WHERE a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			WHERE a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 			GROUP BY a."UserId", u."Name"
 			ORDER BY "TotalPlays" DESC
 			LIMIT ?
-		`, daysArg, limit).Scan(&dbRows)
+		`, tr.From, tr.To, limit).Scan(&dbRows)
 	}
 
 	if dbRows == nil {
@@ -461,12 +486,7 @@ func (h *StatsFrontendHandler) GetMostActiveUsers(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
-	daysParam := c.DefaultQuery("days", "30")
-	days, err := strconv.Atoi(daysParam)
-	if err != nil {
-		days = 30
-	}
-	allTime := days <= 0
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -477,7 +497,7 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 	var rows []Row
 
 	if userId != "" {
-		if allTime {
+		if tr.AllTime {
 			h.db.Raw(`
 				SELECT
 				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
@@ -495,14 +515,14 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 				  COUNT(*)::int AS plays,
 				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 				FROM jf_playback_activity
-				WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 				  AND "UserId" = ?
 				GROUP BY ("ActivityDateInserted"::timestamptz)::date
 				ORDER BY date
-			`, days, userId).Scan(&rows)
+			`, tr.From, tr.To, userId).Scan(&rows)
 		}
 	} else {
-		if allTime {
+		if tr.AllTime {
 			h.db.Raw(`
 				SELECT
 				  TO_CHAR(("ActivityDateInserted"::timestamptz)::date, 'YYYY-MM-DD') AS date,
@@ -519,10 +539,10 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 				  COUNT(*)::int AS plays,
 				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 				FROM jf_playback_activity
-				WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 				GROUP BY ("ActivityDateInserted"::timestamptz)::date
 				ORDER BY date
-			`, days).Scan(&rows)
+			`, tr.From, tr.To).Scan(&rows)
 		}
 	}
 
@@ -558,8 +578,7 @@ func (h *StatsFrontendHandler) GetWatchStatisticsOverTime(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -569,7 +588,7 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 	}
 	var rows []Row
 	if userId != "" {
-		if allTime {
+		if tr.AllTime {
 			h.db.Raw(`
 				SELECT
 				  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
@@ -587,11 +606,11 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 				FROM jf_playback_activity
 				WHERE "UserId" = ?
-				  AND "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				  AND "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 				GROUP BY hour ORDER BY hour
-			`, userId, daysArg).Scan(&rows)
+			`, userId, tr.From, tr.To).Scan(&rows)
 		}
-	} else if allTime {
+	} else if tr.AllTime {
 		h.db.Raw(`
 			SELECT
 			  EXTRACT(HOUR FROM "ActivityDateInserted"::timestamptz)::int AS hour,
@@ -607,9 +626,9 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 			  COUNT(*)::int AS plays,
 			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 			GROUP BY hour ORDER BY hour
-		`, daysArg).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -643,8 +662,7 @@ func (h *StatsFrontendHandler) GetPopularHourOfDay(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	type Row struct {
@@ -654,7 +672,7 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 	}
 	var rows []Row
 	if userId != "" {
-		if allTime {
+		if tr.AllTime {
 			h.db.Raw(`
 				SELECT
 				  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
@@ -672,11 +690,11 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 				  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 				FROM jf_playback_activity
 				WHERE "UserId" = ?
-				  AND "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+				  AND "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 				GROUP BY day ORDER BY day
-			`, userId, daysArg).Scan(&rows)
+			`, userId, tr.From, tr.To).Scan(&rows)
 		}
-	} else if allTime {
+	} else if tr.AllTime {
 		h.db.Raw(`
 			SELECT
 			  EXTRACT(DOW FROM "ActivityDateInserted"::timestamptz)::int AS day,
@@ -692,9 +710,9 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 			  COUNT(*)::int AS plays,
 			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 			GROUP BY day ORDER BY day
-		`, daysArg).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -728,8 +746,7 @@ func (h *StatsFrontendHandler) GetPopularDayOfWeek(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 
 	type Row struct {
 		Method   string `json:"method"`
@@ -737,7 +754,7 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 		Duration int    `json:"duration"`
 	}
 	var rows []Row
-	if allTime {
+	if tr.AllTime {
 		h.db.Raw(`
 			SELECT
 			  COALESCE(NULLIF("PlayMethod", ''), 'Unknown') AS method,
@@ -753,9 +770,9 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 			  COUNT(*)::int AS count,
 			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 			GROUP BY method ORDER BY count DESC
-		`, daysArg).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -791,8 +808,7 @@ func (h *StatsFrontendHandler) GetMostUsedPlaybackMethod(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 
 	type Row struct {
 		Client   string `json:"client"`
@@ -800,7 +816,7 @@ func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
 		Duration int    `json:"duration"`
 	}
 	var rows []Row
-	if allTime {
+	if tr.AllTime {
 		h.db.Raw(`
 			SELECT
 			  "Client" AS client,
@@ -817,10 +833,10 @@ func (h *StatsFrontendHandler) GetMostUsedClients(c *gin.Context) {
 			  COUNT(*)::int AS count,
 			  FLOOR(COALESCE(SUM("PlaybackDuration"), 0) / 60.0)::int AS duration
 			FROM jf_playback_activity
-			WHERE "ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+			WHERE "ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 			  AND "Client" IS NOT NULL AND "Client" <> ''
 			GROUP BY "Client" ORDER BY count DESC LIMIT 10
-		`, daysArg).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -2164,12 +2180,27 @@ func (h *StatsFrontendHandler) GetActivityTimeline(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetMostViewedLibraries(c *gin.Context) {
 	var body struct {
-		Days *int `json:"days"`
+		From *string `json:"from"`
+		To   *string `json:"to"`
 	}
 	_ = c.ShouldBindJSON(&body)
-	days := 30
-	if body.Days != nil && *body.Days > 0 {
-		days = *body.Days
+
+	now := time.Now()
+	fromTime := now.AddDate(0, 0, -30)
+	toTime := now
+	allTime := false
+
+	if body.From != nil {
+		if *body.From == "all" || *body.From == "0" {
+			allTime = true
+		} else if t, err := time.Parse("2006-01-02", *body.From); err == nil {
+			fromTime = t
+		}
+	}
+	if body.To != nil && *body.To != "" {
+		if t, err := time.Parse("2006-01-02", *body.To); err == nil {
+			toTime = time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.UTC)
+		}
 	}
 
 	type Row struct {
@@ -2177,21 +2208,38 @@ func (h *StatsFrontendHandler) GetMostViewedLibraries(c *gin.Context) {
 		Count int    `json:"Count"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT l."Name", COUNT(DISTINCT a."Id")::int AS "Count"
-		FROM jf_libraries l
-		LEFT JOIN (
-		  SELECT "Id", "ParentId" AS "LibraryId" FROM jf_library_items WHERE archived = false
-		  UNION ALL
-		  SELECT "Id", "LibraryId" FROM jf_music_tracks WHERE archived = false
-		) all_items ON all_items."LibraryId" = l."Id"
-		LEFT JOIN jf_playback_activity a
-		  ON (a."NowPlayingItemId" = all_items."Id" OR a."EpisodeId" = all_items."Id")
-		  AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
-		WHERE l.archived = false
-		GROUP BY l."Id", l."Name"
-		ORDER BY "Count" DESC
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT l."Name", COUNT(DISTINCT a."Id")::int AS "Count"
+			FROM jf_libraries l
+			LEFT JOIN (
+			  SELECT "Id", "ParentId" AS "LibraryId" FROM jf_library_items WHERE archived = false
+			  UNION ALL
+			  SELECT "Id", "LibraryId" FROM jf_music_tracks WHERE archived = false
+			) all_items ON all_items."LibraryId" = l."Id"
+			LEFT JOIN jf_playback_activity a
+			  ON (a."NowPlayingItemId" = all_items."Id" OR a."EpisodeId" = all_items."Id")
+			WHERE l.archived = false
+			GROUP BY l."Id", l."Name"
+			ORDER BY "Count" DESC
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT l."Name", COUNT(DISTINCT a."Id")::int AS "Count"
+			FROM jf_libraries l
+			LEFT JOIN (
+			  SELECT "Id", "ParentId" AS "LibraryId" FROM jf_library_items WHERE archived = false
+			  UNION ALL
+			  SELECT "Id", "LibraryId" FROM jf_music_tracks WHERE archived = false
+			) all_items ON all_items."LibraryId" = l."Id"
+			LEFT JOIN jf_playback_activity a
+			  ON (a."NowPlayingItemId" = all_items."Id" OR a."EpisodeId" = all_items."Id")
+			  AND a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
+			WHERE l.archived = false
+			GROUP BY l."Id", l."Name"
+			ORDER BY "Count" DESC
+		`, fromTime, toTime).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -2455,20 +2503,29 @@ func (h *StatsFrontendHandler) GetLibraryOverview(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetViewsByLibraryType(c *gin.Context) {
-	days := parseDays(c.DefaultQuery("days", "30"), 30)
+	tr := parseTimeRange(c)
 
 	type Row struct {
 		Type  *string `json:"type"`
 		Count int     `json:"count"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT COALESCE(i."Type", 'Other') AS type, COUNT(a."NowPlayingItemId") AS count
-		FROM jf_playback_activity a
-		LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
-		WHERE a."ActivityDateInserted"::timestamptz >= NOW() - MAKE_INTERVAL(days => ?)
-		GROUP BY i."Type"
-	`, days).Scan(&rows)
+	if tr.AllTime {
+		h.db.Raw(`
+			SELECT COALESCE(i."Type", 'Other') AS type, COUNT(a."NowPlayingItemId") AS count
+			FROM jf_playback_activity a
+			LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+			GROUP BY i."Type"
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT COALESCE(i."Type", 'Other') AS type, COUNT(a."NowPlayingItemId") AS count
+			FROM jf_playback_activity a
+			LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+			WHERE a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
+			GROUP BY i."Type"
+		`, tr.From, tr.To).Scan(&rows)
+	}
 
 	result := map[string]int{
 		"Audio":  0,
@@ -2715,12 +2772,27 @@ func (h *StatsFrontendHandler) GetPlaybackActivity(c *gin.Context) {
 
 func (h *StatsFrontendHandler) GetPlaybackMethodStats(c *gin.Context) {
 	var body struct {
-		Days *int `json:"days"`
+		From *string `json:"from"`
+		To   *string `json:"to"`
 	}
 	_ = c.ShouldBindJSON(&body)
-	days := 30
-	if body.Days != nil && *body.Days > 0 {
-		days = *body.Days
+
+	now := time.Now()
+	fromTime := now.AddDate(0, 0, -30)
+	toTime := now
+	allTime := false
+
+	if body.From != nil {
+		if *body.From == "all" || *body.From == "0" {
+			allTime = true
+		} else if t, err := time.Parse("2006-01-02", *body.From); err == nil {
+			fromTime = t
+		}
+	}
+	if body.To != nil && *body.To != "" {
+		if t, err := time.Parse("2006-01-02", *body.To); err == nil {
+			toTime = time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.UTC)
+		}
 	}
 
 	type Row struct {
@@ -2728,13 +2800,22 @@ func (h *StatsFrontendHandler) GetPlaybackMethodStats(c *gin.Context) {
 		Count int     `json:"Count"`
 	}
 	var rows []Row
-	h.db.Raw(`
-		SELECT a."PlayMethod" AS "Name", count(a."PlayMethod") AS "Count"
-		FROM jf_playback_activity a
-		WHERE a."ActivityDateInserted"::timestamptz BETWEEN CURRENT_DATE - MAKE_INTERVAL(days => ?) AND NOW()
-		GROUP BY a."PlayMethod"
-		ORDER BY (count(*)) DESC
-	`, days).Scan(&rows)
+	if allTime {
+		h.db.Raw(`
+			SELECT a."PlayMethod" AS "Name", count(a."PlayMethod") AS "Count"
+			FROM jf_playback_activity a
+			GROUP BY a."PlayMethod"
+			ORDER BY (count(*)) DESC
+		`).Scan(&rows)
+	} else {
+		h.db.Raw(`
+			SELECT a."PlayMethod" AS "Name", count(a."PlayMethod") AS "Count"
+			FROM jf_playback_activity a
+			WHERE a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
+			GROUP BY a."PlayMethod"
+			ORDER BY (count(*)) DESC
+		`, fromTime, toTime).Scan(&rows)
+	}
 
 	if rows == nil {
 		rows = []Row{}
@@ -2991,8 +3072,7 @@ func (h *StatsFrontendHandler) GetLibraryItemsPlayMethodStats(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
-	rawDays, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
-	allTime := rawDays <= 0
+	tr := parseTimeRange(c)
 
 	type Row struct {
 		Date        string `json:"date"        gorm:"column:date"`
@@ -3017,20 +3097,19 @@ func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
 		JOIN jf_playback_activity a
 		  ON (a."NowPlayingItemId" = all_items."Id" OR a."EpisodeId" = all_items."Id")`
 
-	if allTime {
+	if tr.AllTime {
 		h.db.Raw(baseQuery+`
 		WHERE l.archived = false
 		GROUP BY date, l."Id", l."Name"
 		ORDER BY date, l."Name"
 		`).Scan(&rows)
 	} else {
-		days := rawDays - 1
 		h.db.Raw(baseQuery+`
-		  AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+		  AND a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 		WHERE l.archived = false
 		GROUP BY date, l."Id", l."Name"
 		ORDER BY date, l."Name"
-		`, days).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -3044,8 +3123,7 @@ func (h *StatsFrontendHandler) GetPlaybacksByLibraryOverTime(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
-	daysArg := days
+	tr := parseTimeRange(c)
 
 	type Row struct {
 		Ts       string `json:"ts"       gorm:"column:ts"`
@@ -3069,17 +3147,17 @@ func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
 		LEFT JOIN jf_music_tracks mt ON mt."Id" = a."NowPlayingItemId" AND mt.archived = false
 		WHERE a."PlaybackDuration" > 0`
 
-	if allTime {
+	if tr.AllTime {
 		h.db.Raw(base+`
 		ORDER BY a."ActivityDateInserted"::timestamptz DESC
 		LIMIT 3000
 		`).Scan(&rows)
 	} else {
 		h.db.Raw(base+`
-		  AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)
+		  AND a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?
 		ORDER BY a."ActivityDateInserted"::timestamptz DESC
 		LIMIT 3000
-		`, daysArg).Scan(&rows)
+		`, tr.From, tr.To).Scan(&rows)
 	}
 
 	if rows == nil {
@@ -3093,7 +3171,7 @@ func (h *StatsFrontendHandler) GetPlaybacksScatter(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetWatchHeatmap(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	query := `
@@ -3107,9 +3185,9 @@ WHERE 1=1`
 
 	args := []interface{}{}
 
-	if !allTime {
-		query += ` AND "ActivityDateInserted"::timestamptz >= NOW() - MAKE_INTERVAL(days => ?)`
-		args = append(args, days)
+	if !tr.AllTime {
+		query += ` AND "ActivityDateInserted"::timestamptz BETWEEN ? AND ?`
+		args = append(args, tr.From, tr.To)
 	}
 	if userId != "" {
 		query += ` AND "UserId" = ?`
@@ -3468,13 +3546,12 @@ func (h *StatsFrontendHandler) GetUnwatchedContent(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetBingeStats(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	dateFilter := ""
-	if !allTime {
-		cutoff := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
-		dateFilter = fmt.Sprintf(`AND "ActivityDateInserted" >= '%s'`, cutoff)
+	if !tr.AllTime {
+		dateFilter = fmt.Sprintf(`AND "ActivityDateInserted" >= '%s'`, tr.From.Format("2006-01-02"))
 	}
 
 	userFilter := ""
@@ -3575,7 +3652,7 @@ LIMIT 20`).Scan(&topUsers)
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 	libraryId := c.Query("libraryId")
 
@@ -3583,9 +3660,9 @@ func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
 	where := `WHERE COALESCE(a."PlaybackDuration", 0) > 0`
 	args := []interface{}{}
 
-	if !allTime {
-		where += ` AND a."ActivityDateInserted"::timestamptz >= CURRENT_DATE - MAKE_INTERVAL(days => ?)`
-		args = append(args, days)
+	if !tr.AllTime {
+		where += ` AND a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?`
+		args = append(args, tr.From, tr.To)
 	}
 	if userId != "" {
 		where += ` AND a."UserId" = ?`
@@ -3729,15 +3806,15 @@ func (h *StatsFrontendHandler) GetCompletionRate(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *StatsFrontendHandler) GetViewingDiversity(c *gin.Context) {
-	days, allTime := parseDaysAllTime(c, 30)
+	tr := parseTimeRange(c)
 	userId := c.Query("userId")
 
 	// Build date filter fragment
 	dateFilter := ""
 	dateArgs := []interface{}{}
-	if !allTime {
-		dateFilter = `AND a."ActivityDateInserted" >= NOW() - MAKE_INTERVAL(days => ?)`
-		dateArgs = append(dateArgs, days)
+	if !tr.AllTime {
+		dateFilter = `AND a."ActivityDateInserted" BETWEEN ? AND ?`
+		dateArgs = append(dateArgs, tr.From, tr.To)
 	}
 
 	userFilter := ""

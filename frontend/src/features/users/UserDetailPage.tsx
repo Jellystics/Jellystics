@@ -30,6 +30,15 @@ import { formatDateTime, formatDateOnly } from '@/shared/utils/formatDate'
 import { useChartColors } from '@/lib/chartColors'
 import { getActivityImageUrl } from '@/shared/utils/activityImage'
 
+/** Convert a days preset (0 = all time) to from/to query string */
+function daysToRange(days: number): string {
+  const today = new Date().toISOString().split('T')[0]
+  if (days === 0) return `from=2000-01-01&to=${today}`
+  const from = new Date()
+  from.setDate(from.getDate() - days)
+  return `from=${from.toISOString().split('T')[0]}&to=${today}`
+}
+
 interface BingedSeries {
   seriesId: string
   seriesName: string
@@ -119,11 +128,11 @@ export default function UserDetailPage() {
       api.get(`/stats/getUserStats?userId=${id}`),
       api.get(`/stats/getUserActivity?userId=${id}`),
       api.get(`/stats/getUserActivityByDate?userId=${id}`),
-      api.get(`/stats/getWatchStatisticsOverTime?userId=${id}&days=0`),
+      api.get(`/stats/getWatchStatisticsOverTime?${daysToRange(0)}&userId=${id}`),
       api.post(`/stats/getUserLastPlayed`, { userid: id }),
       api.post(`/stats/getGlobalUserStats`, { userid: id }),
-      api.get(`/stats/getPopularHourOfDay?days=0&userId=${id}`),
-      api.get(`/stats/getPopularDayOfWeek?days=0&userId=${id}`),
+      api.get(`/stats/getPopularHourOfDay?${daysToRange(0)}&userId=${id}`),
+      api.get(`/stats/getPopularDayOfWeek?${daysToRange(0)}&userId=${id}`),
     ])
       .then(([statsRes, activityRes, heatmapRes, overTimeRes, lastPlayedRes, globalStatsRes, hourRes, dayRes]) => {
         setUserStats(statsRes.data)
@@ -143,21 +152,21 @@ export default function UserDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    api.get(`/stats/getBingeStats?days=${bingeDays}&userId=${id}`)
+    api.get(`/stats/getBingeStats?${daysToRange(bingeDays)}&userId=${id}`)
       .then((res) => { setBingeStats(res.data); setBingePage(0) })
       .catch(() => setBingeStats(null))
   }, [id, bingeDays])
 
   useEffect(() => {
     if (!id) return
-    api.get(`/stats/getWatchHeatmap?days=0&userId=${id}`)
+    api.get(`/stats/getWatchHeatmap?${daysToRange(0)}&userId=${id}`)
       .then((res) => setWatchHeatmap(res.data))
       .catch(() => setWatchHeatmap(null))
   }, [id])
 
   useEffect(() => {
     if (!id) return
-    api.get(`/stats/getViewingDiversity?days=0&userId=${id}`)
+    api.get(`/stats/getViewingDiversity?${daysToRange(0)}&userId=${id}`)
       .then((res) => setDiversity(res.data))
       .catch(() => setDiversity(null))
   }, [id])

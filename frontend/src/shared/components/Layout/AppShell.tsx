@@ -11,6 +11,7 @@ import SidebarContent from './Sidebar'
 import UserMenu from './UserMenu'
 import { useThemeMode } from '@/lib/ThemeModeContext'
 import FirstRunDialog from '@/shared/components/FirstRunDialog'
+import TimeRangePicker from '@/shared/components/TimeRangePicker/TimeRangePicker'
 
 const DRAWER_WIDTH = 240
 
@@ -70,6 +71,9 @@ export default function AppShell() {
             </IconButton>
           </Collapse>
           <Box sx={{ flexGrow: 1 }} />
+          <Box sx={{ mr: 1.5, display: { xs: 'none', sm: 'flex' } }}>
+            <TimeRangePicker />
+          </Box>
           <Tooltip title={mode === 'dark' ? t('theme.lightMode') : t('theme.darkMode')} enterDelay={500}>
             <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
               {mode === 'dark'
