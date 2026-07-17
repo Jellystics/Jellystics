@@ -3813,7 +3813,7 @@ func (h *StatsFrontendHandler) GetViewingDiversity(c *gin.Context) {
 	dateFilter := ""
 	dateArgs := []interface{}{}
 	if !tr.AllTime {
-		dateFilter = `AND a."ActivityDateInserted" BETWEEN ? AND ?`
+		dateFilter = `AND a."ActivityDateInserted"::timestamptz BETWEEN ? AND ?`
 		dateArgs = append(dateArgs, tr.From, tr.To)
 	}
 
