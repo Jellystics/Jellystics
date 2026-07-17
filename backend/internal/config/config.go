@@ -14,6 +14,7 @@ type Config struct {
 	JFHost           string
 	JFApiKey         string
 	DisableDashboard bool
+	MetricsAPIKey    string
 }
 
 func Load() (*Config, error) {
@@ -42,6 +43,7 @@ func Load() (*Config, error) {
 		JFHost:           os.Getenv("JF_HOST"),
 		JFApiKey:         os.Getenv("JF_API_KEY"),
 		DisableDashboard: os.Getenv("DISABLE_DASHBOARD") == "true",
+		MetricsAPIKey:    os.Getenv("METRICS_API_KEY"),
 	}, nil
 }
 

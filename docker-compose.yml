@@ -41,6 +41,7 @@ services:
       POSTGRES_PORT: 5432
       JWT_SECRET: "my-secret-jwt-key"
       TZ: mytimezone # timezone (ex: Europe/Paris)
+      # METRICS_API_KEY: "your-api-key" # pre-seeds a key for /metrics (useful with DISABLE_DASHBOARD=true)
     volumes:
       - jellystics-backup-data:/app/data
     ports:

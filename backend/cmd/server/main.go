@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
@@ -45,6 +46,34 @@ func main() {
 	hub := ws.NewHub()
 	jfClient := jellyfin.NewClient(cfg.JFHost, cfg.JFApiKey)
 	repos := repository.New(db)
+
+	// Seed METRICS_API_KEY into app_config if provided (required for headless mode).
+	if cfg.MetricsAPIKey != "" {
+		if appCfg, err := repos.Config.Get(context.Background()); err == nil {
+			var keys []map[string]string
+			if len(appCfg.ApiKeys) > 0 {
+				_ = json.Unmarshal(appCfg.ApiKeys, &keys)
+			}
+			exists := false
+			for _, k := range keys {
+				if k["key"] == cfg.MetricsAPIKey {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				keys = append(keys, map[string]string{"key": cfg.MetricsAPIKey, "name": "metrics"})
+				if raw, err := json.Marshal(keys); err == nil {
+					appCfg.ApiKeys = raw
+					if err := repos.Config.Save(context.Background(), appCfg); err != nil {
+						log.Printf("warning: could not seed METRICS_API_KEY: %v", err)
+					} else {
+						log.Println("METRICS_API_KEY seeded into app_config")
+					}
+				}
+			}
+		}
+	}
 
 	syncSvc := syncsvc.New(repos, jfClient, hub)
 	taskSvc := tasksvc.New(repos, hub)
