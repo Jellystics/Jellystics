@@ -95,10 +95,14 @@ func main() {
 
 	r := router.New(svcs, repos, hub, db, cfg, sched)
 
-	// Serve embedded SPA (production)
-	webFS, err := fs.Sub(assets.Web, "web")
-	if err == nil {
-		r.NoRoute(spaHandler(webFS))
+	// Serve embedded SPA (production) — disabled when DISABLE_DASHBOARD=true
+	if !cfg.DisableDashboard {
+		webFS, err := fs.Sub(assets.Web, "web")
+		if err == nil {
+			r.NoRoute(spaHandler(webFS))
+		}
+	} else {
+		log.Println("Dashboard disabled (DISABLE_DASHBOARD=true) — running as metrics exporter only")
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

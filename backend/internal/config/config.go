@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	Port      string
-	DBUrl     string
-	JWTSecret string
-	JFHost    string
-	JFApiKey  string
+	Port             string
+	DBUrl            string
+	JWTSecret        string
+	JFHost           string
+	JFApiKey         string
+	DisableDashboard bool
 }
 
 func Load() (*Config, error) {
@@ -35,11 +36,12 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:      getEnv("PORT", "3000"),
-		DBUrl:     dbUrl,
-		JWTSecret: secret,
-		JFHost:   os.Getenv("JF_HOST"),
-		JFApiKey: os.Getenv("JF_API_KEY"),
+		Port:             getEnv("PORT", "3000"),
+		DBUrl:            dbUrl,
+		JWTSecret:        secret,
+		JFHost:           os.Getenv("JF_HOST"),
+		JFApiKey:         os.Getenv("JF_API_KEY"),
+		DisableDashboard: os.Getenv("DISABLE_DASHBOARD") == "true",
 	}, nil
 }
 
