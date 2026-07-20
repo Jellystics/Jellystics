@@ -3570,6 +3570,7 @@ WITH episode_plays AS (
          ) AS prev_played_at
   FROM jf_playback_activity
   WHERE "EpisodeId" IS NOT NULL AND "EpisodeId" != ''
+    AND EXISTS (SELECT 1 FROM jf_library_episodes e WHERE e."Id" = jf_playback_activity."EpisodeId")
     %s %s
 ),
 session_markers AS (
