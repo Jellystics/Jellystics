@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import socket from '@/lib/socket'
 import {
-  Box, AppBar, Toolbar, IconButton, Drawer, Container,
+  Box, AppBar, Toolbar, IconButton, Drawer,
   useTheme, useMediaQuery, Collapse, Tooltip,
 } from '@mui/material'
 import { Navigation24Regular, WeatherMoon24Regular, WeatherSunny24Regular } from '@fluentui/react-icons'
@@ -153,9 +153,9 @@ export default function AppShell() {
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: { md: 1 } }}>
         <Box sx={{ flexGrow: 1, overflow: 'hidden', borderRadius: { md: 3 }, border: { md: '1px solid' }, borderColor: { md: 'divider' } }}>
           <Box id="page-scroll-container" sx={{ flexGrow: 1, overflow: 'auto', height: '100%', bgcolor: 'background.paper', py: 4, scrollbarGutter: 'stable' }}>
-            <Container maxWidth="xl">
+            <Box sx={{ width: '100%', px: { xs: 2, sm: 3 } }}>
               <Outlet />
-            </Container>
+            </Box>
           </Box>
         </Box>
       </Box>
